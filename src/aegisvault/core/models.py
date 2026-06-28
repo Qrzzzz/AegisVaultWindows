@@ -16,6 +16,8 @@ class ProgressEvent:
     percent: float
     stage: str
     detail: str = ""
+    processed_bytes: int | None = None
+    total_bytes: int | None = None
 
 
 ProgressCallback = Callable[[ProgressEvent], None]

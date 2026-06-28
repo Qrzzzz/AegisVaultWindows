@@ -11,7 +11,7 @@ from typing import Any
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from aegisvault.core.exceptions import AuthenticationError, OperationCancelled, ProtocolError
+from aegisvault.core.exceptions import AuthenticationError, OperationCancelled, ProtocolError, ValidationError
 from aegisvault.core.kdf import ScryptParams, derive_key, make_scrypt_params, params_from_header, params_to_header
 from aegisvault.core.legacy import decrypt_legacy_text
 from aegisvault.core.models import (
@@ -48,9 +48,17 @@ from aegisvault.services.file_io import atomic_binary_writer, file_size
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
 
-def _emit(progress: ProgressCallback | None, percent: float, stage: str, detail: str = "") -> None:
+def _emit(
+    progress: ProgressCallback | None,
+    percent: float,
+    stage: str,
+    detail: str = "",
+    *,
+    processed_bytes: int | None = None,
+    total_bytes: int | None = None,
+) -> None:
     if progress:
-        progress(ProgressEvent(max(0.0, min(1.0, percent)), stage, detail))
+        progress(ProgressEvent(max(0.0, min(1.0, percent)), stage, detail, processed_bytes, total_bytes))
 
 
 def _check_cancel(cancel_token: CancelToken | None) -> None:
@@ -72,6 +80,7 @@ def _unb64(value: str, *, field: str) -> bytes:
 def encrypt_text(plaintext: str, password: str, *, kdf_params: ScryptParams | None = None) -> TextEncryptResult:
     """Encrypt UTF-8 text into an ``AGV1.`` token."""
 
+    _require_password(password)
     params = kdf_params or make_scrypt_params()
     nonce = os.urandom(12)
     header: dict[str, Any] = {
@@ -92,6 +101,7 @@ def encrypt_text(plaintext: str, password: str, *, kdf_params: ScryptParams | No
 def decrypt_text(token: str, password: str) -> TextDecryptResult:
     """Decrypt a modern ``AGV1.`` text token."""
 
+    _require_password(password)
     header, header_bytes, ciphertext = unpack_envelope(TEXT_MAGIC, decode_token(token.strip()))
     validate_common_header(header, kind="text")
     nonce = _unb64(str(header.get("nonce", "")), field="nonce")
@@ -135,6 +145,7 @@ def encrypt_file(
 
     input_path = input_path.expanduser().resolve()
     output_path = output_path.expanduser().resolve()
+    _require_password(password)
     original_size = file_size(input_path)
     chunk_size = validate_chunk_size(chunk_size)
     params = kdf_params or make_scrypt_params()
@@ -156,7 +167,7 @@ def encrypt_file(
     aesgcm = AESGCM(derive_key(password, params))
     bytes_read = 0
 
-    _emit(progress, 0.02, "preparing", input_path.name)
+    _emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
     with input_path.open("rb") as source, atomic_binary_writer(output_path, overwrite=overwrite) as target:
         header_bytes = write_file_header(target, header)
         digest = header_digest(header_bytes)
@@ -168,7 +179,7 @@ def encrypt_file(
             ciphertext = aesgcm.encrypt(chunk_nonce(nonce_prefix, index), b"", chunk_aad(digest, index, FLAG_LAST_CHUNK))
             target.write(CHUNK_RECORD.pack(FLAG_LAST_CHUNK, len(ciphertext)))
             target.write(ciphertext)
-            _emit(progress, 0.95, "encrypting", input_path.name)
+            _emit(progress, 0.95, "encrypting", input_path.name, processed_bytes=0, total_bytes=original_size)
         else:
             while True:
                 _check_cancel(cancel_token)
@@ -178,13 +189,20 @@ def encrypt_file(
                 target.write(CHUNK_RECORD.pack(flags, len(ciphertext)))
                 target.write(ciphertext)
                 bytes_read += len(chunk)
-                _emit(progress, 0.05 + 0.9 * (bytes_read / max(original_size, 1)), "encrypting", input_path.name)
+                _emit(
+                    progress,
+                    0.05 + 0.9 * (bytes_read / max(original_size, 1)),
+                    "encrypting",
+                    input_path.name,
+                    processed_bytes=bytes_read,
+                    total_bytes=original_size,
+                )
                 if flags & FLAG_LAST_CHUNK:
                     break
                 chunk = next_chunk
                 index += 1
 
-    _emit(progress, 1.0, "done", output_path.name)
+    _emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
     return FileProcessResult(input_path, output_path, original_size, file_size(output_path), "aegisvault-v1")
 
 
@@ -201,8 +219,9 @@ def decrypt_file(
 
     input_path = input_path.expanduser().resolve()
     output_path = output_path.expanduser().resolve()
+    _require_password(password)
     encrypted_size = file_size(input_path)
-    _emit(progress, 0.02, "preparing", input_path.name)
+    _emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=encrypted_size)
 
     with input_path.open("rb") as source:
         header, header_bytes = read_file_header(source)
@@ -233,7 +252,14 @@ def decrypt_file(
                 except InvalidTag as exc:
                     raise AuthenticationError("Authentication failed.", code="crypto.authentication_failed") from exc
                 target.write(plaintext)
-                _emit(progress, 0.05 + 0.9 * (source.tell() / max(encrypted_size, 1)), "decrypting", input_path.name)
+                _emit(
+                    progress,
+                    0.05 + 0.9 * (source.tell() / max(encrypted_size, 1)),
+                    "decrypting",
+                    input_path.name,
+                    processed_bytes=source.tell(),
+                    total_bytes=encrypted_size,
+                )
                 if flags & FLAG_LAST_CHUNK:
                     found_last = True
                     trailing = source.read(1)
@@ -244,7 +270,7 @@ def decrypt_file(
             if not found_last:
                 raise ProtocolError("Missing final chunk.", code="crypto.truncated")
 
-    _emit(progress, 1.0, "done", output_path.name)
+    _emit(progress, 1.0, "done", output_path.name, processed_bytes=encrypted_size, total_bytes=encrypted_size)
     return FileProcessResult(input_path, output_path, encrypted_size, file_size(output_path), "aegisvault-v1")
 
 
@@ -257,3 +283,8 @@ def _expect_dict(value: Any, field: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ProtocolError(f"Header field is not an object: {field}", code="crypto.invalid_header")
     return value
+
+
+def _require_password(password: str) -> None:
+    if not isinstance(password, str) or password == "":
+        raise ValidationError("Password is required.", code="validation.password_required")

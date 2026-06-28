@@ -6,18 +6,25 @@ from pathlib import Path
 
 from aegisvault.core import base64_tools
 from aegisvault.core.crypto import decrypt_file, decrypt_text_auto, encrypt_file, encrypt_text, is_modern_file
-from aegisvault.core.exceptions import AuthenticationError, CompatibilityError, FileIOError, OperationCancelled
+from aegisvault.core.exceptions import (
+    AuthenticationError,
+    CompatibilityError,
+    FileIOError,
+    OperationCancelled,
+    ValidationError,
+)
 from aegisvault.core.legacy import LEGACY_FILE_MAX_BYTES, decrypt_legacy_bytes, is_ak_token
 from aegisvault.core.models import (
     CancelToken,
     FileProcessResult,
-        ProgressCallback,
-        ProgressEvent,
-        TextDecryptResult,
-        TextEncryptResult,
+    ProgressCallback,
+    ProgressEvent,
+    TextDecryptResult,
+    TextEncryptResult,
 )
 from aegisvault.services.file_io import (
     atomic_binary_writer,
+    base64_decoded_output_path,
     base64_encoded_output_path,
     decrypted_output_path,
     encrypted_output_path,
@@ -34,11 +41,14 @@ class CryptoService:
         self.settings = settings
 
     def encrypt_text(self, plaintext: str, password: str) -> TextEncryptResult:
+        self._require_password(password)
         return encrypt_text(plaintext, password)
 
     def decrypt_text(self, ciphertext: str, password: str | None = None) -> TextDecryptResult:
         if is_ak_token(ciphertext.strip()) and not self.settings.allow_ak_compatibility:
             raise CompatibilityError("AK compatibility parsing is disabled.", code="legacy.ak_disabled")
+        if not is_ak_token(ciphertext.strip()):
+            self._require_password(password)
         return decrypt_text_auto(ciphertext, password, allow_legacy=True)
 
     def encrypt_file(
@@ -50,6 +60,7 @@ class CryptoService:
         progress: ProgressCallback | None = None,
         cancel_token: CancelToken | None = None,
     ) -> FileProcessResult:
+        self._require_password(password)
         input_path = ensure_input_file(input_path)
         out_dir = self._output_dir(output_dir)
         output_path = encrypted_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
@@ -71,6 +82,7 @@ class CryptoService:
         progress: ProgressCallback | None = None,
         cancel_token: CancelToken | None = None,
     ) -> FileProcessResult:
+        self._require_password(password)
         input_path = ensure_input_file(input_path)
         out_dir = self._output_dir(output_dir)
         output_path = decrypted_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
@@ -111,8 +123,8 @@ class CryptoService:
     def base64_encode_text(self, text: str) -> str:
         return base64_tools.encode_text(text)
 
-    def base64_decode_text(self, text: str) -> str:
-        return base64_tools.decode_text(text)
+    def base64_decode_text(self, text: str, *, strict: bool = True, ignore_ascii_whitespace: bool = False) -> str:
+        return base64_tools.decode_text(text, strict=strict, ignore_ascii_whitespace=ignore_ascii_whitespace)
 
     def base64_encode_file(
         self,
@@ -127,7 +139,7 @@ class CryptoService:
         output_path = base64_encoded_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
         original_size = file_size(input_path)
         processed = 0
-        self._emit(progress, 0.02, "preparing", input_path.name)
+        self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
         with input_path.open("rb") as source, atomic_binary_writer(output_path, overwrite=self.settings.overwrite_outputs) as target:
             remainder = b""
             while True:
@@ -141,10 +153,17 @@ class CryptoService:
                 if usable:
                     target.write(base64_tools.encode_bytes(chunk[:usable]))
                 remainder = chunk[usable:]
-                self._emit(progress, 0.05 + 0.9 * (processed / max(original_size, 1)), "encoding", input_path.name)
+                self._emit(
+                    progress,
+                    0.05 + 0.9 * (processed / max(original_size, 1)),
+                    "encoding",
+                    input_path.name,
+                    processed_bytes=processed,
+                    total_bytes=original_size,
+                )
             if remainder:
                 target.write(base64_tools.encode_bytes(remainder))
-        self._emit(progress, 1.0, "done", output_path.name)
+        self._emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
         return FileProcessResult(input_path, output_path, original_size, file_size(output_path), "base64")
 
     def base64_decode_file(
@@ -157,10 +176,10 @@ class CryptoService:
     ) -> FileProcessResult:
         input_path = ensure_input_file(input_path)
         out_dir = self._output_dir(output_dir)
-        output_path = decrypted_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
+        output_path = base64_decoded_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
         original_size = file_size(input_path)
         processed = 0
-        self._emit(progress, 0.02, "preparing", input_path.name)
+        self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
         with input_path.open("rb") as source, atomic_binary_writer(output_path, overwrite=self.settings.overwrite_outputs) as target:
             buffer = b""
             while True:
@@ -169,15 +188,28 @@ class CryptoService:
                 if not chunk:
                     break
                 processed += len(chunk)
-                buffer += chunk.replace(b"\r", b"").replace(b"\n", b"")
+                buffer += chunk
                 usable = (len(buffer) // 4) * 4
                 if usable > 4:
-                    target.write(base64_tools.decode_bytes(buffer[: usable - 4]))
+                    target.write(
+                        base64_tools.decode_bytes(
+                            buffer[: usable - 4],
+                            strict=False,
+                            ignore_ascii_whitespace=True,
+                        )
+                    )
                     buffer = buffer[usable - 4 :]
-                self._emit(progress, 0.05 + 0.9 * (processed / max(original_size, 1)), "decoding", input_path.name)
+                self._emit(
+                    progress,
+                    0.05 + 0.9 * (processed / max(original_size, 1)),
+                    "decoding",
+                    input_path.name,
+                    processed_bytes=processed,
+                    total_bytes=original_size,
+                )
             if buffer:
-                target.write(base64_tools.decode_bytes(buffer))
-        self._emit(progress, 1.0, "done", output_path.name)
+                target.write(base64_tools.decode_bytes(buffer, strict=False, ignore_ascii_whitespace=True))
+        self._emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
         return FileProcessResult(input_path, output_path, original_size, file_size(output_path), "base64")
 
     def _output_dir(self, override: Path | None = None) -> Path | None:
@@ -193,10 +225,23 @@ class CryptoService:
             raise FileIOError(f"Output directory is not available: {directory}", code="file.output_dir_invalid")
         return directory
 
-    def _emit(self, progress: ProgressCallback | None, percent: float, stage: str, detail: str = "") -> None:
+    def _emit(
+        self,
+        progress: ProgressCallback | None,
+        percent: float,
+        stage: str,
+        detail: str = "",
+        *,
+        processed_bytes: int | None = None,
+        total_bytes: int | None = None,
+    ) -> None:
         if progress:
-            progress(ProgressEvent(max(0.0, min(1.0, percent)), stage, detail))
+            progress(ProgressEvent(max(0.0, min(1.0, percent)), stage, detail, processed_bytes, total_bytes))
 
     def _check_cancel(self, cancel_token: CancelToken | None) -> None:
         if cancel_token and cancel_token.cancelled:
             raise OperationCancelled("Operation was cancelled.", code="operation.cancelled")
+
+    def _require_password(self, password: str | None) -> None:
+        if not isinstance(password, str) or password == "":
+            raise ValidationError("Password is required.", code="validation.password_required")

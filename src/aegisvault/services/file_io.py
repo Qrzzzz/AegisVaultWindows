@@ -60,6 +60,17 @@ def base64_encoded_output_path(input_path: Path, output_dir: Path | None = None,
     return candidate if overwrite else unique_path(candidate)
 
 
+def base64_decoded_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
+    base_dir = output_dir or input_path.parent
+    name = input_path.name
+    if name.lower().endswith(".b64"):
+        candidate_name = name.rsplit(".", 1)[0]
+    else:
+        candidate_name = f"{input_path.stem}.base64-decoded{input_path.suffix}"
+    candidate = base_dir / candidate_name
+    return candidate if overwrite else unique_path(candidate)
+
+
 def decrypted_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
     base_dir = output_dir or input_path.parent
     name = input_path.name
@@ -120,4 +131,3 @@ def reveal_file(path: Path) -> None:
             subprocess.Popen(["xdg-open", str(target.parent)])
     except OSError as exc:
         raise FileIOError(f"Could not open file manager: {target}", code="file.reveal_failed") from exc
-
