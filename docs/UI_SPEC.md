@@ -1,35 +1,62 @@
 # UI Specification
 
-AegisVault uses a PySide6 desktop UI with a left navigation rail and stacked pages.
+Target version: `0.4.0-alpha`.
 
-## Pages
+## Shell
 
-- Text Crypto: encrypts and decrypts `AGV1.` text tokens and legacy recovery text.
-- File Crypto: encrypts files to `.agv` and decrypts modern or supported legacy files.
-- Base64: keeps text and file Base64 workflows separate from encryption.
-- Settings: stores language, theme, output directory, overwrite behavior, recent files and legacy compatibility toggles.
-- About: states version and security boundaries.
+- `AppShell` owns the left `Sidebar`, right `Workspace`, top `PageHeader` and bottom `StatusArea`.
+- Pages do not own their title block. Page title and description are controlled by the shell.
+- The default visual style is a restrained dark Windows tool surface: flat dark panels, 8 px cards, consistent borders, no full-page gradients and no one-card control dumps.
 
-## Visual Style
+## Design System
 
-The default theme is dark, with a light option and a system option. The UI uses layered surfaces, restrained borders, clear spacing, primary/secondary button hierarchy, red error states and blue/green success states.
+- Tokens live in `src/aegisvault/ui/design/tokens.py`.
+- Spacing lives in `src/aegisvault/ui/design/spacing.py`.
+- Stylesheet generation lives in `src/aegisvault/ui/design/theme.py`.
+- Reusable widgets live under `src/aegisvault/ui/components/`.
 
-Base64 copy must clearly state that Base64 is encoding, not encryption.
+Standard components:
 
-## Long Tasks
+- `AppShell`, `Sidebar`, `PageHeader`
+- `Card`, `FormRow`, `SegmentedControl`
+- `PasswordInput`, `FilePickerCard`, `OutputPreview`
+- `InlineAlert`, `TaskProgress`, `ResultSummary`, `ActionBar`
 
-File encryption, file decryption, Base64 file encoding and Base64 file decoding run through worker objects. The UI displays the current stage, progress, cancellation state, output path and readable failure details.
+## Text Crypto
 
-Stages use stable labels:
+- Uses an Encrypt / Decrypt segmented control.
+- Input is on the left, output is on the right.
+- Password controls are isolated above the text workspace.
+- Encrypt mode shows password and confirm password.
+- Decrypt mode shows only password.
+- Output supports Copy, Clear and Swap.
+- Normal validation and operation errors appear in `InlineAlert`.
 
-- Preparing
-- Encrypting
-- Decrypting
-- Encoding
-- Decoding
-- Writing output
-- Done
+## File Crypto
 
-## Accessibility Baseline
+- Step 1: select file.
+- Step 2: choose Encrypt or Decrypt.
+- Step 3: enter password and review output directory/path preview.
+- Step 4: execute, cancel and review result.
+- File metadata includes path, size, type and output previews.
+- Progress displays stage, percent and processed size when available.
 
-Controls use readable labels, visible disabled states and high-contrast focus/selection colors. Password fields hide input by default and expose a show/hide control.
+## Base64
+
+- Header copy states: Base64 is encoding, not encryption.
+- Text Base64 and File Base64 are separate tabs.
+- Text supports encode, decode, copy, clear and swap.
+- Strict text decode rejects whitespace unless relaxed decode is enabled.
+- File supports encode, decode, progress, cancel and open output.
+
+## Settings
+
+Settings are grouped into General, Output, Legacy recovery and Recent files:
+
+- Theme
+- Language
+- Output directory
+- Overwrite behavior
+- Recent files
+- Legacy recovery visibility
+- AK compatibility, default off, with risk warning
