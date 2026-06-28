@@ -1,6 +1,6 @@
 # Migration Notes
 
-AegisVault AES 0.2.0-alpha is a rebuild of the legacy AES Encryption System v2.0 script. The legacy script is archived at `docs/legacy/legacy_aes_v2.py` for reference only.
+AegisVault 0.3.0-alpha is a rebuild of the legacy AES Encryption System v2.0 script. The legacy script is archived at `docs/legacy/legacy_aes_v2.py` for reference only.
 
 ## Legacy Format Detection
 
@@ -32,4 +32,3 @@ AK wrappers store the key next to the ciphertext. Anyone who receives the wrappe
 ## Large Legacy Files
 
 Legacy file recovery is guarded by a size threshold. The old raw format cannot be safely authenticated in true streaming mode with the high-level legacy API, so very large files need a staged recovery plan.
-

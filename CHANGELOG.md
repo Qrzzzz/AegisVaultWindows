@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-alpha - 2026-06-28
+
+- Verified editable installation, runtime smoke, linting, typing and tests on Python 3.13.
+- Promoted the project positioning to AegisVault as a local Windows encryption and Base64 utility.
+- Added protocol, security model and UI specification docs for the AGV1 text token, chunked `.agv` file container, threat boundaries and desktop layout.
+- Hardened the Windows packaging script and PyInstaller spec so builds resolve paths from the repository root and include resources, locale JSON and QSS files.
+- Added resource QSS files and screenshot placeholder folders expected by the release layout.
+
 ## 0.2.0-alpha - 2026-04-28
 
 - Moved the releasable repository into the ASCII-friendly `aegisvault-desktop` root.
@@ -19,4 +27,3 @@
 - Added scrypt password derivation.
 - Added legacy text/file/AK compatibility decryption.
 - Added settings, JSON i18n, tests, CI, packaging script and MIT license.
-

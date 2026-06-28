@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-AegisVault is currently `0.2.0-alpha`. Security fixes target the latest `main` branch until stable releases are created.
+AegisVault is currently `0.3.0-alpha`. Security fixes target the latest `main` branch until stable releases are created.
 
 ## Reporting A Vulnerability
 
@@ -26,4 +26,3 @@ AegisVault does not protect against:
 Legacy formats are recovery-only. The old app derived AES keys with `sha256(password)` directly, which is weaker than the new scrypt KDF.
 
 The `AK#key#ciphertext` wrapper is especially risky because the decryption key is embedded in the ciphertext. AegisVault keeps AK parsing disabled by default and labels it as migration-only compatibility.
-

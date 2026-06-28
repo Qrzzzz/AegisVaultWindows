@@ -1,0 +1,1 @@
+Screenshots for release notes and README can be added here after the first packaged 0.3.0-alpha build is published.

@@ -1,12 +1,12 @@
-# AegisVault AES
+# AegisVault
 
-AegisVault AES is a Windows-first desktop encryption app rebuilt from the legacy `AES Encryption System v2.0` script. The 0.2.0-alpha line keeps the legacy recovery path, but the product architecture is now a PySide6 `src/` layout with a documented protocol, tests, CI, settings, packaging files and an MIT license.
+AegisVault is a local Windows desktop tool for text encryption, file encryption, Base64 encoding and legacy encrypted-data recovery. The 0.3.0-alpha line keeps the legacy recovery path, but the product architecture is now a PySide6 `src/` layout with a documented protocol, tests, CI, settings, packaging files and an MIT license.
 
 The legacy reference script is archived at `docs/legacy/legacy_aes_v2.py`; it is excluded from linting and type checking.
 
 ## Project Positioning
 
-AegisVault is intended for local, password-based encryption of text snippets and files. It is not a password manager, cloud sync product, or enterprise key-management system.
+AegisVault is intended for local, password-based encryption of text snippets and files. It is not a password manager, cloud sync product, enterprise key-management system, malware defense tool, screen-recording defense tool, clipboard-monitoring defense tool, physical-access defense tool, or data-recovery tool.
 
 ## Features
 
@@ -94,16 +94,18 @@ The test suite covers modern text and file roundtrips, multi-chunk and empty fil
 .\scripts\build_windows.ps1 -Clean
 ```
 
-The build script uses `scripts/aegisvault.spec`, which includes:
+The build script uses the active virtual environment when one is available, otherwise it uses `.venv\Scripts\python.exe`. It uses `scripts/aegisvault.spec`, which includes:
 
 - `src/aegisvault/resources/app_icon.ico`
 - `src/aegisvault/i18n/locales/*.json`
+- `src/aegisvault/resources/qss/*.qss`
 
 The package output is `dist/AegisVault/`.
 
 Common packaging failures:
 
 - PyInstaller is not installed: run `python -m pip install -e ".[dev]"`.
+- No virtual environment is available: create `.venv` or activate the environment you want to package from.
 - Running outside the repository root: launch the script from `aegisvault-desktop`.
 - Missing icon or translation files: verify the `src/aegisvault/resources` and `src/aegisvault/i18n/locales` folders exist.
 - Antivirus locking the output folder: remove `dist/` or use `-Clean`.
@@ -142,4 +144,3 @@ See `CONTRIBUTING.md`. Security-sensitive changes should include tests and updat
 ## License
 
 MIT. See `LICENSE`.
-

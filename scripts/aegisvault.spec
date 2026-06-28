@@ -14,11 +14,15 @@ a = Analysis(
     pathex=[str(ROOT / "src")],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=[
+        "PySide6.QtCore",
+        "PySide6.QtGui",
+        "PySide6.QtWidgets",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["tests"],
     noarchive=False,
     optimize=0,
 )

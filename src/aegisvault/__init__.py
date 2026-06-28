@@ -4,5 +4,5 @@ from __future__ import annotations
 
 __app_name__ = "AegisVault"
 __legacy_name__ = "AES Encryption System"
-__version__ = "0.2.0-alpha"
+__version__ = "0.3.0-alpha"
 __license__ = "MIT"
