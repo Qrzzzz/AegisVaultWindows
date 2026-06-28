@@ -1,0 +1,5 @@
+/* Packaged light theme reference. Runtime styles are generated in ui/styles.py. */
+QMainWindow {
+  background: #eef2f7;
+  color: #111827;
+}
