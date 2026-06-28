@@ -67,7 +67,7 @@
  [],
  False,
  False,
- 1782646370,
+ 1782648482,
  [('runw.exe',
    'D:\\Projects\\产品与应用\\加密系统\\桌面版\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',
    'EXECUTABLE')],
