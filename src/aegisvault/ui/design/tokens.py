@@ -1,0 +1,33 @@
+"""Shared UI design tokens for the desktop shell."""
+
+from __future__ import annotations
+
+FONT_FAMILY = '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif'
+
+FONT_SIZE_BODY = 13
+FONT_SIZE_SMALL = 12
+FONT_SIZE_TITLE = 22
+FONT_SIZE_SECTION = 16
+
+BUTTON_HEIGHT = 36
+INPUT_HEIGHT = 36
+SIDEBAR_WIDTH = 236
+
+RADIUS_CARD = 8
+RADIUS_CONTROL = 6
+
+BORDER_DARK = "#2b3444"
+BORDER_LIGHT = "#cbd5e1"
+
+SURFACE_DARK_RAISED = "#171f2b"
+SURFACE_DARK_INSET = "#0d121a"
+SURFACE_LIGHT = "#ffffff"
+SURFACE_LIGHT_INSET = "#f1f5f9"
+
+TEXT_DARK = "#e5edf7"
+TEXT_DARK_MUTED = "#93a4b8"
+TEXT_LIGHT = "#111827"
+TEXT_LIGHT_MUTED = "#64748b"
+
+ACCENT = "#4f8cff"
+ACCENT_HOVER = "#76a7ff"

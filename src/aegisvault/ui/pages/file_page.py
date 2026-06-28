@@ -1,11 +1,11 @@
-﻿"""File encryption workspace."""
+"""File encryption workspace."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QHBoxLayout, QProgressBar, QPushButton, QWidget
+from PySide6.QtWidgets import QGridLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from aegisvault.core.exceptions import ValidationError
 from aegisvault.core.models import FileProcessResult, ProgressEvent, TaskState
@@ -13,13 +13,18 @@ from aegisvault.i18n.translator import Translator
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.services.file_io import decrypted_output_path, encrypted_output_path
 from aegisvault.settings.models import AppSettings
-from aegisvault.ui.components.file_drop_zone import FileDropZone
-from aegisvault.ui.components.glass_card import GlassCard
-from aegisvault.ui.components.password_field import PasswordField
-from aegisvault.ui.components.result_panel import ResultPanel
-from aegisvault.ui.components.status_badge import StatusBadge
+from aegisvault.ui.components.action_bar import ActionBar
+from aegisvault.ui.components.card import Card
+from aegisvault.ui.components.file_picker_card import FilePickerCard
+from aegisvault.ui.components.form_row import FormRow
+from aegisvault.ui.components.inline_alert import InlineAlert
+from aegisvault.ui.components.password_input import PasswordInput
+from aegisvault.ui.components.result_summary import ResultSummary
+from aegisvault.ui.components.segmented_control import SegmentedControl
+from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
-from aegisvault.ui.pages.common import format_size, muted, page_header, safe_stat_size, scroll_page
+from aegisvault.ui.design import spacing
+from aegisvault.ui.pages.common import format_size, safe_stat_size, scroll_page
 
 
 class FilePage(QWidget):
@@ -37,56 +42,71 @@ class FilePage(QWidget):
         self.controller = TaskController(self)
         self.controller.progress_changed.connect(self._on_progress)
         self.controller.succeeded.connect(self._on_success)
-        self.controller.failed.connect(self.error.emit)
+        self.controller.failed.connect(self._on_failed)
         self.controller.cancelled.connect(self._on_cancelled)
         self.controller.state_changed.connect(self._on_state)
 
-        scroll, layout = scroll_page()
-        outer = QHBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
-        layout.addWidget(page_header(self.i18n.t("file.title"), self.i18n.t("file.description")))
-        card = GlassCard()
-        self.password = PasswordField(
+        self.alert = InlineAlert()
+        self.picker = FilePickerCard(self.i18n.t("action.select_file"), self.i18n.t("file.no_file"), self.i18n.t("file.drop_hint"))
+        self.picker.file_selected.connect(self.set_file)
+        self.mode = SegmentedControl(
+            [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
+            "encrypt",
+        )
+        self.mode.changed.connect(lambda _mode: self._refresh_preview())
+        self.password = PasswordInput(
             self.i18n.t("field.password"),
             self.i18n.t("field.password.placeholder"),
             self.i18n.t("action.show"),
             self.i18n.t("action.hide"),
         )
-        self.drop_zone = FileDropZone(self.i18n.t("action.select_file"), self.i18n.t("file.no_file"), self.i18n.t("file.drop_hint"))
-        self.drop_zone.file_selected.connect(self.set_file)
-        self.badge = StatusBadge(self.i18n.t("status.ready"))
-        self.progress = QProgressBar()
-        self.progress.setValue(0)
-        self.encrypt_button = self._button("action.encrypt", primary=True)
-        self.decrypt_button = self._button("action.decrypt")
-        self.cancel_button = self._button("action.cancel")
-        self.cancel_button.setObjectName("Danger")
-        self.cancel_button.setEnabled(False)
-        self.encrypt_button.clicked.connect(self.encrypt)
-        self.decrypt_button.clicked.connect(self.decrypt)
-        self.cancel_button.clicked.connect(self.controller.cancel)
-        buttons = QHBoxLayout()
-        buttons.addWidget(self.encrypt_button)
-        buttons.addWidget(self.decrypt_button)
-        buttons.addWidget(self.cancel_button)
-        buttons.addStretch(1)
-        self.result = ResultPanel(self.i18n.t("action.copy"), self.i18n.t("action.open_output"), self.i18n.t("action.clear"))
+        self.output_dir = QLineEdit()
+        self.output_dir.setReadOnly(True)
+        self.output_preview = QLabel("")
+        self.output_preview.setObjectName("Muted")
+        self.output_preview.setWordWrap(True)
+        self.run_button = QPushButton("Run")
+        self.run_button.setObjectName("Primary")
+        self.run_button.clicked.connect(self.run_current)
+        self.progress = TaskProgress(self.i18n.t("action.cancel"))
+        self.progress.cancel_button.clicked.connect(self.controller.cancel)
+        self.result = ResultSummary(self.i18n.t("action.open_output"), self.i18n.t("action.clear"))
         self.result.reveal_requested.connect(self.reveal_requested.emit)
-        card.content_layout.addWidget(self.password)
-        card.content_layout.addWidget(self.drop_zone)
-        card.content_layout.addWidget(self.progress)
-        card.content_layout.addWidget(self.badge)
-        card.content_layout.addLayout(buttons)
-        card.content_layout.addWidget(muted(self.i18n.t("field.output")))
-        card.content_layout.addWidget(self.result)
-        layout.addWidget(card)
+
+        scroll, layout = scroll_page()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(spacing.LG)
+        grid.setVerticalSpacing(spacing.LG)
+        step1 = Card("Step 1: Select file")
+        step1.content_layout.addWidget(self.picker)
+        step2 = Card("Step 2: Choose operation")
+        step2.content_layout.addWidget(self.mode)
+        step3 = Card("Step 3: Password and output")
+        step3.content_layout.addWidget(self.password)
+        step3.content_layout.addWidget(FormRow(self.i18n.t("field.output_dir"), self.output_dir))
+        step3.content_layout.addWidget(self.output_preview)
+        step3.content_layout.addWidget(self.alert)
+        step4 = Card("Step 4: Execute and review")
+        step4.content_layout.addWidget(self.progress)
+        step4.content_layout.addWidget(ActionBar(self.run_button))
+        step4.content_layout.addWidget(self.result)
+        grid.addWidget(step1, 0, 0)
+        grid.addWidget(step2, 0, 1)
+        grid.addWidget(step3, 1, 0)
+        grid.addWidget(step4, 1, 1)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        layout.addLayout(grid)
         layout.addStretch(1)
+        self._refresh_preview()
 
     def set_service(self, service: CryptoService) -> None:
         self.service = service
-        if self.selected_file:
-            self.set_file(self.selected_file)
+        self._refresh_preview()
 
     def set_file(self, path: object) -> None:
         if not isinstance(path, (str, Path)):
@@ -96,8 +116,16 @@ class FilePage(QWidget):
             return
         self.selected_file = file_path
         self.file_selected.emit(file_path)
-        self.drop_zone.set_file(file_path, self._file_labels(file_path))
+        self.picker.set_file(file_path, self._file_labels(file_path))
         self.result.clear()
+        self._refresh_preview()
+
+    def run_current(self) -> None:
+        self.alert.clear()
+        if self.mode.current == "encrypt":
+            self.encrypt()
+        else:
+            self.decrypt()
 
     def encrypt(self) -> None:
         if not self._validate_ready():
@@ -121,15 +149,14 @@ class FilePage(QWidget):
 
     def _validate_ready(self) -> bool:
         if not self.selected_file:
-            self.error.emit(ValidationError("No file selected.", code="file.not_found"), "")
+            self.alert.show_error(self.i18n, ValidationError("No file selected.", code="file.not_found"))
             return False
         if not self.password.text():
-            self.error.emit(ValidationError("Password is required.", code="validation.password_required"), "")
+            self.alert.show_error(self.i18n, ValidationError("Password is required.", code="validation.password_required"))
             return False
         return True
 
     def _on_success(self, result: FileProcessResult) -> None:
-        self.progress.setValue(100)
         lines = [
             self.i18n.t("result.success"),
             self.i18n.t("result.output", path=str(result.output_path)),
@@ -137,54 +164,57 @@ class FilePage(QWidget):
             self.i18n.t("result.format", format=result.format_name),
         ]
         if result.compatibility_warning:
-            lines.append("")
             lines.append(self.i18n.t(f"warning.{result.compatibility_warning}"))
         self.result.set_result("\n".join(lines), result.output_path)
 
+    def _on_failed(self, exc: object, diagnostic: str) -> None:
+        self.alert.show_error(self.i18n, exc)
+        self.error.emit(exc, diagnostic)
+
     def _on_cancelled(self) -> None:
-        self.progress.setValue(0)
+        self.progress.reset()
         self.result.set_result(self.i18n.t("status.cancelled"))
 
     def _on_progress(self, event: object) -> None:
         if isinstance(event, ProgressEvent):
-            self.progress.setValue(round(event.percent * 100))
+            self.progress.set_event(event)
             self.status_message.emit(self.i18n.t(f"status.{event.stage}"), 1000)
 
     def _on_state(self, state: TaskState) -> None:
         busy = state in {TaskState.RUNNING, TaskState.CANCELLING}
-        self.encrypt_button.setEnabled(not busy)
-        self.decrypt_button.setEnabled(not busy)
-        self.cancel_button.setEnabled(busy)
-        self.drop_zone.select_button.setEnabled(not busy)
-        self.badge.set_state(state, self.i18n.t(f"status.{state.value}"))
+        self.run_button.setEnabled(not busy)
+        self.mode.setEnabled(not busy)
+        self.password.setEnabled(not busy)
+        self.picker.select_button.setEnabled(not busy)
+        self.progress.set_running(busy)
+        self.run_button.setText(self.i18n.t("action.encrypt" if self.mode.current == "encrypt" else "action.decrypt"))
+
+    def _refresh_preview(self) -> None:
+        path = self.selected_file
+        output_dir = self.settings.default_output_dir or (str(path.parent) if path else "")
+        self.output_dir.setText(output_dir)
+        self.run_button.setText(self.i18n.t("action.encrypt" if self.mode.current == "encrypt" else "action.decrypt"))
+        if path is None:
+            self.output_preview.setText("Output preview appears after file selection.")
+            return
+        self.output_preview.setText(f"Output preview: {self._preview_output(path)}")
+        self.picker.set_file(path, self._file_labels(path))
 
     def _file_labels(self, path: Path) -> dict[str, str]:
-        size = safe_stat_size(path)
-        output_dir = self.settings.default_output_dir or str(path.parent)
-        encrypted_preview = self._preview_output(path, encrypt=True)
-        decrypted_preview = self._preview_output(path, encrypt=False)
         return {
-            "name": self.i18n.t("file.selected", name=path.name),
-            "path": self.i18n.t("file.path", path=str(path)),
-            self.i18n.t("file.size_label"): format_size(size),
+            self.i18n.t("file.path"): str(path),
+            self.i18n.t("file.size_label"): format_size(safe_stat_size(path)),
             self.i18n.t("file.type_label"): path.suffix or self.i18n.t("file.type_unknown"),
-            self.i18n.t("file.encrypt_output_label"): encrypted_preview,
-            self.i18n.t("file.decrypt_output_label"): decrypted_preview,
-            self.i18n.t("file.output_dir_label"): output_dir,
+            "Encrypt output": self._preview_output(path, encrypt=True),
+            "Decrypt output": self._preview_output(path, encrypt=False),
         }
 
-    def _preview_output(self, path: Path, *, encrypt: bool) -> str:
+    def _preview_output(self, path: Path, *, encrypt: bool | None = None) -> str:
         try:
-            if encrypt:
-                return encrypted_output_path(path, Path(self.settings.default_output_dir) if self.settings.default_output_dir else None, overwrite=self.settings.overwrite_outputs).name
-            return decrypted_output_path(path, Path(self.settings.default_output_dir) if self.settings.default_output_dir else None, overwrite=self.settings.overwrite_outputs).name
+            output_dir = Path(self.settings.default_output_dir) if self.settings.default_output_dir else None
+            active_encrypt = self.mode.current == "encrypt" if encrypt is None else encrypt
+            if active_encrypt:
+                return str(encrypted_output_path(path, output_dir, overwrite=self.settings.overwrite_outputs))
+            return str(decrypted_output_path(path, output_dir, overwrite=self.settings.overwrite_outputs))
         except Exception:
             return self.i18n.t("file.output_unavailable")
-
-    def _button(self, key: str, *, primary: bool = False) -> QPushButton:
-        button = QPushButton(self.i18n.t(key))
-        if primary:
-            button.setObjectName("Primary")
-        return button
-
-
