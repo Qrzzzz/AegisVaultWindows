@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from aegisvault.version import DISPLAY_VERSION
+
 __app_name__ = "AegisVault"
 __legacy_name__ = "AES Encryption System"
-__version__ = "0.4.0-alpha"
+__version__ = DISPLAY_VERSION
 __license__ = "MIT"

@@ -57,7 +57,7 @@ try {
     Remove-Item -LiteralPath $BuildLog -Force -ErrorAction SilentlyContinue
 }
 
-$OutputPath = Join-Path $RepoRoot "dist\AegisVault\AegisVault.exe"
+$OutputPath = Join-Path $RepoRoot "dist\AegisVault.exe"
 if (-not (Test-Path $OutputPath)) {
     throw "Build completed but executable was not found at $OutputPath"
 }
