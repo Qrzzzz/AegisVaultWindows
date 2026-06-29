@@ -59,6 +59,10 @@ if ($Build) {
     Write-Host "== Build =="
     if ($Zip) {
         .\scripts\build_windows.ps1 -Clean -Zip
+        $ZipPath = Join-Path $RepoRoot "dist\AegisVault-v1.0.0-win64.zip"
+        if (-not (Test-Path $ZipPath)) {
+            throw "Expected release artifact missing: $ZipPath"
+        }
     } else {
         .\scripts\build_windows.ps1 -Clean
     }

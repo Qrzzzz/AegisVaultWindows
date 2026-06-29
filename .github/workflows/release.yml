@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  windows-artifact:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify and build
+        run: .\scripts\verify_release.ps1 -Build -Zip
+      - name: Upload artifact to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: AegisVault-v1.0.0-win64
+          path: dist/AegisVault-v1.0.0-win64.zip
+          if-no-files-found: error
+      - name: Attach artifact to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AegisVault-v1.0.0-win64.zip

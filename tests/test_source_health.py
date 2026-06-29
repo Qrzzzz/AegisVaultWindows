@@ -39,7 +39,17 @@ def test_ci_workflow_contains_expected_jobs() -> None:
     text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     assert "name: CI" in text
     assert "runs-on: windows-latest" in text
+    assert '["3.11", "3.12", "3.13"]' in text
     assert "python -m compileall src tests" in text
     assert "ruff check ." in text
     assert "mypy src" in text
     assert "pytest -vv" in text
+
+
+def test_release_workflow_builds_tagged_windows_artifact() -> None:
+    text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "name: Release" in text
+    assert "tags:" in text
+    assert "v*" in text
+    assert ".\\scripts\\verify_release.ps1 -Build -Zip" in text
+    assert "AegisVault-v1.0.0-win64.zip" in text

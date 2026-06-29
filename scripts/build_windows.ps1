@@ -1,5 +1,6 @@
 param(
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Zip
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,12 @@ if (-not (Test-Path $IconPath)) {
 }
 if (-not (Test-Path $LocalePath)) {
     throw "Missing locale directory: $LocalePath"
+}
+foreach ($LocaleName in @("en-US.json", "zh-CN.json")) {
+    $LocaleFile = Join-Path $LocalePath $LocaleName
+    if (-not (Test-Path $LocaleFile)) {
+        throw "Missing locale file: $LocaleFile"
+    }
 }
 
 if ($env:VIRTUAL_ENV) {
@@ -63,3 +70,20 @@ if (-not (Test-Path $OutputPath)) {
 }
 
 Write-Host "Build complete: $OutputPath"
+
+if ($Zip) {
+    $Version = (& $Python -c "from aegisvault.version import RELEASE_TAG; print(RELEASE_TAG)").Trim()
+    if (-not $Version.StartsWith("v")) {
+        throw "Release tag must start with v, got: $Version"
+    }
+    $ZipName = "AegisVault-$Version-win64.zip"
+    $ZipPath = Join-Path $RepoRoot "dist\$ZipName"
+    if (Test-Path $ZipPath) {
+        Remove-Item -LiteralPath $ZipPath -Force
+    }
+    Compress-Archive -LiteralPath $OutputPath -DestinationPath $ZipPath -Force
+    if (-not (Test-Path $ZipPath)) {
+        throw "ZIP artifact was not created: $ZipPath"
+    }
+    Write-Host "ZIP complete: $ZipPath"
+}
