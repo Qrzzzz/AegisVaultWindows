@@ -1,12 +1,18 @@
 # Security Model
 
-AegisVault protects local text and files after they are encrypted with a strong user password and the modern AGV1 protocol.
+AegisVault 1.0.0 protects local text and files after they are encrypted with a strong user password and the modern AGV1 protocol.
+
+AegisVault data is locally encrypted with documented design and tests, but not independently audited.
 
 It does not protect against malware, remote-control software, clipboard monitoring, screen recording, screenshots, weak or reused passwords, plaintext already copied elsewhere, compromised backups, physical access to an unlocked machine, or users losing the password.
 
 ## Passwords
 
 Passwords are never stored by AegisVault. Modern encryption derives AES keys with scrypt and a random salt. Weak passwords remain vulnerable to offline guessing, especially if an attacker obtains the encrypted file or token.
+
+## Modern Encryption
+
+New text and file encryption uses AES-256-GCM. Text tokens authenticate the protocol header as additional authenticated data. File containers encrypt in chunks, and each chunk authenticates the header hash, chunk index and final-chunk flag.
 
 ## Metadata
 

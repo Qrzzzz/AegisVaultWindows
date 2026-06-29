@@ -1,6 +1,6 @@
 # UI Specification
 
-Target version: `0.4.0-alpha`.
+Target version: `1.0.0`.
 
 ## Shell
 

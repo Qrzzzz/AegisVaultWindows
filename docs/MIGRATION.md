@@ -1,6 +1,6 @@
 # Migration Notes
 
-AegisVault 0.3.0-alpha is a rebuild of the legacy AES Encryption System v2.0 script. The legacy script is archived at `docs/legacy/legacy_aes_v2.py` for reference only.
+AegisVault 1.0.0 can recover supported data from the legacy AES Encryption System v2.0 script. The legacy script is archived at `docs/legacy/legacy_aes_v2.py` for reference only.
 
 ## Legacy Format Detection
 

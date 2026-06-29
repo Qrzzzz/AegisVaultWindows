@@ -1,6 +1,6 @@
 # AegisVault Protocol
 
-This document describes the modern formats produced by AegisVault 0.3.0-alpha. Legacy formats are recovery-only and are documented in `docs/MIGRATION.md`.
+This document describes the modern formats produced by AegisVault 1.0.0. Legacy formats are recovery-only and are documented in `docs/MIGRATION.md`.
 
 ## Text Token
 
@@ -92,4 +92,4 @@ This detects header tampering, chunk tampering, missing final chunks, truncated 
 
 ## Versioning
 
-New incompatible formats must use a new magic/version combination. AegisVault 0.3.0-alpha only writes version 1. Legacy formats are not written by modern workflows.
+New incompatible formats must use a new magic/version combination. AegisVault 1.0.0 only writes version 1. Legacy formats are not written by modern workflows.
