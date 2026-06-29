@@ -16,7 +16,6 @@ import base64
 import binascii
 import hashlib
 from dataclasses import dataclass
-from pathlib import Path
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -86,11 +85,6 @@ def decrypt_legacy_bytes(data: bytes, password: str) -> bytes:
         return aesgcm.decrypt(nonce, ciphertext, None)
     except InvalidTag as exc:
         raise AuthenticationError("Legacy authentication failed.", code="crypto.authentication_failed") from exc
-
-
-def decrypt_legacy_file(input_path: Path, output_path: Path, password: str) -> None:
-    data = input_path.read_bytes()
-    output_path.write_bytes(decrypt_legacy_bytes(data, password))
 
 
 def encrypt_legacy_text_for_tests(plaintext: str, password: str, nonce: bytes | None = None) -> str:

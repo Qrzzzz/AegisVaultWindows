@@ -28,5 +28,4 @@ def test_i18n_keys_are_complete() -> None:
         else:
             assert keys == base
     translator = Translator("en-US")
-    assert translator.t("app.title") == "AegisVault AES"
-
+    assert translator.t("app.title") == "AegisVault"

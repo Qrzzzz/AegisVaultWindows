@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-PACKAGE_VERSION = "0.4.1a0"
-DISPLAY_VERSION = "0.4.1-alpha"
-RELEASE_TAG = "v0.4.1-alpha"
+PACKAGE_VERSION = "1.0.0"
+DISPLAY_VERSION = "1.0.0"
+RELEASE_TAG = "v1.0.0"
 APP_NAME = "AegisVault"

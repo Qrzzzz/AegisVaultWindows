@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegisvault-desktop"
-version = "0.4.1a0"
+version = "1.0.0"
 description = "A modern open-source AES-256-GCM desktop encryption app for Windows."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "AegisVault contributors" }]
 keywords = ["aes", "encryption", "pyside6", "desktop", "windows"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Win32 (MS Windows)",
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",

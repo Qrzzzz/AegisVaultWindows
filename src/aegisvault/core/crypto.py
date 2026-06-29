@@ -12,6 +12,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from aegisvault.core.exceptions import AuthenticationError, OperationCancelled, ProtocolError, ValidationError
+from aegisvault.core.file_io import atomic_binary_writer, file_size
 from aegisvault.core.kdf import ScryptParams, derive_key, make_scrypt_params, params_from_header, params_to_header
 from aegisvault.core.legacy import decrypt_legacy_text
 from aegisvault.core.models import (
@@ -43,7 +44,6 @@ from aegisvault.core.protocol import (
     validate_common_header,
     write_file_header,
 )
-from aegisvault.services.file_io import atomic_binary_writer, file_size
 
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
