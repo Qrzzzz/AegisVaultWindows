@@ -2,30 +2,61 @@
 
 Target version: `1.0.0`.
 
-## Before Tagging
+The authoritative release constants are in `src/aegisvault/version.py`. Artifact names are derived only after those constants and `pyproject.toml` pass `scripts/release_metadata.py`; workflows must not embed a versioned asset name.
 
-- Confirm `pyproject.toml`, `src/aegisvault/version.py`, `src/aegisvault/__init__.py`, README, SECURITY, CHANGELOG, QA checklist and release notes all reference `1.0.0`.
-- Run all commands in `docs/QA_CHECKLIST.md`.
-- Confirm README describes only verified behavior.
-- Confirm `docs/UI_SPEC.md` matches the implemented UI.
-- Review `git diff --stat` and exclude unintended generated artifacts from source commits.
+## Repository Gates
 
-## Packaging
+- Protect the default branch, `master`, and require the `Quality` source/package jobs plus the relevant `Security` jobs.
+- Enable the dependency graph and Dependency Review. Enable GitHub Code Security/CodeQL where the repository visibility and plan require an explicit setting.
+- Create a GitHub Environment named `release`. Required reviewers are recommended so the publish job cannot proceed only because a tag was pushed.
+- Allow GitHub Actions to create artifact attestations and Releases. The release jobs declare only `contents`, `id-token` and `attestations` permissions needed by their stage.
+- Keep Actions from forks untrusted. Quality and Security pull-request jobs receive no signing or publication secrets.
+- Set repository variable `AEGISVAULT_SIGNING_MODE` to `Optional` or `Required`. Production repositories should use `Required` once signing is provisioned.
+- For real signing, set secrets `AEGISVAULT_SIGNING_CERTIFICATE_BASE64` and `AEGISVAULT_SIGNING_CERTIFICATE_PASSWORD`. Optionally set `AEGISVAULT_TIMESTAMP_URL`. Never commit a PFX, password or synthetic certificate.
 
-- Run `.\scripts\verify_release.ps1 -Build -Zip`.
-- Confirm `dist\AegisVault.exe` exists.
-- Confirm `dist\AegisVault-v1.0.0-win64.zip` exists.
-- Confirm the ZIP contains `AegisVault.exe`.
-- Launch the packaged executable on Windows when doing a binary release.
+## Dependency Locks
 
-## Tagging
+Regenerate both locks from `pyproject.toml` with a reviewed `uv` version, then inspect the dependency diff:
 
-- Create tag `v1.0.0`.
-- Push the tag to trigger the release workflow.
-- Confirm the uploaded artifact is `AegisVault-v1.0.0-win64.zip`.
+```powershell
+uv pip compile pyproject.toml --python-version 3.11 --universal --generate-hashes --no-header --no-annotate --output-file requirements.lock
+uv pip compile pyproject.toml --extra dev --python-version 3.11 --universal --generate-hashes --no-header --no-annotate --output-file requirements-dev.lock
+```
 
-## Release Notes
+CI installs `requirements-dev.lock` with `--require-hashes` and binary distributions only. The CycloneDX SBOM is generated from the runtime `requirements.lock`.
 
-- Use `docs/releases/v1.0.0.md` as the source.
-- Call out known limitations.
-- Do not describe legacy recovery or AK compatibility as normal secure encryption.
+## Candidate Verification
+
+- Confirm `pyproject.toml`, `src/aegisvault/version.py`, README, SECURITY, CHANGELOG, QA checklist and release notes all reference `1.0.0` consistently.
+- Run `.\scripts\verify_release.ps1 -Build -Zip -InstallDependencies` in a clean Windows checkout.
+- Confirm `dist\AegisVault.exe` starts under the packaged headless smoke.
+- Confirm the PE is AMD64/PE32+ GUI and contains icon, group-icon, manifest and exact `1.0.0.0` version resources.
+- Confirm `dist\AegisVault-v1.0.0-win64.zip` contains exactly `AegisVault.exe` with identical bytes.
+- Confirm `dist\AegisVault-v1.0.0.cdx.json` is CycloneDX JSON 1.6 and binds the source commit plus executable/ZIP digests.
+- Confirm `SHA256SUMS` contains exactly the ZIP and SBOM.
+- Complete the manual UI and security checks in `docs/QA_CHECKLIST.md`; packaged headless smoke is not a substitute for manual Windows acceptance.
+
+## Tag Binding
+
+- Merge the exact reviewed candidate into `master`.
+- Create an annotated strict SemVer tag such as `git tag -a v1.0.0 <merge-sha> -m "AegisVault v1.0.0"`.
+- The tagged commit must be contained in `origin/master`, the tag must resolve to the workflow event commit, and `RELEASE_TAG` must exactly match the tag.
+- Push only after reviewing the tag object and commit. A lightweight tag, prerelease suffix, dirty source or tag/source mismatch fails before packaging.
+
+## GitHub Release
+
+The public asset set is exactly:
+
+- `AegisVault-v1.0.0-win64.zip`
+- `AegisVault-v1.0.0.cdx.json`
+- `SHA256SUMS`
+
+The workflow attests all three files, uploads an internal immutable job artifact, and sends the publish job through the `release` Environment. The publisher creates or resumes a draft, refuses unexpected or byte-mismatched assets, downloads every asset again, verifies SHA-256 and provenance against the tag commit/workflow, and only then clears the draft flag.
+
+If the same tag already has a public Release, the workflow performs the same exact asset, digest and provenance verification and exits successfully without mutation. Any difference fails closed. It never deletes, replaces or uploads with `--clobber` to a public Release.
+
+## Security Triage
+
+- Retain the dependency-review JSON, pip-audit JSON and CodeQL SARIF artifacts from the `Security` workflow.
+- Treat advisories as dependency evidence requiring reachability and product-impact analysis, not automatic product-vulnerability declarations.
+- Distinguish an advisory finding from a scanner/network/tool failure; both block the gate, but only the former enters vulnerability triage.

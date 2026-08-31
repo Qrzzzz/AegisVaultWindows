@@ -46,8 +46,8 @@ def test_public_release_docs_do_not_reference_stale_alpha_line() -> None:
 
 
 def test_release_artifact_name_is_standardized() -> None:
-    expected = "AegisVault-v1.0.0-win64.zip"
-    for relative in ["README.md", "docs/RELEASE_CHECKLIST.md", "docs/releases/v1.0.0.md", "scripts/verify_release.ps1"]:
+    expected = f"AegisVault-{RELEASE_TAG}-win64.zip"
+    for relative in ["README.md", "docs/RELEASE_CHECKLIST.md", "docs/releases/v1.0.0.md"]:
         assert expected in (ROOT / relative).read_text(encoding="utf-8")
 
 
@@ -55,4 +55,5 @@ def test_build_script_supports_zip_used_by_verify_release() -> None:
     build_text = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
     verify_text = (ROOT / "scripts" / "verify_release.ps1").read_text(encoding="utf-8")
     assert "[switch]$Zip" in build_text
-    assert ".\\scripts\\build_windows.ps1 -Clean -Zip" in verify_text
+    assert 'if ($Zip) { $BuildArguments["Zip"] = $true }' in verify_text
+    assert "$Metadata.zip_name" in build_text

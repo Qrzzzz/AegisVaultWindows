@@ -4,12 +4,11 @@ Target version: `1.0.0`.
 
 ## Required Commands
 
-- `python -m compileall src tests`
-- `ruff check .`
-- `mypy src`
-- `pytest -vv`
-- `$env:AEGISVAULT_HEADLESS_SMOKE="1"; python -m aegisvault`
-- `.\scripts\verify_release.ps1 -Build -Zip`
+- `.\scripts\install_locked_dependencies.ps1`
+- `.\scripts\verify_release.ps1`
+- `.\scripts\build_windows.ps1 -Clean -Zip -SigningMode Optional`
+
+The verification script compiles `src`, `tests` and release scripts; runs Ruff, mypy, pytest with XML coverage; and exercises the Qt source smoke with the offscreen platform. The build script performs a clean PyInstaller build, packaged startup smoke, ZIP/PE/resource audit, reproducible CycloneDX generation and checksum verification.
 
 ## Manual UI Smoke
 
@@ -29,3 +28,5 @@ Target version: `1.0.0`.
 - Legacy recovery remains compatibility-only.
 - AK wrappers remain disabled by default.
 - The release ZIP is named `AegisVault-v1.0.0-win64.zip` and contains `AegisVault.exe`.
+- The public release set is exactly the ZIP, `AegisVault-v1.0.0.cdx.json` and `SHA256SUMS`.
+- CI signing may be explicitly optional. Publication signing is governed by the repository `AEGISVAULT_SIGNING_MODE` variable and must fail when set to `Required` without a real certificate.

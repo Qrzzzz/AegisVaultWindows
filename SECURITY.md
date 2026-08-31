@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-AegisVault 1.0.0 is the supported stable release. Security fixes target the default branch, `main`, and the latest stable release line.
+AegisVault 1.0.0 is the supported stable release. Security fixes target the default branch, `master`, and the latest stable release line.
 
 ## Reporting A Vulnerability
 
@@ -29,3 +29,9 @@ AegisVault does not protect against:
 Legacy formats are recovery-only. The old app derived AES keys with `sha256(password)` directly, which is weaker than the current scrypt KDF.
 
 The `AK#key#ciphertext` wrapper is especially risky because the decryption key is embedded in the ciphertext. AegisVault keeps AK parsing disabled by default and labels it as migration-only compatibility.
+
+## Automated Security Evidence
+
+The `Security` workflow runs dependency review on pull requests and runs pip-audit plus CodeQL on the default branch, on a weekly schedule and on manual dispatch. It retains dependency-review JSON, pip-audit JSON and CodeQL SARIF as machine-readable workflow artifacts.
+
+An advisory is a triage input, not by itself a claim that AegisVault is exploitable. Maintainers must record the affected package and version, whether it is present in the locked runtime closure, the vulnerable code path, AegisVault reachability, mitigations and the upgrade or acceptance decision before describing product impact. Tool errors and unavailable advisory services also fail the gate; they are not vulnerability findings.

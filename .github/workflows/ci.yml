@@ -1,35 +1,97 @@
-name: CI
+name: Quality
 
 on:
   push:
+    branches: [master, main]
   pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+  QT_QPA_PLATFORM: offscreen
+
+defaults:
+  run:
+    shell: pwsh
 
 jobs:
-  test:
+  source-quality:
+    name: Source quality (Python ${{ matrix.python-version }})
     runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-      - name: Compile
-        run: python -m compileall src tests
-      - name: Lint
-        run: ruff check .
-      - name: Type check
-        run: mypy src
-      - name: Test
-        run: pytest -vv
-      - name: GUI smoke
-        run: |
-          $env:AEGISVAULT_HEADLESS_SMOKE="1"
-          python -m aegisvault
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - name: Install hash-locked dependencies
+        run: .\scripts\install_locked_dependencies.ps1
+      - name: Compile, lint, type check, test, coverage and Qt smoke
+        run: .\scripts\verify_release.ps1
+      - name: Upload machine-readable coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-python-${{ matrix.python-version }}
+          path: coverage.xml
+          if-no-files-found: warn
+          retention-days: 14
 
+  windows-package:
+    name: Windows clean package and smoke
+    needs: source-quality
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - name: Install hash-locked dependencies
+        run: .\scripts\install_locked_dependencies.ps1
+      - name: Resolve validated artifact names
+        id: metadata
+        run: python scripts/release_metadata.py --github-output $env:GITHUB_OUTPUT
+      - name: Build, smoke and audit unsigned CI candidate
+        run: .\scripts\build_windows.ps1 -Clean -Zip -SigningMode Optional
+      - name: Upload audited package candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}-quality
+          path: |
+            dist/${{ steps.metadata.outputs.exe_name }}
+            dist/${{ steps.metadata.outputs.zip_name }}
+            dist/${{ steps.metadata.outputs.sbom_name }}
+            dist/${{ steps.metadata.outputs.checksums_name }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

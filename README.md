@@ -45,9 +45,7 @@ More detail:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+.\scripts\install_locked_dependencies.ps1
 ```
 
 ## Run
@@ -72,7 +70,7 @@ python -m aegisvault
 ## Build A Windows Release
 
 ```powershell
-.\scripts\verify_release.ps1 -Build -Zip
+.\scripts\verify_release.ps1 -Build -Zip -InstallDependencies
 ```
 
 The expected artifact is:
@@ -89,7 +87,7 @@ The ZIP contains `AegisVault.exe`.
 python -m compileall src tests
 ruff check .
 mypy src
-pytest -vv
+pytest -vv --cov=aegisvault --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
 $env:AEGISVAULT_HEADLESS_SMOKE="1"; python -m aegisvault
 .\scripts\verify_release.ps1 -Build -Zip
 ```
