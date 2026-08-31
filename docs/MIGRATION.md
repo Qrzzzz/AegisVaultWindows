@@ -17,9 +17,15 @@ Modern text starts with `AGV1.`. Modern files start with the binary `AGVFILE` ma
 1. Open the legacy ciphertext or file in AegisVault.
 2. Enter the original password.
 3. If the data uses `AK#key#ciphertext`, enable AK compatibility in Settings only for this migration.
-4. Decrypt the data.
+4. Decrypt the data. For a legacy file, ordinary decryption stops first and
+   displays a migration-only recovery confirmation; review the file path and
+   risk notice, then explicitly choose **Recover legacy file** to continue.
 5. Re-encrypt the recovered plaintext/file with the modern AGV1 workflow.
 6. Turn AK compatibility off again.
+
+Declining the legacy-file confirmation does not invoke the compatibility
+decryptor and does not write an output file. Modern `AGVFILE` containers never
+use the legacy recovery path.
 
 ## Why Re-Encrypt
 

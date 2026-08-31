@@ -25,7 +25,14 @@ BASELINE_DIR = ROOT / "docs" / "screenshots"
 PAGE_NAMES = ("text", "file", "base64")
 
 
-def render_workspace(path: Path, page_index: int, *, language: str = "zh-CN") -> QImage:
+def render_workspace(
+    path: Path,
+    page_index: int,
+    *,
+    language: str = "zh-CN",
+    theme: str = "dark",
+    window_size: tuple[int, int] = (1080, 900),
+) -> QImage:
     app = QApplication.instance() or QApplication([])
     for font_path in (
         Path("C:/Windows/Fonts/segoeui.ttf"),
@@ -36,9 +43,9 @@ def render_workspace(path: Path, page_index: int, *, language: str = "zh-CN") ->
             QFontDatabase.addApplicationFont(str(font_path))
     with tempfile.TemporaryDirectory(prefix="aegisvault-ui-") as temp_dir:
         temp = Path(temp_dir)
-        settings = AppSettings(language=language, theme="dark")
+        settings = AppSettings(language=language, theme=theme)
         window = MainWindow(settings, SettingsStore(temp / "settings.json"), Translator(language))
-        window.resize(1080, 900)
+        window.resize(*window_size)
         window.text_page.input.setPlainText("AegisVault 的加密操作只在本机执行。\nCtrl+Enter 运行当前选择的操作。")
         sample = temp / "design-review.txt"
         sample.write_text("visual regression sample", encoding="utf-8")

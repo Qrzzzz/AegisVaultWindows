@@ -138,3 +138,27 @@ def test_ui_literal_translation_keys_exist_in_every_locale() -> None:
         missing = sorted(literal_keys - set(messages))
         assert not missing, f"{language} is missing UI keys: {missing}"
         assert all(str(messages[key]).strip() for key in literal_keys)
+
+
+def test_integrated_backend_error_codes_have_specific_bilingual_messages() -> None:
+    integrated_codes = (
+        "crypto.size_mismatch",
+        "file.input_changed",
+        "file.read_failed",
+        "file.same_input_output",
+        "legacy.file_recovery_required",
+        "legacy.invalid_limit",
+        "legacy.invalid_option",
+        "legacy.modern_file",
+        "resource.limit_exceeded",
+        "settings.invalid_type",
+        "settings.invalid_value",
+        "settings.too_large",
+    )
+    for language in SUPPORTED_LANGUAGES:
+        translator = Translator(language)
+        generic = translator.t("error.generic")
+        for code in integrated_codes:
+            key = f"error.{code}"
+            message = translator.t(key)
+            assert message not in {key, generic}, f"{language} has no specific message for {code}"

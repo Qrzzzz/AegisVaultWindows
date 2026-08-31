@@ -25,7 +25,9 @@ The verification script compiles `src`, `tests` and release scripts; runs Ruff, 
 - Corrupted AGV text/files fail rather than producing output.
 - Truncated files, invalid headers, unsafe KDF parameters, oversized headers, chunk corruption, missing final chunks and trailing data fail.
 - Cancellation removes temporary files.
-- Legacy recovery remains compatibility-only.
+- Ordinary file decryption rejects legacy input first; declining the localized
+  migration confirmation writes no output, and accepting it is the only UI path
+  that invokes explicit legacy recovery.
 - AK wrappers remain disabled by default.
 - The release ZIP is named `AegisVault-v1.0.0-win64.zip` and contains `AegisVault.exe`.
 - The public release set is exactly the ZIP, `AegisVault-v1.0.0.cdx.json` and `SHA256SUMS`.

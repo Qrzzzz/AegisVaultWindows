@@ -204,15 +204,32 @@ class SettingsDialog(QDialog):
             self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
             self.error.emit(exc, "")
             return
-        self.settings.language = str(self.language_combo.currentData())
-        self.settings.theme = str(self.theme_combo.currentData())
-        self.settings.default_output_dir = output_dir
-        self.settings.overwrite_outputs = self.overwrite.isChecked()
-        self.settings.remember_recent_files = self.remember.isChecked()
-        self.settings.show_advanced_options = self.advanced_toggle.isChecked()
-        self.settings.allow_ak_compatibility = self.ak.isChecked()
-        self.settings.recent_files = list(self._recent_files)
-        self.store.save(self.settings)
+        candidate = AppSettings(
+            language=str(self.language_combo.currentData()),
+            theme=str(self.theme_combo.currentData()),
+            default_output_dir=output_dir,
+            overwrite_outputs=self.overwrite.isChecked(),
+            remember_recent_files=self.remember.isChecked(),
+            show_advanced_options=self.advanced_toggle.isChecked(),
+            allow_ak_compatibility=self.ak.isChecked(),
+            recent_files=list(self._recent_files),
+        )
+        try:
+            self.store.save(candidate)
+        except Exception as exc:
+            self.alert.show_error(self.i18n, exc)
+            self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
+            self.error.emit(exc, "")
+            return
+
+        self.settings.language = candidate.language
+        self.settings.theme = candidate.theme
+        self.settings.default_output_dir = candidate.default_output_dir
+        self.settings.overwrite_outputs = candidate.overwrite_outputs
+        self.settings.remember_recent_files = candidate.remember_recent_files
+        self.settings.show_advanced_options = candidate.show_advanced_options
+        self.settings.allow_ak_compatibility = candidate.allow_ak_compatibility
+        self.settings.recent_files = list(candidate.recent_files)
         if self._recent_was_cleared:
             self.recent_cleared.emit()
         self.settings_saved.emit()

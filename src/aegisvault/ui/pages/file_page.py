@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from aegisvault.core.exceptions import ValidationError
+from aegisvault.core.exceptions import AppError, ValidationError
 from aegisvault.core.models import FileProcessResult, ProgressEvent, TaskState
 from aegisvault.i18n.translator import Translator
 from aegisvault.services.crypto_service import CryptoService
@@ -24,6 +24,7 @@ from aegisvault.ui.components.result_summary import ResultSummary
 from aegisvault.ui.components.segmented_control import SegmentedControl
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
+from aegisvault.ui.dialogs.legacy_recovery_dialog import confirm_legacy_file_recovery
 from aegisvault.ui.pages.common import format_size, safe_stat_size, scroll_page
 
 
@@ -40,6 +41,7 @@ class FilePage(QWidget):
         self.settings = settings
         self.service = service
         self.selected_file: Path | None = None
+        self._pending_legacy_request: tuple[Path, str] | None = None
         self.controller = TaskController(self)
         self.controller.progress_changed.connect(self._on_progress)
         self.controller.succeeded.connect(self._on_success)
@@ -210,14 +212,18 @@ class FilePage(QWidget):
         input_path = self.selected_file
         assert input_path is not None
         password = self.password.text()
-        self.controller.run(
+        self._pending_legacy_request = (input_path, password)
+        started = self.controller.run(
             lambda progress, token: self.service.decrypt_file(
                 input_path,
                 password,
                 progress=progress,
                 cancel_token=token,
+                allow_legacy=False,
             )
         )
+        if not started:
+            self._pending_legacy_request = None
 
     def has_running_task(self) -> bool:
         return self.controller.busy
@@ -246,6 +252,7 @@ class FilePage(QWidget):
         return True
 
     def _on_success(self, result: FileProcessResult) -> None:
+        self._pending_legacy_request = None
         self.progress.reset()
         lines = [
             self.i18n.t("result.success"),
@@ -265,12 +272,34 @@ class FilePage(QWidget):
 
     def _on_failed(self, exc: object, diagnostic: str) -> None:
         self.progress.reset()
+        if isinstance(exc, AppError) and exc.code == "legacy.file_recovery_required":
+            request = self._pending_legacy_request
+            self._pending_legacy_request = None
+            if request is not None:
+                if confirm_legacy_file_recovery(self, self.i18n, request[0]):
+                    input_path, password = request
+                    self.alert.clear()
+                    self.controller.run(
+                        lambda progress, token: self.service.recover_legacy_file(
+                            input_path,
+                            password,
+                            progress=progress,
+                            cancel_token=token,
+                        )
+                    )
+                    return
+                self.alert.show_message(self.i18n.t("recovery.file_declined"))
+                self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
+                self.status_message.emit(self.i18n.t("status.recovery_declined"), 5000)
+                return
+        self._pending_legacy_request = None
         self.alert.show_error(self.i18n, exc)
         self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
         self.status_message.emit(self.i18n.t("status.failed"), 5000)
         self.error.emit(exc, diagnostic)
 
     def _on_cancelled(self) -> None:
+        self._pending_legacy_request = None
         self.progress.reset()
         self.status_message.emit(self.i18n.t("status.cancelled"), 3000)
 

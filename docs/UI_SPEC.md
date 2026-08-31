@@ -53,7 +53,10 @@ Escape requests cancellation.
 - Modes: Encrypt and Decrypt.
 - Encrypt requires password confirmation; Decrypt requires one password.
 - The output directory and exact candidate path are visible before execution.
-- Legacy file recovery is explained in Decrypt mode.
+- Legacy file recovery is explained in Decrypt mode. Ordinary decryption uses
+  the modern-only boundary and stops when a legacy file is detected. A
+  localized, migration-only confirmation must be accepted before a separate
+  legacy recovery task can start; declining writes no output.
 - Progress includes localized stage, percent, processed size, and cancellation.
 - A successful result includes output path, size change, format, Clear result,
   and Reveal output.
