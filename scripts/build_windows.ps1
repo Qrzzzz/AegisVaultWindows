@@ -90,6 +90,7 @@ if ($ExpectedTag) {
 Invoke-Native $Python "Windows version resource generation" $VersionArguments
 
 $PreviousSourceDateEpoch = $env:SOURCE_DATE_EPOCH
+$PreviousPythonHashSeed = $env:PYTHONHASHSEED
 $PreviousUtf8 = $env:PYTHONUTF8
 $PreviousIoEncoding = $env:PYTHONIOENCODING
 $PreviousPath = $env:PATH
@@ -108,6 +109,7 @@ $CleanBuildPath = @(
 $BuildLog = New-TemporaryFile
 try {
     $env:SOURCE_DATE_EPOCH = $SourceDateEpoch
+    $env:PYTHONHASHSEED = "0"
     $env:PYTHONUTF8 = "1"
     $env:PYTHONIOENCODING = "utf-8"
     $env:PATH = $CleanBuildPath -join [IO.Path]::PathSeparator
@@ -120,6 +122,7 @@ try {
     }
 } finally {
     $env:SOURCE_DATE_EPOCH = $PreviousSourceDateEpoch
+    $env:PYTHONHASHSEED = $PreviousPythonHashSeed
     $env:PYTHONUTF8 = $PreviousUtf8
     $env:PYTHONIOENCODING = $PreviousIoEncoding
     $env:PATH = $PreviousPath

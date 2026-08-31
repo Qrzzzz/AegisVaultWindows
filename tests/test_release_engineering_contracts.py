@@ -182,6 +182,8 @@ def test_public_release_publisher_has_fail_closed_no_clobber_contract() -> None:
     assert "--clobber" not in text
     build_text = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
     assert "audit_build_inputs.py" in build_text
+    assert '$env:PYTHONHASHSEED = "0"' in build_text
+    assert "$env:PYTHONHASHSEED = $PreviousPythonHashSeed" in build_text
     smoke_text = (ROOT / "scripts" / "smoke_packaged.ps1").read_text(encoding="utf-8")
     assert '$env:PATH = $CleanRuntimePath' in smoke_text
     assert "-WorkingDirectory $SmokeRoot" in smoke_text
