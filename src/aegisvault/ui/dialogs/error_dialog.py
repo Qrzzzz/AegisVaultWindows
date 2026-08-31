@@ -1,4 +1,4 @@
-﻿"""Localized error dialog."""
+"""Localized error dialog."""
 
 from __future__ import annotations
 
@@ -22,5 +22,3 @@ def show_error(parent: QWidget, translator: Translator, exc: object, diagnostic:
     if diagnostic:
         box.setDetailedText(diagnostic)
     box.exec()
-
-

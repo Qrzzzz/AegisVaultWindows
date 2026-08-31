@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -126,3 +127,14 @@ def test_i18n_keys_are_complete() -> None:
             assert keys == base
     translator = Translator("en-US")
     assert translator.t("app.title") == "AegisVault"
+
+
+def test_ui_literal_translation_keys_exist_in_every_locale() -> None:
+    source = "\n".join(path.read_text(encoding="utf-8") for path in Path("src/aegisvault/ui").rglob("*.py"))
+    literal_keys = set(re.findall(r'\.t\("([^"]+)"', source))
+    for language in SUPPORTED_LANGUAGES:
+        path = Path("src/aegisvault/i18n/locales", f"{language}.json")
+        messages = json.loads(path.read_text(encoding="utf-8"))
+        missing = sorted(literal_keys - set(messages))
+        assert not missing, f"{language} is missing UI keys: {missing}"
+        assert all(str(messages[key]).strip() for key in literal_keys)

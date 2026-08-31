@@ -1,4 +1,4 @@
-﻿"""About dialog."""
+"""About dialog."""
 
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ class AboutDialog(QDialog):
         body = QLabel(self.i18n.t("about.body"))
         body.setWordWrap(True)
         body.setObjectName("Description")
+        body.setAccessibleName(self.i18n.t("about.title"))
         layout.addWidget(title)
         layout.addWidget(body)
         layout.addWidget(QLabel(self.i18n.t("about.version", version=__version__)))
         layout.addWidget(QLabel(self.i18n.t("about.license", license=__license__)))
         layout.addWidget(QLabel(self.i18n.t("about.repo")))
         layout.addWidget(QLabel(self.i18n.t("about.migration")))
-        close = QPushButton("OK")
+        close = QPushButton(self.i18n.t("action.close"))
+        close.setAccessibleName(self.i18n.t("action.close"))
         close.clicked.connect(self.accept)
         layout.addWidget(close, alignment=Qt.AlignmentFlag.AlignRight)
         self.setStyleSheet(parent.styleSheet())
-
-

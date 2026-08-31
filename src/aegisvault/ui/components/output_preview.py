@@ -1,4 +1,4 @@
-"""Output text area with copy, clear and swap controls."""
+"""Read-only text result with copy, clear, and use-as-input actions."""
 
 from __future__ import annotations
 
@@ -9,29 +9,48 @@ from aegisvault.ui.design import spacing
 
 
 class OutputPreview(QFrame):
+    use_as_input_requested = Signal()
     swap_requested = Signal()
 
-    def __init__(self, copy_label: str, clear_label: str, swap_label: str = "Swap") -> None:
+    def __init__(self, copy_label: str, clear_label: str, use_as_input_label: str) -> None:
         super().__init__()
         self.setObjectName("OutputPreview")
         self.editor = QPlainTextEdit()
         self.editor.setReadOnly(True)
         self.copy_button = QPushButton(copy_label)
         self.clear_button = QPushButton(clear_label)
-        self.swap_button = QPushButton(swap_label)
+        self.use_as_input_button = QPushButton(use_as_input_label)
+        self.swap_button = self.use_as_input_button
         self.copy_button.clicked.connect(self.copy)
         self.clear_button.clicked.connect(self.clear)
-        self.swap_button.clicked.connect(self.swap_requested.emit)
+        self.use_as_input_button.clicked.connect(self._use_as_input)
+        self.editor.textChanged.connect(self._sync_actions)
         actions = QHBoxLayout()
         actions.addStretch(1)
         actions.addWidget(self.copy_button)
         actions.addWidget(self.clear_button)
-        actions.addWidget(self.swap_button)
+        actions.addWidget(self.use_as_input_button)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING)
+        layout.setContentsMargins(
+            spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING
+        )
         layout.setSpacing(spacing.SM)
         layout.addWidget(self.editor)
         layout.addLayout(actions)
+        self.set_texts(copy_label, clear_label, use_as_input_label)
+        self._sync_actions()
+
+    def set_texts(self, copy_label: str, clear_label: str, use_as_input_label: str, placeholder: str = "") -> None:
+        self.copy_button.setText(copy_label)
+        self.copy_button.setAccessibleName(copy_label)
+        self.clear_button.setText(clear_label)
+        self.clear_button.setAccessibleName(clear_label)
+        self.use_as_input_button.setText(use_as_input_label)
+        self.use_as_input_button.setAccessibleName(use_as_input_label)
+        self.editor.setPlaceholderText(placeholder)
+
+    def set_accessible_name(self, text: str) -> None:
+        self.editor.setAccessibleName(text)
 
     def set_text(self, text: str) -> None:
         self.editor.setPlainText(text)
@@ -44,3 +63,13 @@ class OutputPreview(QFrame):
 
     def copy(self) -> None:
         QApplication.clipboard().setText(self.editor.toPlainText())
+
+    def _use_as_input(self) -> None:
+        self.use_as_input_requested.emit()
+        self.swap_requested.emit()
+
+    def _sync_actions(self) -> None:
+        has_text = bool(self.editor.toPlainText())
+        self.copy_button.setEnabled(has_text)
+        self.clear_button.setEnabled(has_text)
+        self.use_as_input_button.setEnabled(has_text)

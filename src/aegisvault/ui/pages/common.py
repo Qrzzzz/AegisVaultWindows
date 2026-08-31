@@ -1,10 +1,12 @@
-﻿"""Shared page helpers."""
+"""Shared page helpers."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
+
+from aegisvault.ui.design import spacing
 
 
 def scroll_page() -> tuple[QScrollArea, QVBoxLayout]:
@@ -13,8 +15,8 @@ def scroll_page() -> tuple[QScrollArea, QVBoxLayout]:
     content = QWidget()
     content.setObjectName("ScrollContent")
     layout = QVBoxLayout(content)
-    layout.setContentsMargins(34, 28, 34, 28)
-    layout.setSpacing(18)
+    layout.setContentsMargins(spacing.PAGE_MARGIN, spacing.LG, spacing.PAGE_MARGIN, spacing.LG)
+    layout.setSpacing(spacing.MD)
     scroll.setWidget(content)
     return scroll, layout
 
@@ -54,5 +56,3 @@ def safe_stat_size(path: Path) -> int:
         return path.stat().st_size
     except OSError:
         return 0
-
-

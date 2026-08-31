@@ -1,4 +1,4 @@
-﻿"""Windows material effects with safe fallback."""
+"""Windows material effects with safe fallback."""
 
 from __future__ import annotations
 
@@ -19,5 +19,3 @@ def apply_windows_backdrop(hwnd: int, *, dark: bool = True) -> bool:
         return True
     except Exception:
         return False
-
-

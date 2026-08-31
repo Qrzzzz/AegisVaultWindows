@@ -1,62 +1,124 @@
 # UI Specification
 
-Target version: `1.0.0`.
+Target version: 1.0.0.
+
+## Product Boundary
+
+AegisVault is a local PySide6 encryption utility. The interface may use other
+desktop applications as a reference for interaction restraint, but it does not
+adopt download workflows, command-line surfaces, network services, or backend
+architecture from them.
 
 ## Shell
 
-- `AppShell` owns the left `Sidebar`, right `Workspace`, top `PageHeader` and bottom `StatusArea`.
-- Pages do not own their title block. Page title and description are controlled by the shell.
-- The default visual style is a restrained dark Windows tool surface: flat dark panels, 8 px cards, consistent borders, no full-page gradients and no one-card control dumps.
+The application uses one native QMainWindow.
 
-## Design System
+- The only persistent workspace entries are **Text**, **File**, and **Base64**.
+- Settings, recent files, Exit, and About live in the native menu bar.
+- Settings and About open modal dialogs; they are not workspace pages.
+- The page header gives one short purpose statement. The bottom status area is
+  transient and returns to the localized Ready message after its timeout.
+- Ctrl+1, Ctrl+2, and Ctrl+3 select the three workspaces. Ctrl+, opens Settings,
+  F1 opens About, and Ctrl+Q exits.
 
-- Tokens live in `src/aegisvault/ui/design/tokens.py`.
-- Spacing lives in `src/aegisvault/ui/design/spacing.py`.
-- Stylesheet generation lives in `src/aegisvault/ui/design/theme.py`.
-- Reusable widgets live under `src/aegisvault/ui/components/`.
+## Workflow Contract
 
-Standard components:
+Every workspace follows the same vertical order:
 
-- `AppShell`, `Sidebar`, `PageHeader`
-- `Card`, `FormRow`, `SegmentedControl`
-- `PasswordInput`, `FilePickerCard`, `OutputPreview`
-- `InlineAlert`, `TaskProgress`, `ResultSummary`, `ActionBar`
+1. mode;
+2. input;
+3. only the parameters required for that mode;
+4. one primary operation;
+5. in-place progress, error, and result feedback.
 
-## Text Crypto
+Secondary controls may clear input, copy or clear a result, use a text result as
+new input, cancel an active task, or reveal a file output. They must not compete
+with the single primary operation. Ctrl+Enter runs the current operation and
+Escape requests cancellation.
 
-- Uses an Encrypt / Decrypt segmented control.
-- Input is on the left, output is on the right.
-- Password controls are isolated above the text workspace.
-- Encrypt mode shows password and confirm password.
-- Decrypt mode shows only password.
-- Output supports Copy, Clear and Swap.
-- Normal validation and operation errors appear in `InlineAlert`.
+## Text
 
-## File Crypto
+- Modes: Encrypt and Decrypt.
+- Encrypt shows password and confirmation. A mismatch is rejected before work
+  starts.
+- Decrypt shows one password field and a visible Legacy / AK recovery entry.
+- Supported legacy ciphertext is detected automatically. AK parsing remains
+  disabled by default and links to its explicit high-risk setting.
+- Results support Copy, Clear result, and Use as new input. Using a result as
+  input reverses the operation mode.
 
-- Step 1: select file.
-- Step 2: choose Encrypt or Decrypt.
-- Step 3: enter password and review output directory/path preview.
-- Step 4: execute, cancel and review result.
-- File metadata includes path, size, type and output previews.
-- Progress displays stage, percent and processed size when available.
+## File
+
+- A file can be selected, dropped, or loaded from the Recent files menu.
+- Modes: Encrypt and Decrypt.
+- Encrypt requires password confirmation; Decrypt requires one password.
+- The output directory and exact candidate path are visible before execution.
+- Legacy file recovery is explained in Decrypt mode.
+- Progress includes localized stage, percent, processed size, and cancellation.
+- A successful result includes output path, size change, format, Clear result,
+  and Reveal output.
 
 ## Base64
 
-- Header copy states: Base64 is encoding, not encryption.
-- Text Base64 and File Base64 are separate tabs.
-- Text supports encode, decode, copy, clear and swap.
-- Strict text decode rejects whitespace unless relaxed decode is enabled.
-- File supports encode, decode, progress, cancel and open output.
+- The warning that Base64 is encoding rather than encryption is always visible.
+- Input type is Text or File; operation is Encode or Decode.
+- Both input types share one primary operation button.
+- Text Decode exposes the optional relaxed ASCII-whitespace mode.
+- Text results support Copy, Clear result, and Use as new input.
+- File tasks support progress, cancellation, output preview, and Reveal output.
 
 ## Settings
 
-Settings are grouped into General, Output, Legacy recovery and Recent files:
+Settings are edited in a modal dialog and applied to existing workspace
+instances. Saving must not rebuild the shell or discard current mode, input,
+password, result, selected file, or active page.
 
-- Theme
-- Language
-- Output directory
-- Overwrite behavior
-- Recent files
-- Legacy recovery visibility
-- AK compatibility, default off, with risk warning
+Normal settings:
+
+- language: Simplified Chinese or English;
+- theme: Dark, Light, or System (resolved from the current Qt system color
+  scheme);
+- default output directory;
+- recent-file retention and clearing.
+
+The collapsed **Advanced and recovery options** section contains:
+
+- overwrite existing outputs, with an irreversible-replacement warning;
+- AK compatibility parsing, with the embedded-key migration warning.
+
+## Task and Window State
+
+- Each run receives a monotonically increasing task id.
+- Worker progress and terminal callbacks are accepted only for the active id.
+- A new run cannot begin until the prior worker thread has stopped.
+- Cancellation is idempotent.
+- While a task runs, all controls that could replace its captured input,
+  including drag-and-drop, are disabled or rejected.
+- Closing with active work asks for confirmation, requests cancellation, and
+  waits for each worker thread to reach a stopped terminal state. If a worker
+  does not stop within the safety wait, the window remains open.
+- Settings cannot be changed while a task is active.
+
+## Accessibility and Feedback
+
+- Editors, password fields, mode controls, file pickers, result actions, and
+  menu actions have localized accessible names.
+- Validation and operational errors are localized and shown inline; the alert
+  is keyboard-focusable.
+- Page switches move focus to the primary input.
+- All visible product copy exists in both locale catalogs.
+
+## Visual Regression
+
+tests/test_ui_visual.py renders all three workspaces with
+QT_QPA_PLATFORM=offscreen, verifies dimensions and a tolerant structural pixel
+comparison, and uses these committed baselines:
+
+- docs/screenshots/minimal-text-zh-CN.png
+- docs/screenshots/minimal-file-zh-CN.png
+- docs/screenshots/minimal-base64-zh-CN.png
+
+Regenerate them intentionally with:
+
+    $env:QT_QPA_PLATFORM = "offscreen"
+    python tests/test_ui_visual.py --update

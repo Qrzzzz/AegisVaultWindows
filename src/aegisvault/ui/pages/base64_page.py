@@ -1,11 +1,20 @@
-"""Base64 encoding workspace."""
+"""Minimal Base64 text and file workspace."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QCheckBox, QPlainTextEdit, QPushButton, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from aegisvault.core.exceptions import ValidationError
 from aegisvault.core.models import FileProcessResult, ProgressEvent, TaskState
@@ -33,148 +42,251 @@ class Base64Page(QWidget):
 
     def __init__(self, translator: Translator, settings: AppSettings, service: CryptoService) -> None:
         super().__init__()
+        self.setObjectName("Base64Page")
         self.i18n = translator
         self.settings = settings
         self.service = service
         self.selected_file: Path | None = None
         self.controller = TaskController(self)
         self.controller.progress_changed.connect(self._on_progress)
-        self.controller.succeeded.connect(self._on_file_success)
+        self.controller.succeeded.connect(self._on_success)
         self.controller.failed.connect(self._on_failed)
         self.controller.cancelled.connect(self._on_cancelled)
         self.controller.state_changed.connect(self._on_state)
 
+        self.kind = SegmentedControl(
+            [(self.i18n.t("base64.kind.text"), "text"), (self.i18n.t("base64.kind.file"), "file")],
+            "text",
+            self.i18n.t("access.input_kind"),
+        )
+        self.kind.changed.connect(self._on_kind_changed)
+        self.mode = SegmentedControl(
+            [(self.i18n.t("action.encode"), "encode"), (self.i18n.t("action.decode"), "decode")],
+            "encode",
+            self.i18n.t("access.operation_mode"),
+        )
+        self.file_mode = self.mode
+        self.mode.changed.connect(self._on_mode_changed)
+        self.kind_label = QLabel()
+        self.kind_label.setObjectName("FormLabel")
+        self.mode_label = QLabel()
+        self.mode_label.setObjectName("FormLabel")
+
+        self.input = QPlainTextEdit()
+        self.input.setMinimumHeight(110)
+        self.relaxed_decode = QCheckBox()
+        text_input = QWidget()
+        text_layout = QVBoxLayout(text_input)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.addWidget(self.input)
+        text_layout.addWidget(self.relaxed_decode)
+
+        self.picker = FilePickerCard("", "", "")
+        self.picker.file_selected.connect(self.set_file)
+        file_input = QWidget()
+        file_layout = QVBoxLayout(file_input)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.addWidget(self.picker)
+
+        self.input_stack = QStackedWidget()
+        self.input_stack.addWidget(text_input)
+        self.input_stack.addWidget(file_input)
         self.alert = InlineAlert()
-        self.file_alert = InlineAlert()
+        self.run_button = QPushButton()
+        self.run_button.setObjectName("Primary")
+        self.run_button.clicked.connect(self.run_current)
+        self.run_file_button = self.run_button
+        self.clear_button = QPushButton()
+        self.clear_button.clicked.connect(self.clear_current)
+        self.progress = TaskProgress(self.i18n)
+        self.progress.cancel_button.clicked.connect(self.cancel)
+        self.output = OutputPreview("", "", "")
+        self.output.use_as_input_requested.connect(self.use_result_as_input)
+        self.result = ResultSummary("", "")
+        self.result.reveal_requested.connect(self.reveal_requested.emit)
+
         scroll, layout = scroll_page()
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(scroll)
-
-        note = Card("Base64 is encoding, not encryption")
-        note.content_layout.addWidget(self.alert)
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_text_tab(), "Text Base64")
-        self.tabs.addTab(self._build_file_tab(), "File Base64")
-        layout.addWidget(note)
-        layout.addWidget(self.tabs)
+        self.note_card = Card()
+        self.mode_card = Card()
+        self.mode_card.content_layout.addWidget(self.kind_label)
+        self.mode_card.content_layout.addWidget(self.kind)
+        self.mode_card.content_layout.addWidget(self.mode_label)
+        self.mode_card.content_layout.addWidget(self.mode)
+        self.input_card = Card()
+        self.input_card.content_layout.addWidget(self.input_stack)
+        self.input_card.content_layout.addWidget(ActionBar(self.clear_button, self.run_button))
+        layout.addWidget(self.note_card)
+        layout.addWidget(self.mode_card)
+        layout.addWidget(self.input_card)
+        layout.addWidget(self.progress)
+        layout.addWidget(self.alert)
+        layout.addWidget(self.output)
+        layout.addWidget(self.result)
         layout.addStretch(1)
 
-    def _build_text_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        self.input = QPlainTextEdit()
-        self.input.setPlaceholderText(self.i18n.t("base64.input.placeholder"))
-        self.output = OutputPreview(self.i18n.t("action.copy"), self.i18n.t("action.clear"), "Swap")
-        self.output.swap_requested.connect(self.swap_text)
-        self.relaxed_decode = QCheckBox("Ignore ASCII whitespace while decoding")
-        encode = QPushButton(self.i18n.t("action.encode"))
-        encode.setObjectName("Primary")
-        decode = QPushButton(self.i18n.t("action.decode"))
-        clear = QPushButton(self.i18n.t("action.clear"))
-        encode.clicked.connect(self.encode_text)
-        decode.clicked.connect(self.decode_text)
-        clear.clicked.connect(self.clear_text)
-        input_card = Card(self.i18n.t("field.input"))
-        input_card.content_layout.addWidget(self.input)
-        output_card = Card(self.i18n.t("field.output"))
-        output_card.content_layout.addWidget(self.output)
-        layout.addWidget(input_card)
-        layout.addWidget(self.relaxed_decode)
-        layout.addWidget(ActionBar(clear, decode, encode))
-        layout.addWidget(output_card)
-        return tab
-
-    def _build_file_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        self.file_mode = SegmentedControl(
-            [(self.i18n.t("action.encode"), "encode"), (self.i18n.t("action.decode"), "decode")],
-            "encode",
-        )
-        self.file_mode.changed.connect(lambda _mode: self._refresh_preview())
-        self.picker = FilePickerCard(self.i18n.t("action.select_file"), self.i18n.t("file.no_file"), self.i18n.t("base64.file_hint"))
-        self.picker.file_selected.connect(self.set_file)
-        self.progress = TaskProgress(self.i18n.t("action.cancel"))
-        self.progress.cancel_button.clicked.connect(self.controller.cancel)
-        self.run_file_button = QPushButton(self.i18n.t("action.encode_file"))
-        self.run_file_button.setObjectName("Primary")
-        self.run_file_button.clicked.connect(self.run_file)
-        self.result = ResultSummary(self.i18n.t("action.open_output"), self.i18n.t("action.clear"))
-        self.result.reveal_requested.connect(self.reveal_requested.emit)
-        file_card = Card("File Base64")
-        file_card.content_layout.addWidget(self.file_alert)
-        file_card.content_layout.addWidget(self.file_mode)
-        file_card.content_layout.addWidget(self.picker)
-        file_card.content_layout.addWidget(self.progress)
-        file_card.content_layout.addWidget(ActionBar(self.run_file_button))
-        file_card.content_layout.addWidget(self.result)
-        layout.addWidget(file_card)
-        return tab
+        self.run_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
+        self.run_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.run_shortcut.activated.connect(self.run_current)
+        self.cancel_shortcut = QShortcut(QKeySequence("Escape"), self)
+        self.cancel_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.cancel_shortcut.activated.connect(self.cancel)
+        self.retranslate_ui()
+        self._on_kind_changed("text")
+        self._on_mode_changed("encode")
 
     def set_service(self, service: CryptoService) -> None:
         self.service = service
         self._refresh_preview()
 
-    def set_file(self, path: object) -> None:
-        if not isinstance(path, (str, Path)):
-            return
-        file_path = Path(path)
-        if not file_path.is_file():
-            return
-        self.selected_file = file_path
-        self.file_selected.emit(file_path)
-        self.picker.set_file(file_path, self._file_labels(file_path))
-        self.result.clear()
+    def retranslate_ui(self) -> None:
+        self.kind.set_labels(
+            [(self.i18n.t("base64.kind.text"), "text"), (self.i18n.t("base64.kind.file"), "file")],
+            self.i18n.t("access.input_kind"),
+        )
+        self.mode.set_labels(
+            [(self.i18n.t("action.encode"), "encode"), (self.i18n.t("action.decode"), "decode")],
+            self.i18n.t("access.operation_mode"),
+        )
+        self.note_card.set_title(self.i18n.t("base64.warning_title"))
+        self.note_card.set_description(self.i18n.t("base64.warning_body"))
+        self.mode_card.set_title(self.i18n.t("flow.mode"))
+        self.kind_label.setText(self.i18n.t("base64.input_kind"))
+        self.mode_label.setText(self.i18n.t("base64.operation"))
+        self.input_card.set_title(self.i18n.t("flow.input"))
+        self.input.setPlaceholderText(self.i18n.t("base64.input.placeholder"))
+        self.input.setAccessibleName(self.i18n.t("access.base64_text_input"))
+        self.relaxed_decode.setText(self.i18n.t("base64.relaxed_decode"))
+        self.relaxed_decode.setAccessibleName(self.i18n.t("base64.relaxed_decode"))
+        self.picker.set_texts(
+            self.i18n.t("action.select_file"),
+            self.i18n.t("file.no_file"),
+            self.i18n.t("base64.file_hint"),
+        )
+        self.clear_button.setText(self.i18n.t("action.clear_workspace"))
+        self.clear_button.setAccessibleName(self.i18n.t("action.clear_workspace"))
+        self.output.set_texts(
+            self.i18n.t("action.copy"),
+            self.i18n.t("action.clear_result"),
+            self.i18n.t("action.use_as_input"),
+            self.i18n.t("base64.output.placeholder"),
+        )
+        self.output.set_accessible_name(self.i18n.t("access.base64_text_output"))
+        self.result.set_texts(self.i18n.t("action.open_output"), self.i18n.t("action.clear_result"))
+        self.progress.retranslate_ui()
+        self._on_kind_changed(self.kind.current)
+        self._on_mode_changed(self.mode.current)
         self._refresh_preview()
 
-    def encode_text(self) -> None:
+    def run_current(self) -> None:
+        if self.controller.busy:
+            return
         self.alert.clear()
-        self.output.set_text(self.service.base64_encode_text(self.input.toPlainText()))
-
-    def decode_text(self) -> None:
-        self.alert.clear()
-        try:
-            self.output.set_text(
-                self.service.base64_decode_text(
-                    self.input.toPlainText(),
-                    strict=not self.relaxed_decode.isChecked(),
-                    ignore_ascii_whitespace=self.relaxed_decode.isChecked(),
+        if self.kind.current == "text":
+            text = self.input.toPlainText()
+            if self.mode.current == "encode":
+                self.controller.run(lambda _progress, _token: self.service.base64_encode_text(text))
+            else:
+                relaxed = self.relaxed_decode.isChecked()
+                self.controller.run(
+                    lambda _progress, _token: self.service.base64_decode_text(
+                        text,
+                        strict=not relaxed,
+                        ignore_ascii_whitespace=relaxed,
+                    )
+                )
+            return
+        if not self._validate_file():
+            return
+        input_path = self.selected_file
+        assert input_path is not None
+        if self.mode.current == "encode":
+            self.controller.run(
+                lambda progress, token: self.service.base64_encode_file(
+                    input_path,
+                    progress=progress,
+                    cancel_token=token,
                 )
             )
-        except Exception as exc:
-            self.alert.show_error(self.i18n, exc)
-
-    def clear_text(self) -> None:
-        self.alert.clear()
-        self.input.clear()
-        self.output.clear()
-
-    def swap_text(self) -> None:
-        if self.output.text():
-            self.input.setPlainText(self.output.text())
-            self.output.clear()
-
-    def run_file(self) -> None:
-        self.file_alert.clear()
-        if self.file_mode.current == "encode":
-            self.encode_file()
         else:
-            self.decode_file()
+            self.controller.run(
+                lambda progress, token: self.service.base64_decode_file(
+                    input_path,
+                    progress=progress,
+                    cancel_token=token,
+                )
+            )
+
+    def encode_text(self) -> None:
+        self.kind.set_current("text")
+        self.mode.set_current("encode")
+        self.run_current()
+
+    def decode_text(self) -> None:
+        self.kind.set_current("text")
+        self.mode.set_current("decode")
+        self.run_current()
 
     def encode_file(self) -> None:
-        if not self._validate_file():
-            return
-        input_path = self.selected_file
-        assert input_path is not None
-        self.controller.run(lambda progress, token: self.service.base64_encode_file(input_path, progress=progress, cancel_token=token))
+        self.kind.set_current("file")
+        self.mode.set_current("encode")
+        self.run_current()
 
     def decode_file(self) -> None:
-        if not self._validate_file():
+        self.kind.set_current("file")
+        self.mode.set_current("decode")
+        self.run_current()
+
+    def set_file(self, path: object) -> bool:
+        if self.controller.busy or not isinstance(path, (str, Path)):
+            return False
+        file_path = Path(path)
+        if not file_path.is_file():
+            return False
+        self.selected_file = file_path
+        self.file_selected.emit(file_path)
+        self.result.clear()
+        self.alert.clear()
+        self._refresh_preview()
+        return True
+
+    def clear_current(self) -> None:
+        if self.controller.busy:
             return
-        input_path = self.selected_file
-        assert input_path is not None
-        self.controller.run(lambda progress, token: self.service.base64_decode_file(input_path, progress=progress, cancel_token=token))
+        self.alert.clear()
+        if self.kind.current == "text":
+            self.input.clear()
+            self.output.clear()
+            self.input.setFocus()
+        else:
+            self.selected_file = None
+            self.picker.clear()
+            self.result.clear()
+            self.picker.select_button.setFocus()
+
+    def clear_text(self) -> None:
+        self.kind.set_current("text")
+        self.clear_current()
+
+    def use_result_as_input(self) -> None:
+        text = self.output.text()
+        if not text or self.controller.busy:
+            return
+        self.input.setPlainText(text)
+        self.output.clear()
+        self.kind.set_current("text")
+        next_mode = "decode" if self.mode.current == "encode" else "encode"
+        self.mode.set_current(next_mode)
+        self.input.setFocus()
+
+    def swap_text(self) -> None:
+        self.use_result_as_input()
+
+    def run_file(self) -> None:
+        self.kind.set_current("file")
+        self.run_current()
 
     def has_running_task(self) -> bool:
         return self.controller.busy
@@ -182,53 +294,103 @@ class Base64Page(QWidget):
     def cancel(self) -> None:
         self.controller.cancel()
 
+    def wait_for_task(self, timeout_ms: int = 30_000) -> bool:
+        return self.controller.wait_for_finished(timeout_ms)
+
+    def focus_initial(self) -> None:
+        target = self.input if self.kind.current == "text" else self.picker.select_button
+        target.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
     def _validate_file(self) -> bool:
         if not self.selected_file:
-            self.file_alert.show_error(self.i18n, ValidationError("No file selected.", code="file.not_found"))
+            self.alert.show_error(self.i18n, ValidationError("No file selected.", code="file.not_found"))
+            self.picker.select_button.setFocus()
             return False
         return True
 
-    def _on_file_success(self, result: FileProcessResult) -> None:
-        lines = [
-            self.i18n.t("result.success"),
-            self.i18n.t("result.output", path=str(result.output_path)),
-            self.i18n.t("result.size_change", before=format_size(result.original_size), after=format_size(result.output_size)),
-            self.i18n.t("result.format", format=result.format_name),
-        ]
-        self.result.set_result("\n".join(lines), result.output_path)
+    def _on_success(self, result: object) -> None:
+        self.progress.reset()
+        if isinstance(result, str):
+            self.output.set_text(result)
+            self.output.editor.setFocus()
+        elif isinstance(result, FileProcessResult):
+            lines = [
+                self.i18n.t("result.success"),
+                self.i18n.t("result.output", path=str(result.output_path)),
+                self.i18n.t(
+                    "result.size_change",
+                    before=format_size(result.original_size),
+                    after=format_size(result.output_size),
+                ),
+                self.i18n.t("result.format", format=result.format_name),
+            ]
+            self.result.set_result("\n".join(lines), result.output_path)
+            self.result.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.status_message.emit(self.i18n.t("status.done"), 3000)
 
     def _on_failed(self, exc: object, diagnostic: str) -> None:
-        self.file_alert.show_error(self.i18n, exc)
+        self.progress.reset()
+        self.alert.show_error(self.i18n, exc)
+        self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.status_message.emit(self.i18n.t("status.failed"), 5000)
         self.error.emit(exc, diagnostic)
 
     def _on_cancelled(self) -> None:
         self.progress.reset()
-        self.result.set_result(self.i18n.t("status.cancelled"))
+        self.status_message.emit(self.i18n.t("status.cancelled"), 3000)
 
     def _on_progress(self, event: object) -> None:
         if isinstance(event, ProgressEvent):
             self.progress.set_event(event)
-            self.status_message.emit(self.i18n.t(f"status.{event.stage}"), 1000)
+            self.status_message.emit(self.i18n.t(f"status.{event.stage}"), 1200)
 
     def _on_state(self, state: TaskState) -> None:
         busy = state in {TaskState.RUNNING, TaskState.CANCELLING}
-        self.run_file_button.setEnabled(not busy)
-        self.file_mode.setEnabled(not busy)
-        self.picker.select_button.setEnabled(not busy)
-        self.progress.set_running(busy)
+        self.run_button.setEnabled(not busy)
+        self.clear_button.setEnabled(not busy)
+        self.mode.setEnabled(not busy)
+        self.kind.setEnabled(not busy)
+        self.input.setReadOnly(busy)
+        self.relaxed_decode.setEnabled(not busy)
+        self.picker.set_input_enabled(not busy)
+        self.progress.set_state(state)
+
+    def _on_kind_changed(self, value: str) -> None:
+        is_text = value == "text"
+        self.input_stack.setCurrentIndex(0 if is_text else 1)
+        self.output.setVisible(is_text)
+        self.result.setVisible(not is_text and bool(self.result.label.text()))
+        self.relaxed_decode.setVisible(is_text and self.mode.current == "decode")
+        self._on_mode_changed(self.mode.current)
+
+    def _on_mode_changed(self, value: str) -> None:
+        is_encode = value == "encode"
+        is_file = self.kind.current == "file"
+        key = (
+            "action.encode_file"
+            if is_file and is_encode
+            else "action.decode_file"
+            if is_file
+            else "action.encode"
+            if is_encode
+            else "action.decode"
+        )
+        self.run_button.setText(self.i18n.t(key))
+        self.run_button.setAccessibleName(self.run_button.text())
+        self.relaxed_decode.setVisible(not is_file and not is_encode)
+        self._refresh_preview()
 
     def _refresh_preview(self) -> None:
-        self.run_file_button.setText(self.i18n.t("action.encode_file" if self.file_mode.current == "encode" else "action.decode_file"))
         if self.selected_file:
             self.picker.set_file(self.selected_file, self._file_labels(self.selected_file))
 
     def _file_labels(self, path: Path) -> dict[str, str]:
         return {
-            self.i18n.t("file.path"): str(path),
+            self.i18n.t("file.path_label"): str(path),
             self.i18n.t("file.size_label"): format_size(safe_stat_size(path)),
             self.i18n.t("file.type_label"): path.suffix or self.i18n.t("file.type_unknown"),
-            "Encode output": self._preview_output(path, encode=True),
-            "Decode output": self._preview_output(path, encode=False),
+            self.i18n.t("base64.encode_output_label"): self._preview_output(path, encode=True),
+            self.i18n.t("base64.decode_output_label"): self._preview_output(path, encode=False),
         }
 
     def _preview_output(self, path: Path, *, encode: bool) -> str:
