@@ -5,8 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from aegisvault.core.exceptions import ValidationError
+from aegisvault.core.file_io import atomic_binary_writer
 from aegisvault.settings.models import AppSettings
 from aegisvault.utils.paths import config_dir
+
+SETTINGS_MAX_BYTES = 1024 * 1024
 
 
 class SettingsStore:
@@ -17,14 +21,20 @@ class SettingsStore:
         if not self.path.exists():
             return AppSettings()
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            with self.path.open("rb") as source:
+                raw = source.read(SETTINGS_MAX_BYTES + 1)
+            if len(raw) > SETTINGS_MAX_BYTES:
+                return AppSettings()
+            data = json.loads(raw.decode("utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError, RecursionError):
             return AppSettings()
         if not isinstance(data, dict):
             return AppSettings()
         return AppSettings.from_dict(data)
 
     def save(self, settings: AppSettings) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(settings.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
-
+        payload = (json.dumps(settings.to_dict(), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        if len(payload) > SETTINGS_MAX_BYTES:
+            raise ValidationError("Settings data exceeds the safety limit.", code="settings.too_large")
+        with atomic_binary_writer(self.path, overwrite=True) as target:
+            target.write(payload)

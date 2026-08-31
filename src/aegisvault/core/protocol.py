@@ -31,13 +31,39 @@ def now_utc() -> str:
 def canonical_json(data: dict[str, Any]) -> bytes:
     """Encode protocol JSON in a stable representation."""
 
-    return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    try:
+        return json.dumps(
+            data,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ProtocolError("Invalid protocol header.", code="crypto.invalid_header") from exc
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _reject_non_finite_number(_value: str) -> None:
+    raise ValueError("Non-finite JSON number")
 
 
 def parse_header(raw: bytes) -> dict[str, Any]:
     try:
-        data = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        data = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_non_finite_number,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ProtocolError("Invalid protocol header.", code="crypto.invalid_header") from exc
     if not isinstance(data, dict):
         raise ProtocolError("Protocol header must be a JSON object.", code="crypto.invalid_header")
@@ -56,11 +82,14 @@ def encode_token(package: bytes) -> str:
 def decode_token(token: str) -> bytes:
     if not token.startswith(TEXT_PREFIX):
         raise ProtocolError("Unsupported text token.", code="crypto.unsupported_format")
-    payload = token[len(TEXT_PREFIX) :].strip()
+    payload = token[len(TEXT_PREFIX) :]
+    if not payload:
+        raise ProtocolError("Invalid text token encoding.", code="crypto.invalid_encoding")
     padding = "=" * (-len(payload) % 4)
     try:
-        return base64.urlsafe_b64decode(payload + padding)
-    except (ValueError, binascii.Error) as exc:
+        encoded = (payload + padding).encode("ascii")
+        return base64.b64decode(encoded, altchars=b"-_", validate=True)
+    except (UnicodeEncodeError, ValueError, binascii.Error) as exc:
         raise ProtocolError("Invalid text token encoding.", code="crypto.invalid_encoding") from exc
 
 
@@ -119,19 +148,60 @@ def read_file_header(stream: BinaryIO) -> tuple[dict[str, Any], bytes]:
 
 
 def validate_common_header(header: dict[str, Any], *, kind: str) -> None:
-    if header.get("format") != f"aegisvault.{kind}":
+    format_name = header.get("format")
+    version = header.get("version")
+    algorithm = header.get("algorithm")
+    if type(format_name) is not str or format_name != f"aegisvault.{kind}":
         raise ProtocolError("Encrypted data type does not match this operation.", code="crypto.format_mismatch")
-    if header.get("version") != PROTOCOL_VERSION:
+    if type(version) is not int or version != PROTOCOL_VERSION:
         raise ProtocolError("Unsupported protocol version.", code="crypto.unsupported_version")
-    if header.get("algorithm") != "AES-256-GCM":
+    if type(algorithm) is not str or algorithm != "AES-256-GCM":
         raise ProtocolError("Unsupported encryption algorithm.", code="crypto.unsupported_algorithm")
 
 
+def validate_text_header(header: dict[str, Any]) -> None:
+    """Validate required, non-cryptographic fields of an AGV1 text header."""
+
+    validate_common_header(header, kind="text")
+    _validate_created_at(header.get("created_at"))
+    if not isinstance(header.get("kdf"), dict):
+        raise ProtocolError("Invalid KDF header.", code="crypto.invalid_header")
+    if not isinstance(header.get("nonce"), str):
+        raise ProtocolError("Invalid nonce header.", code="crypto.invalid_header")
+
+
+def validate_file_header(header: dict[str, Any]) -> int:
+    """Validate required AGV1 file fields and return the chunk size."""
+
+    validate_common_header(header, kind="file")
+    if type(header.get("mode")) is not str or header.get("mode") != "chunked":
+        raise ProtocolError("Unsupported file encryption mode.", code="crypto.unsupported_mode")
+    _validate_created_at(header.get("created_at"))
+    if not isinstance(header.get("kdf"), dict):
+        raise ProtocolError("Invalid KDF header.", code="crypto.invalid_header")
+    if not isinstance(header.get("nonce_prefix"), str):
+        raise ProtocolError("Invalid nonce-prefix header.", code="crypto.invalid_header")
+    metadata = header.get("metadata")
+    if not isinstance(metadata, dict):
+        raise ProtocolError("Invalid file metadata.", code="crypto.invalid_header")
+    original_suffix = metadata.get("original_suffix")
+    original_size = metadata.get("original_size")
+    if type(original_suffix) is not str or len(original_suffix) > 4096 or "\x00" in original_suffix:
+        raise ProtocolError("Invalid original file suffix.", code="crypto.invalid_header")
+    if type(original_size) is not int or not (0 <= original_size <= 0x7FFFFFFFFFFFFFFF):
+        raise ProtocolError("Invalid original file size.", code="crypto.invalid_header")
+    return validate_chunk_size(header.get("chunk_size"))
+
+
+def _validate_created_at(value: Any) -> None:
+    if type(value) is not str or not value or len(value) > 128 or "\x00" in value:
+        raise ProtocolError("Invalid creation timestamp.", code="crypto.invalid_header")
+
+
 def validate_chunk_size(value: Any) -> int:
-    try:
-        chunk_size = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ProtocolError("Invalid chunk size.", code="crypto.invalid_chunk_size") from exc
+    if type(value) is not int:
+        raise ProtocolError("Invalid chunk size.", code="crypto.invalid_chunk_size")
+    chunk_size = value
     if not (MIN_CHUNK_SIZE <= chunk_size <= MAX_CHUNK_SIZE):
         raise ProtocolError("Chunk size is outside safety limits.", code="crypto.invalid_chunk_size")
     return chunk_size
@@ -153,6 +223,6 @@ def chunk_aad(digest: bytes, index: int, flags: int) -> bytes:
 def chunk_nonce(prefix: bytes, index: int) -> bytes:
     if len(prefix) != 8:
         raise ProtocolError("Invalid nonce prefix.", code="crypto.invalid_nonce")
-    if index > 0xFFFFFFFF:
+    if type(index) is not int or not (0 <= index <= 0xFFFFFFFF):
         raise ProtocolError("File has too many chunks.", code="crypto.too_many_chunks")
     return prefix + struct.pack(">I", index)
