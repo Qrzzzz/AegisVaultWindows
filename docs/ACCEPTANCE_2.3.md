@@ -41,8 +41,9 @@ waiting alone. Baseline logs are under `build/2.3-baseline/`.
 - A terminal process gets five seconds to consume EOF and exit before tree termination, then five seconds for
   reaping and I/O task settlement. stdin is closed through its raw stream so StreamWriter disposal cannot add a
   second unbounded flush. Every background task has an exception observer and bounded join path.
-- Tests inject sub-second deadlines for speed and assert the production 15/30/5/5-second policy separately.
-  A delayed file response outlives an injected short-RPC deadline, proving file operations do not inherit it.
+- Tests inject shortened deadlines of five seconds or less, with hosted-runner cold-start headroom, and assert the
+  production 15/30/5/5-second policy separately. A delayed file response outlives an independent 100 ms short-RPC
+  deadline, proving file operations do not inherit it.
 
 ## Issue-to-validation map
 

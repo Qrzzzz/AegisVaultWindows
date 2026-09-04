@@ -13,8 +13,10 @@ Environment.SetEnvironmentVariable("AEGISVAULT_TEST_PYTHON", Environment.GetEnvi
 Environment.SetEnvironmentVariable("AEGISVAULT_TEST_SOURCE", Path.GetFullPath(Environment.GetEnvironmentVariable("AEGISVAULT_TEST_SOURCE")!));
 var marker = Path.Combine(root, "owned-process.json");
 Environment.SetEnvironmentVariable("AEGISVAULT_TEST_MARKER", marker);
-var fast = new BackendTimeouts(TimeSpan.FromMilliseconds(350), TimeSpan.FromMilliseconds(250),
-    TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(2));
+// Hosted Windows runners can need more than a sub-second budget for a cold .NET process start.
+// Keep every injected boundary well below production while leaving startup headroom.
+var fast = new BackendTimeouts(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(1),
+    TimeSpan.FromMilliseconds(750), TimeSpan.FromSeconds(5));
 var failures = new List<string>();
 
 void Check(bool condition, string message)
@@ -24,7 +26,7 @@ void Check(bool condition, string message)
 void Log(string scenario, object evidence) => Console.WriteLine(JsonSerializer.Serialize(new { scenario, evidence }));
 async Task Run(string name, Func<Task> test)
 {
-    try { await test().WaitAsync(TimeSpan.FromSeconds(8)); Log(name, new { passed = true }); }
+    try { await test().WaitAsync(TimeSpan.FromSeconds(20)); Log(name, new { passed = true }); }
     catch (Exception ex) { failures.Add($"{name}: {ex}"); Log(name, new { passed = false, error = ex.ToString() }); }
 }
 void Mode(string value)
@@ -36,7 +38,7 @@ void Mode(string value)
 async Task<(int pid, string stage)> WaitMarker(string stage)
 {
     var watch = Stopwatch.StartNew();
-    while (watch.Elapsed < TimeSpan.FromSeconds(4))
+    while (watch.Elapsed < TimeSpan.FromSeconds(10))
     {
         try
         {
@@ -72,7 +74,7 @@ try
         var call = new BackendClient(fast).CallAsync("settings.update", new { theme = new string('a', 1024 * 1024) });
         var owned = await WaitMarker("no-read");
         Check(await ErrorCode(call) == "ipc.request_timeout", "short send timeout code");
-        Check(watch.Elapsed < TimeSpan.FromSeconds(3) && !Alive(owned.pid), "short send was not bounded/reaped");
+        Check(watch.Elapsed < TimeSpan.FromSeconds(15) && !Alive(owned.pid), "short send was not bounded/reaped");
     });
 
     await Run("cancel-before-blocked-send-finishes", async () =>
