@@ -1,6 +1,6 @@
 # QA Checklist
 
-Target version: `1.1.0`.
+Target version: `1.2.0`.
 
 ## Required Commands
 
@@ -18,7 +18,7 @@ The verification script compiles `src`, `tests` and release scripts; runs Ruff, 
 - Base64 page: confirm the encoding-not-encryption warning is visible and both text/file workflows work.
 - Settings dialog: confirm Advanced options contains only the existing overwrite
   setting and its risk warning, with no old-format or embedded-key switch.
-- About dialog: confirm version `1.1.0`, repository URL and the AGV1-only
+- About dialog: confirm version `1.2.0`, repository URL and the AGV1-only
   product boundary are visible.
 
 ## Safety Checks
@@ -37,6 +37,6 @@ The verification script compiles `src`, `tests` and release scripts; runs Ruff, 
   language does not rebuild pages or discard input/results.
 - Cancel is idempotent; closing waits for worker termination; running tasks
   reject drops that would replace their captured input.
-- The release ZIP is named `AegisVault-v1.1.0-win64.zip` and contains `AegisVault.exe`.
-- The public release set is exactly the ZIP, `AegisVault-v1.1.0.cdx.json` and `SHA256SUMS`.
+- The release ZIP is named `AegisVault-v1.2.0-win64.zip` and contains `AegisVault.exe`.
+- The public release set is exactly the ZIP, `AegisVault-v1.2.0.cdx.json` and `SHA256SUMS`.
 - CI signing may be explicitly optional. Publication signing is governed by the repository `AEGISVAULT_SIGNING_MODE` variable and must fail when set to `Required` without a real certificate.

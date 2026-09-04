@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QFileDialog,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -17,32 +16,42 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from aegisvault.ui.icons import icon
+
 
 class FilePicker(QWidget):
     file_selected = Signal(object)
 
     def __init__(self, select_label: str, empty_label: str, hint: str) -> None:
         super().__init__()
+        self.setObjectName("FilePicker")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAcceptDrops(True)
         self._enabled_for_input = True
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
+        self.path_edit.setProperty("outputPath", True)
         self.select_button = QPushButton()
         self.select_button.clicked.connect(self._browse)
         self.meta = QLabel()
+        self.meta.setProperty("muted", True)
         self.meta.setTextFormat(Qt.TextFormat.PlainText)
         self.meta.setWordWrap(True)
         self.meta.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.hint = QLabel()
         self.hint.setWordWrap(True)
-        row = QHBoxLayout()
-        row.addWidget(self.path_edit, 1)
-        row.addWidget(self.select_button)
+        self.hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.symbol = QLabel()
+        self.symbol.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.symbol.setPixmap(icon("upload").pixmap(30, 30))
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(row)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
+        layout.addWidget(self.symbol)
         layout.addWidget(self.hint)
+        layout.addWidget(self.path_edit)
         layout.addWidget(self.meta)
+        layout.addWidget(self.select_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.set_texts(select_label, empty_label, hint)
         self.clear()
 
@@ -60,11 +69,15 @@ class FilePicker(QWidget):
         # The full path is already selectable above; don't repeat it in metadata.
         self.meta.setText(" · ".join(f"{key}: {value}" for key, value in labels.items() if value != str(path)))
         self.meta.setVisible(bool(self.meta.text()))
+        self.path_edit.show()
+        self.symbol.hide()
         self.hint.hide()
 
     def clear(self) -> None:
         self.path_edit.clear()
         self.path_edit.setToolTip("")
+        self.path_edit.hide()
+        self.symbol.show()
         self.meta.clear()
         self.meta.hide()
         self.hint.show()
@@ -95,10 +108,11 @@ class FilePicker(QWidget):
     def _browse(self) -> None:
         if not self._enabled_for_input:
             return
-        # The Windows shell picker follows the OS dark scheme independently of
-        # Qt. Use Qt's standard dialog to preserve this app's fixed-light rule.
-        path, _ = QFileDialog.getOpenFileName(
-            self, self.select_button.text(), options=QFileDialog.Option.DontUseNativeDialog
-        )
+        path, _ = QFileDialog.getOpenFileName(self, self.select_button.text())
         if path:
             self.file_selected.emit(Path(path))
+
+    def changeEvent(self, event: QEvent) -> None:
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.PaletteChange and hasattr(self, "symbol"):
+            self.symbol.setPixmap(icon("upload").pixmap(30, 30))

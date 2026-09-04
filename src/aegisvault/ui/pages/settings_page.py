@@ -27,8 +27,7 @@ from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
 from aegisvault.ui.components.inline_alert import InlineAlert
-from aegisvault.ui.light import ensure_light_appearance
-from aegisvault.ui.pages.common import scroll_page
+from aegisvault.ui.pages.common import PageHeader, scroll_page
 
 
 class SettingsDialog(QDialog):
@@ -44,14 +43,13 @@ class SettingsDialog(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        ensure_light_appearance()
         self.i18n = translator
         self.settings = settings
         self.store = store
         self._recent_files = list(settings.recent_files)
         self._recent_was_cleared = False
         self.setModal(True)
-        self.resize(560, 420)
+        self.resize(580, 540)
         self.setMinimumSize(480, 380)
 
         self.language_combo = QComboBox()
@@ -60,6 +58,12 @@ class SettingsDialog(QDialog):
         self.language_combo.setCurrentIndex(0 if settings.language == "zh-CN" else 1)
         self.language_label = QLabel()
         self.language_label.setBuddy(self.language_combo)
+        self.theme_combo = QComboBox()
+        for theme in ("light", "dark", "system"):
+            self.theme_combo.addItem("", theme)
+        self.theme_combo.setCurrentIndex(max(0, self.theme_combo.findData(settings.theme)))
+        self.theme_label = QLabel()
+        self.theme_label.setBuddy(self.theme_combo)
         self.output_dir = QLineEdit(settings.default_output_dir)
         self.output_label = QLabel()
         self.output_label.setBuddy(self.output_dir)
@@ -70,8 +74,10 @@ class SettingsDialog(QDialog):
         output_row.addWidget(self.browse_button)
         form = QFormLayout()
         form.setHorizontalSpacing(12)
-        form.setVerticalSpacing(10)
+        form.setVerticalSpacing(18)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         form.addRow(self.language_label, self.language_combo)
+        form.addRow(self.theme_label, self.theme_combo)
         form.addRow(self.output_label, output_row)
 
         self.remember = QCheckBox()
@@ -103,6 +109,8 @@ class SettingsDialog(QDialog):
         self.buttons.accepted.connect(self.save)
         self.buttons.rejected.connect(self.reject)
         scroll, content = scroll_page()
+        self.header = PageHeader()
+        content.addWidget(self.header)
         content.addLayout(form)
         content.addWidget(self.remember)
         content.addWidget(self.recent_label)
@@ -112,8 +120,8 @@ class SettingsDialog(QDialog):
         content.addWidget(self.advanced_panel)
         content.addStretch(1)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(20)
         layout.addWidget(scroll, 1)
         layout.addWidget(self.alert)
         layout.addWidget(self.buttons)
@@ -121,11 +129,16 @@ class SettingsDialog(QDialog):
 
     def retranslate_ui(self) -> None:
         self.setWindowTitle(self.i18n.t("settings.title"))
+        self.header.set_texts(self.i18n.t("settings.title"), self.i18n.t("settings.description"))
         self.setAccessibleName(self.windowTitle())
         self.language_combo.setItemText(0, self.i18n.t("settings.language.zh"))
         self.language_combo.setItemText(1, self.i18n.t("settings.language.en"))
         self.language_label.setText(self.i18n.t("settings.language"))
         self.language_combo.setAccessibleName(self.language_label.text())
+        self.theme_label.setText(self.i18n.t("settings.appearance"))
+        self.theme_combo.setAccessibleName(self.theme_label.text())
+        for index, theme in enumerate(("light", "dark", "system")):
+            self.theme_combo.setItemText(index, self.i18n.t(f"settings.appearance.{theme}"))
         self.output_label.setText(self.i18n.t("field.output_dir"))
         self.output_dir.setAccessibleName(self.output_label.text())
         self.output_dir.setPlaceholderText(self.i18n.t("settings.output_same_folder"))
@@ -144,6 +157,7 @@ class SettingsDialog(QDialog):
         save.setText(self.i18n.t("action.save"))
         cancel.setText(self.i18n.t("action.cancel"))
         save.setAccessibleName(save.text())
+        save.setProperty("primary", True)
         cancel.setAccessibleName(cancel.text())
         self._refresh_recent()
         self._toggle_advanced(self.advanced_toggle.isChecked())
@@ -159,7 +173,7 @@ class SettingsDialog(QDialog):
             return
         candidate = AppSettings(
             language=str(self.language_combo.currentData()),
-            theme="light",
+            theme=str(self.theme_combo.currentData()),
             default_output_dir=output_dir,
             overwrite_outputs=self.overwrite.isChecked(),
             remember_recent_files=self.remember.isChecked(),
@@ -193,7 +207,6 @@ class SettingsDialog(QDialog):
     def _browse_output_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(
             self, self.i18n.t("field.output_dir"), self.output_dir.text(),
-            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path:
             self.output_dir.setText(path)
@@ -207,5 +220,11 @@ class SettingsDialog(QDialog):
         self.recent_list.clear()
         if not self._recent_files:
             self.recent_list.addItem(self.i18n.t("settings.no_recent"))
+            self.recent_label.hide()
+            self.recent_list.hide()
+            self.clear_recent_button.hide()
             return
+        self.recent_label.show()
+        self.recent_list.show()
+        self.clear_recent_button.show()
         self.recent_list.addItems(self._recent_files)

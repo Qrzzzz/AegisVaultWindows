@@ -1,6 +1,6 @@
 # UI Specification
 
-Target version: 1.1.0.
+Target: AegisVault 1.2.0, the approved modern Windows UI.
 
 ## Product Boundary
 
@@ -11,13 +11,17 @@ architecture from them.
 
 ## Shell
 
-The application uses one native QMainWindow.
+The application uses one QMainWindow with the system title bar and a Fluent-inspired
+Qt Widgets interface. It is not a WinUI application. No browser or WebView is used.
 
 - The only persistent workspace entries are **Text**, **File**, and **Base64**.
-- Settings, recent files, Exit, and About live in the native menu bar.
+- The left sidebar contains the three workspaces, Settings, and More. More
+  contains the recent-files menu, Settings, Exit and Help/About.
 - Settings and About open modal dialogs; they are not workspace pages.
-- A native QTabWidget holds exactly three tabs. There is no content branding
-  bar, page header, card hierarchy, segmented button navigation or custom QSS.
+- A QStackedWidget preserves exactly three workspace instances. Sidebar buttons
+  have an exclusive selection marker, localized accessible names and tooltips.
+- Below 800 logical pixels the sidebar becomes an icon rail. Each workspace has
+  a page heading, short description and an exclusive two-button operation switch.
 - The native status bar is transient and becomes empty after its timeout.
 - Ctrl+1, Ctrl+2, and Ctrl+3 select the three workspaces. Ctrl+, opens Settings,
   F1 opens About, and Ctrl+Q exits.
@@ -37,10 +41,12 @@ new input, cancel an active task, or reveal a file output. They must not compete
 with the single primary operation. Ctrl+Enter runs the current operation and
 Escape requests cancellation.
 
-Mode, input and options use native QGroupBox and QFormLayout sections, with
-12-pixel outer margins/section spacing and 10-pixel spacing inside forms.
-Password and confirmation labels share a form column that adapts to translation.
-No fixed font, button size, or label-column width is imposed.
+Page margins are 32 logical pixels (20 in narrow content areas), with 24-pixel
+section spacing. Input sections use labels rather than decorative group frames.
+Password and confirmation appear side by side where space allows and stack when
+narrower or when larger fonts require it. The show/hide icon buttons retain full
+localized accessible names. Text editors shorten when results appear or the
+window is small. Result actions wrap vertically when translated labels do not fit.
 
 The primary operation and Clear follow the input/options area and remain outside
 its scroll viewport. Progress and errors appear immediately below this row only
@@ -101,6 +107,7 @@ password, result, selected file, or active page.
 Normal settings:
 
 - language: Simplified Chinese or English;
+- appearance: Light, Dark or Use system setting;
 - default output directory;
 - recent-file retention and clearing.
 
@@ -114,35 +121,27 @@ Saving first persists a candidate AppSettings object. Only a successful write
 updates the live settings and existing pages. A rejected dialog or failed save
 must not mutate live preferences or recent-file history.
 
-## Fixed Basic Light Appearance
+## Modern Windows Appearance
 
-The window, menus, settings, About and errors use normal
-Qt controls, the system font and a fixed light palette. There is no theme picker.
-The application requests Qt's Light color scheme and preserves the palette
-returned by the platform. It does not call QStyle.standardPalette() to replace
-it: on Windows with Qt 6.9.3, that generic palette has a classic #d4d0c8 window
-colour, while the actual requested Windows light palette uses #f3f3f3.
-A small semantic-color fallback handles a platform that still returns darkness.
-No widget QSS, font override, decorative design tokens or Windows backdrop is
-applied. Later system color-scheme notifications must not turn the UI dark.
+An application palette and scoped QSS define muted shell and content surfaces,
+subtle control boundaries, a blue primary operation, and visible keyboard focus
+and disabled states. The existing system font family is retained; the base size
+is at least 10.5 pt and headings scale from it. Monochrome vector icons adapt to
+the current palette. There is no simulated glass effect or replacement title bar.
 
-The persisted theme field is retained for compatibility. Loading old dark,
-system, light or invalid theme values normalizes only this field to light.
-Other settings follow the existing strict validation and load rules. Existing
-in-memory legacy theme values remain valid until settings are successfully
-saved; the UI ignores their visual meaning.
+Light remains the default. Valid persisted light/dark/system values are respected;
+invalid values fall back to light. Theme and language changes apply only after
+settings are successfully saved and never rebuild pages or discard work. System
+notifications update system appearance; an explicit Light or Dark choice remains
+pinned. Dialogs inherit the application appearance.
 
-The default client size is 900 x 680 logical pixels, with a 600 x 440 minimum.
-At 900 x 680 the key inputs and operation fit; text result actions also fit.
-Smaller windows / larger fonts may scroll the content vertically while the
-operation remains visible. Horizontal scrolling/overflow is not permitted.
-File selection uses one read-only selectable path row, Browse and short
-size/type metadata. Base64 uses compact input-type and operation combo boxes.
-File/folder pickers retain standard Qt QFileDialog controls with
-DontUseNativeDialog: the Windows shell picker follows the OS dark scheme,
-independently of the app's Light request. Keeping the Qt dialog preserves the
-fixed-light product boundary without altering Windows settings. Its controls,
-title bar, disabled/focus states and system font remain supplied by Qt/Windows.
+The default client size is 1024 x 760 logical pixels, with a 600 x 440 minimum.
+The operation stays outside the input viewport and remains reachable. Small
+windows and larger fonts use vertical scrolling without horizontal overflow.
+File selection starts with a compact drop area, then shows the selectable full
+path and short size/type metadata. The exact output path remains visible before
+execution. QFileDialog uses the platform-native file/folder picker, which follows
+Windows appearance independently of an explicitly selected application theme.
 
 ## Task and Window State
 
@@ -170,7 +169,7 @@ title bar, disabled/focus states and system font remain supplied by Qt/Windows.
 
 ## Visual Regression
 
-tests/test_ui_visual.py renders 900 x 680 light workspaces with
+tests/test_ui_visual.py renders 1024 x 760 light workspaces with
 QT_QPA_PLATFORM=offscreen, verifies dimensions and a structural pixel comparison,
 and uses these committed baselines (replacing the former dark images):
 
@@ -212,14 +211,14 @@ interaction checks, set QT_QPA_PLATFORM=windows before running the UI tests.
 Additional QT_SCALE_FACTOR values multiply the system DPI; record the observed
 device-pixel ratio instead of assuming that 1.5 always means physical 150%.
 
-tests/test_ui_basic_light.py exercises native Qt input, shortcuts, phase
-visibility, light dialogs after old settings / platform notifications, compact
+tests/test_ui_basic_light.py exercises Qt input, shortcuts, phase
+visibility, theme persistence and platform notifications, compact
 layout reachability, real Base64 file round trips, recent files, output reveal
 dispatch and guarded drops. tests/test_ui_behavior.py retains real encryption,
 rejection of static retired-format samples without output or a dialog, settings
 failure, stale callback, cancellation and
 close/wait contracts. `test_ui_v11_workflows.py` adds form Tab order, translated
-combo width, long paths, real file round trips and cancellation/close cleanup
+translated operation widths, long paths, real file round trips and cancellation/close cleanup
 through the actual services. Its cancellation tests hold progress delivery until
 the UI cancels, and simulate the confirmation answer for close testing.
 

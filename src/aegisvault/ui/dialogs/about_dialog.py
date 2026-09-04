@@ -7,17 +7,17 @@ from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from aegisvault import __license__, __version__
 from aegisvault.i18n.translator import Translator
-from aegisvault.ui.light import ensure_light_appearance
 
 
 class AboutDialog(QDialog):
     def __init__(self, parent: QWidget, translator: Translator) -> None:
         super().__init__(parent)
-        ensure_light_appearance()
         self.i18n = translator
         self.setWindowTitle(self.i18n.t("about.title"))
         self.setMinimumWidth(560)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(18)
         body = QLabel(self.i18n.t("about.body"))
         body.setWordWrap(True)
         body.setAccessibleName(self.i18n.t("about.title"))
