@@ -15,6 +15,9 @@ public sealed partial class MainWindow : Window
     public string AppVersion => ProductInfo.Version;
     public BackendClient Backend { get; } = new();
     public SettingsService Settings { get; }
+    private SettingsViewModel? settingsDraft;
+    public SettingsViewModel SettingsDraft => settingsDraft ??= new(Settings);
+    public int Base64InputKind { get; set; }
     public WorkflowViewModel TextWorkflow { get; }
     public WorkflowViewModel FileWorkflow { get; }
     public WorkflowViewModel Base64TextWorkflow { get; }
@@ -51,6 +54,15 @@ public sealed partial class MainWindow : Window
                 }
             };
         Root.Loaded += InitializeAsync;
+        UpdatePageInset();
+    }
+
+    private void DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args) => UpdatePageInset();
+    private void UpdatePageInset()
+    {
+        // In minimal mode the native pane toggle occupies the top-left of the content surface.
+        if (PageHost is not null)
+            PageHost.Margin = Navigation.DisplayMode == NavigationViewDisplayMode.Minimal ? new Thickness(0, 40, 0, 0) : new Thickness(0);
     }
 
     private void UpdateNavigation()
@@ -78,8 +90,6 @@ public sealed partial class MainWindow : Window
     private void ApplySettings()
     {
         Root.Language = Settings.Current.Language;
-        if (Navigation.SelectedItem is NavigationViewItem selected)
-            Navigation.Header = selected.Tag as string == "base64" ? "Base64" : L[(string)selected.Tag];
         Root.RequestedTheme = Settings.Current.Theme switch
         {
             "dark" => ElementTheme.Dark, "light" => ElementTheme.Light, _ => ElementTheme.Default
@@ -89,7 +99,6 @@ public sealed partial class MainWindow : Window
     private void Navigate(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
-        Navigation.Header = item.Content;
         var type = (item.Tag as string) switch
         {
             "file" => typeof(FilePage), "base64" => typeof(Base64Page), "settings" => typeof(SettingsPage),

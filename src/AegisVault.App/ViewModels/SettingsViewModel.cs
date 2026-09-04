@@ -1,41 +1,94 @@
 using AegisVault.App.Services;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace AegisVault.App.ViewModels;
 
-public sealed class SettingsViewModel(SettingsService service) : ObservableObject
+public sealed class SettingsViewModel : ObservableObject
 {
+    private readonly SettingsService service;
+    private int languageIndex, themeIndex;
+    private string outputFolder = "", statusKey = "";
+    private bool rememberRecent, overwrite, busy, hasStatus;
+    private InfoBarSeverity severity;
+
+    public SettingsViewModel(SettingsService service)
+    {
+        this.service = service;
+        ResetDraft();
+        service.Changed += (_, _) =>
+        {
+            Raise(nameof(RecentFiles)); Raise(nameof(HasRecentFiles)); Raise(nameof(EmptyRecentVisibility));
+            Raise(nameof(ThemeOptions)); Raise(nameof(ThemeIndex));
+            Raise(nameof(Status)); RefreshDraftState();
+        };
+    }
+
     public Localization L => Localization.Instance;
     public string VersionLabel => ProductInfo.DisplayName;
-    public int LanguageIndex { get; set; } = service.Current.Language == "zh-CN" ? 0 : 1;
-    public int ThemeIndex { get; set; } = service.Current.Theme switch { "system" => 0, "light" => 1, _ => 2 };
-    private string outputFolder = service.Current.DefaultOutputDir;
-    private bool busy, hasStatus;
-    private string status = "";
-    private InfoBarSeverity severity;
-    public string OutputFolder { get => outputFolder; set => Set(ref outputFolder, value); }
-    public bool RememberRecent { get; set; } = service.Current.RememberRecentFiles;
-    public bool Overwrite { get; set; } = service.Current.OverwriteOutputs;
+    public int LanguageIndex { get => languageIndex; set { if (!busy && value is >= 0 and <= 1 && Set(ref languageIndex, value)) Edited(); } }
+    public int ThemeIndex { get => themeIndex; set { if (!busy && value is >= 0 and <= 2 && Set(ref themeIndex, value)) Edited(); } }
+    public string[] ThemeOptions => [L["system"], L["light"], L["dark"]];
+    public string OutputFolder { get => outputFolder; set { if (!busy && Set(ref outputFolder, value)) Edited(); } }
+    public bool RememberRecent { get => rememberRecent; set { if (!busy && Set(ref rememberRecent, value)) Edited(); } }
+    public bool Overwrite { get => overwrite; set { if (!busy && Set(ref overwrite, value)) Edited(); } }
     public bool IsIdle => !busy;
     public string[] RecentFiles => service.Current.RecentFiles;
-    public string Status { get => status; private set => Set(ref status, value); }
+    public bool HasRecentFiles => RecentFiles.Length > 0;
+    public Visibility EmptyRecentVisibility => HasRecentFiles ? Visibility.Collapsed : Visibility.Visible;
+    public bool HasChanges => LanguageIndex != (service.Current.Language == "zh-CN" ? 0 : 1)
+        || ThemeIndex != ThemeToIndex(service.Current.Theme) || OutputFolder != service.Current.DefaultOutputDir
+        || RememberRecent != service.Current.RememberRecentFiles || Overwrite != service.Current.OverwriteOutputs;
+    public string DraftStatus => L[HasChanges ? "unsaved_settings" : "settings_current"];
+    public string Status => statusKey.StartsWith("error.", StringComparison.Ordinal) ? L.Error(statusKey[6..])
+        : string.IsNullOrEmpty(statusKey) ? "" : L[statusKey];
     public bool HasStatus { get => hasStatus; private set => Set(ref hasStatus, value); }
     public InfoBarSeverity Severity { get => severity; private set => Set(ref severity, value); }
-    public async Task SaveAsync() => await Perform(async () =>
-        await service.SaveAsync(service.Current with
+
+    public async Task SaveAsync()
+    {
+        if (!HasChanges) return;
+        await Perform(async () =>
         {
-            Language = LanguageIndex == 0 ? "zh-CN" : "en-US",
-            Theme = ThemeIndex switch { 0 => "system", 1 => "light", _ => "dark" },
-            DefaultOutputDir = OutputFolder, RememberRecentFiles = RememberRecent, OverwriteOutputs = Overwrite
-        }));
-    public async Task ClearRecentAsync() => await Perform(service.ClearRecentAsync);
-    private async Task Perform(Func<Task> action)
+            await service.SaveAsync(service.Current with
+            {
+                Language = LanguageIndex == 0 ? "zh-CN" : "en-US",
+                Theme = ThemeIndex switch { 0 => "system", 1 => "light", _ => "dark" },
+                DefaultOutputDir = OutputFolder, RememberRecentFiles = RememberRecent, OverwriteOutputs = Overwrite
+            });
+            ResetDraft();
+        }, "settings_saved");
+    }
+    public Task ClearRecentAsync() => Perform(service.ClearRecentAsync, "recent_cleared");
+    public void Discard()
     {
         if (busy) return;
-        busy = true; Raise(nameof(IsIdle));
-        try { await action(); Status = L["saved"]; Severity = InfoBarSeverity.Success; Raise(nameof(RecentFiles)); }
-        catch (BackendException ex) { Status = L.Error(ex.Code); Severity = InfoBarSeverity.Error; }
-        finally { busy = false; HasStatus = true; Raise(nameof(IsIdle)); }
+        ResetDraft();
+        HasStatus = false;
     }
-    public void Fail(string code) { Status = L.Error(code); Severity = InfoBarSeverity.Error; HasStatus = true; }
+    private void ResetDraft()
+    {
+        languageIndex = service.Current.Language == "zh-CN" ? 0 : 1;
+        themeIndex = ThemeToIndex(service.Current.Theme);
+        outputFolder = service.Current.DefaultOutputDir;
+        rememberRecent = service.Current.RememberRecentFiles;
+        overwrite = service.Current.OverwriteOutputs;
+        Raise(nameof(LanguageIndex)); Raise(nameof(ThemeIndex)); Raise(nameof(OutputFolder));
+        Raise(nameof(RememberRecent)); Raise(nameof(Overwrite)); RefreshDraftState();
+    }
+    private static int ThemeToIndex(string theme) => theme switch { "system" => 0, "light" => 1, _ => 2 };
+    private void Edited() { HasStatus = false; RefreshDraftState(); }
+    private void RefreshDraftState() { Raise(nameof(HasChanges)); Raise(nameof(DraftStatus)); }
+    private async Task Perform(Func<Task> action, string successKey)
+    {
+        if (busy) return;
+        busy = true; HasStatus = false; Raise(nameof(IsIdle));
+        try { await action(); statusKey = successKey; Severity = InfoBarSeverity.Success; }
+        catch (BackendException ex) { statusKey = $"error.{ex.Code}"; Severity = InfoBarSeverity.Error; }
+        finally { busy = false; HasStatus = true; Raise(nameof(Status)); Raise(nameof(IsIdle)); RefreshDraftState(); }
+    }
+    public void Fail(string code)
+    {
+        statusKey = $"error.{code}"; Raise(nameof(Status)); Severity = InfoBarSeverity.Error; HasStatus = true;
+    }
 }

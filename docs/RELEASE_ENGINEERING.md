@@ -1,4 +1,4 @@
-# Release engineering — 2.0
+# Release engineering — 2.1
 
 The authoritative product version is `src/aegisvault/version.py`. Metadata validation checks two-component
 `X.Y` / `vX.Y`, Python packaging, WinUI project/assembly versions and matching release notes. Windows binary

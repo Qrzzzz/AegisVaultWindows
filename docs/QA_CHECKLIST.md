@@ -1,4 +1,4 @@
-# AegisVault 2.0 acceptance checklist
+# AegisVault 2.1 acceptance checklist
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
 Do not label any unrun gate as passed. Current evidence is in [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md).
@@ -13,6 +13,10 @@ Do not label any unrun gate as passed. Current evidence is in [UI_ACCEPTANCE.md]
 - Check light, dark, system-following and **real Windows High Contrast**.
 - Inspect real 100%, 125%, 150%, 175% and 200% DPI, including moving between monitors.
 - Check a narrow window, scrolling, long paths and localized strings without inaccessible controls.
+- At 680 x 640 physical pixels, verify visible Run/Cancel and Settings Save/Discard, correction focus,
+  and a visible result after layout. Open the native result overflow menu and reuse/save/copy results.
+- Navigate away from an edited Settings draft and a Base64 file workflow, then return. Discard changes;
+  simulate a locked settings file, verify no persisted/applied change, unlock and save the retained draft.
 - Use keyboard only: navigation, tab order, Ctrl+Enter, pickers, password reveal, cancel and dialogs.
 - Use Narrator: labels, password privacy, error/progress announcements, focus after navigation/dialog close.
 - Build x64 Release with zero warnings/errors; audit complete WinUI/runtime/backend ZIP and both dependency ecosystems.

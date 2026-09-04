@@ -1,6 +1,6 @@
-# Format support through 2.0
+# Format support through 2.1
 
-AegisVault 2.0 preserves the AGV1-only format contract established in 1.x. All legacy decryption and recovery functionality remains removed.
+AegisVault 2.1 preserves the AGV1-only format contract established in 1.x. All legacy decryption and recovery functionality remains removed.
 
 ## Supported
 
