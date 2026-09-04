@@ -55,7 +55,8 @@ class Client:
 
     def close(self) -> None:
         assert self.process.stdin and self.process.stderr
-        self.process.stdin.close()
+        if not self.process.stdin.closed:
+            self.process.stdin.close()
         try:
             assert self.process.wait(timeout=15) == 0
             assert self.process.stderr.read() == b""
@@ -114,6 +115,25 @@ def test_invalid_json_is_recoverable(client: Client, raw: bytes) -> None:
     assert client.receive()["code"] == "ipc.invalid_request"
     client.send("hello")
     assert client.receive()["type"] == "result"
+
+
+@pytest.mark.parametrize("escaped_id", [b"\\ud800", b"\\udfff"])
+def test_unencodable_request_id_is_rejected_before_settings_side_effect(
+    client: Client, tmp_path: Path, escaped_id: bytes
+) -> None:
+    client.raw(b'{"v":1,"id":"' + escaped_id + b'","op":"settings.update","args":{"theme":"dark"}}\n')
+    assert client.receive() == {"v": 1, "id": None, "type": "error", "code": "ipc.invalid_request"}
+    assert not (tmp_path / "AegisVault/settings.json").exists()
+    client.send("hello", request_id="healthy")
+    assert client.receive()["id"] == "healthy"
+    client.close()
+    assert client.lines.empty(), "invalid ID emitted more than one terminal response"
+
+
+def test_non_bmp_request_id_remains_supported(client: Client) -> None:
+    client.send("hello", request_id="healthy-🔐")
+    response = client.receive()
+    assert response["id"] == "healthy-🔐" and response["type"] == "result"
 
 
 @pytest.mark.parametrize("version", [True, 2, "1"])

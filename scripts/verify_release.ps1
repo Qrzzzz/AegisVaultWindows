@@ -73,6 +73,9 @@ try {
         "-m", "pytest", "-vv", "--cov=aegisvault", "--cov-report=term-missing", "--cov-report=xml:coverage.xml",
         "--cov-fail-under=70"
     )
+    Write-Host "== IPC lifecycle =="
+    & (Join-Path $PSScriptRoot "test_ipc_lifecycle.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "IPC lifecycle validation failed with exit code $LASTEXITCODE." }
 
 } finally {
     $env:PYTHONUTF8 = $PreviousUtf8

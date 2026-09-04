@@ -1,19 +1,19 @@
-# AegisVault Windows 2.2
+# AegisVault Windows 2.3
 
 A local Windows utility for password-based text and file encryption, with separate Base64 workflows.
-Version 2.2 fixes Base64 input consistency, damaged-settings recovery and concurrent
-settings transactions. It retains the **WinUI 3** interface, AGV1 format, scrypt and AES-256-GCM.
+Version 2.3 hardens backend cancellation, short-request deadlines, response parsing and request-ID handling.
+It retains the **WinUI 3** interface, AGV1 format, scrypt and AES-256-GCM.
 All production windows use C# and Windows App SDK. There is no legacy desktop frontend.
 
 ## Use the application
 
-Download [AegisVault v2.2](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v2.2),
-then extract the entire `AegisVault-v2.2-win64.zip` and run `AegisVault.exe`.
+Download [AegisVault v2.3](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v2.3),
+then extract the entire `AegisVault-v2.3-win64.zip` and run `AegisVault.exe`.
 Keep all runtime files and the `backend` directory together. The package includes Python, .NET and the
 Windows App SDK runtime. Windows 10 2004 or newer, x64, is required; Mica is provided on supported Windows 11 systems.
 
-Local 2.2 builds appear under `dist/AegisVault/`; the archive is `AegisVault-v2.2-win64.zip`.
-See [2.2 release notes](docs/releases/v2.2.md) and [local acceptance](docs/ACCEPTANCE_2.2.md).
+Local 2.3 builds appear under `dist/AegisVault/`; the archive is `AegisVault-v2.3-win64.zip`.
+See [2.3 release notes](docs/releases/v2.3.md) and [local acceptance](docs/ACCEPTANCE_2.3.md).
 Earlier UI evidence remains in [2.1 UI acceptance](docs/UI_ACCEPTANCE.md).
 
 ## Workflows
@@ -31,7 +31,7 @@ Existing configuration is read from `%LOCALAPPDATA%/AegisVault/settings.json`. A
 The application adds no account, network service, telemetry or cloud synchronization.
 
 Base64 file operations reject detectable changes to the opened input and discard temporary output.
-Settings mutations serialize across cooperating 2.2 processes with a five-second lock acquisition limit;
+Settings mutations serialize across cooperating 2.2 and later processes with a five-second lock acquisition limit;
 the persistent `.settings.json.lock` file is not a stale-lock marker. Invalid JSON, including integers
 beyond Python's digit limit, falls back to defaults and can be repaired by saving settings.
 WinUI still submits all six preferences when saving a draft, so a later explicit save from another
@@ -74,7 +74,7 @@ scripts/                 validation, self-contained packaging, audits and releas
 docs/                    protocol, security model, migration and measured acceptance
 ```
 
-Product versions use `2.0 → 2.1 → 2.2 → 2.3 → 2.4`; PE/assembly metadata uses four components such as `2.2.0.0`.
+Product versions use `2.0 → 2.1 → 2.2 → 2.3 → 2.4`; PE/assembly metadata uses four components such as `2.3.0.0`.
 Python and NuGet dependencies are locked, and the release SBOM covers both runtimes. A local unsigned build
 is not evidence of a signed or published release.
 

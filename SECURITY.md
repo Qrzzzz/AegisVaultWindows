@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes target the default branch, `master`, and the latest stable release line, 2.2. Historical releases remain available, but the retired desktop frontend is no longer maintained.
+Security fixes target the default branch, `master`, and the latest stable release line, 2.3. Historical releases remain available, but the retired desktop frontend is no longer maintained.
 
 ## Reporting A Vulnerability
 

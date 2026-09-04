@@ -141,18 +141,21 @@ public sealed class WorkflowViewModel : ObservableObject
                 output_dir = OutputDir, strict = !IgnoreWhitespace, ignore_ascii_whitespace = IgnoreWhitespace }, report, token.Token);
             if (IsFile)
             {
-                ResultPath = result.GetProperty("output_path").GetString()!;
-                originalSize = result.GetProperty("original_size").GetInt64();
-                outputSize = result.GetProperty("output_size").GetInt64();
+                ResultPath = BackendResponse.String(result, "output_path");
+                originalSize = BackendResponse.Int64(result, "original_size");
+                outputSize = BackendResponse.Int64(result, "output_size");
                 FormatFileResult();
             }
-            else Output = result.GetProperty(Kind == "text" ? (Mode == 0 ? "ciphertext" : "plaintext") : "text").GetString()!;
+            else Output = BackendResponse.String(result, Kind == "text" ? (Mode == 0 ? "ciphertext" : "plaintext") : "text");
             HasResult = true;
             Show("completed", InfoBarSeverity.Success);
             if (IsFile && settings.Current.RememberRecentFiles)
             {
-                try { await settings.AddRecentAsync(InputPath); }
-                catch (BackendException) { Show("completed_recent_failed", InfoBarSeverity.Warning); }
+                try { await settings.AddRecentAsync(InputPath, token.Token); }
+                catch (Exception ex) when (ex is BackendException or OperationCanceledException)
+                {
+                    Show("completed_recent_failed", InfoBarSeverity.Warning);
+                }
             }
         }
         catch (OperationCanceledException) { Show("cancelled"); }

@@ -53,6 +53,16 @@ def _boolean(args: dict[str, Any], name: str, default: bool) -> bool:
     return value
 
 
+def _request_id(value: object) -> str:
+    if not isinstance(value, str) or not 1 <= len(value) <= 64:
+        raise ValueError()
+    try:
+        value.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError() from exc
+    return value
+
+
 class BackendServer:
     def __init__(self, source: BinaryIO, target: BinaryIO, store: SettingsStore | None = None) -> None:
         self.source, self.target = source, target
@@ -81,10 +91,11 @@ class BackendServer:
                                          parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
                     if not isinstance(request, dict):
                         raise ValueError()
-                    request_id = request.get("id")
-                    if not isinstance(request_id, str) or not 1 <= len(request_id) <= 64:
+                    try:
+                        request_id = _request_id(request.get("id"))
+                    except ValueError:
                         request_id = None
-                        raise ValueError()
+                        raise ValueError() from None
                     if type(request.get("v")) is not int or request["v"] != PROTOCOL_VERSION:
                         self.emit(request_id, "error", code="ipc.unsupported_version")
                         continue

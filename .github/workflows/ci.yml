@@ -92,6 +92,8 @@ jobs:
         run: .\scripts\audit_nuget.ps1
       - name: Compile native interaction test harness
         run: dotnet build tests/AegisVault.NativeTests -c Release -warnaserror
+      - name: Exercise bounded IPC lifecycle and fault responses
+        run: .\scripts\test_ipc_lifecycle.ps1
       - name: Build, smoke and audit unsigned CI candidate
         run: .\scripts\build_windows.ps1 -Clean -Zip -SigningMode Optional
       - name: Upload audited package candidate

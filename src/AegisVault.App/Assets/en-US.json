@@ -108,6 +108,8 @@
   "error.ipc.unknown_operation": "The backend does not support this operation.",
   "error.ipc.busy": "The backend is processing another task.",
   "error.ipc.cancel_timeout": "The backend did not stop in time and was terminated. Check the output folder for temporary files.",
+  "error.ipc.request_timeout": "The backend did not answer before the request deadline and was terminated. Please try again.",
+  "error.ipc.cleanup_failed": "The backend could not be fully stopped. Close AegisVault before trying again.",
   "error.crypto.format_mismatch": "This container belongs to a different workflow.",
   "error.crypto.header_too_large": "The container header exceeds the safety limit.",
   "error.crypto.invalid_encoding": "The encrypted text has invalid encoding.",
