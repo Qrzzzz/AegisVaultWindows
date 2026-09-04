@@ -15,15 +15,19 @@ class RecentFilesService:
         self.max_items = max_items
 
     def add(self, path: Path) -> None:
-        if not self.settings.remember_recent_files:
-            return
         value = str(path.expanduser().resolve())
-        files = [item for item in self.settings.recent_files if item != value]
-        files.insert(0, value)
-        self.settings.recent_files = files[: self.max_items]
-        self.store.save(self.settings)
+
+        def change(settings: AppSettings) -> AppSettings:
+            if settings.remember_recent_files:
+                files = [item for item in settings.recent_files if item != value]
+                settings.recent_files = ([value] + files)[: self.max_items]
+            return settings
+
+        self.settings = self.store.update(change)
 
     def clear(self) -> None:
-        self.settings.recent_files = []
-        self.store.save(self.settings)
+        def change(settings: AppSettings) -> AppSettings:
+            settings.recent_files = []
+            return settings
 
+        self.settings = self.store.update(change)

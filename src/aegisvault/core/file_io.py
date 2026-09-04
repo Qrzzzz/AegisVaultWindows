@@ -19,6 +19,15 @@ def file_size(path: Path) -> int:
         raise FileIOError(f"Cannot read file size: {path}", code="file.stat_failed") from exc
 
 
+def ensure_input_unchanged(source: BinaryIO, initial: os.stat_result, bytes_read: int) -> None:
+    """Reject detectable changes to the opened input; this is not a snapshot lock."""
+
+    final = os.fstat(source.fileno())
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    if bytes_read != initial.st_size or any(getattr(initial, field) != getattr(final, field) for field in fields):
+        raise FileIOError("Input file changed during processing.", code="file.input_changed")
+
+
 def ensure_output_parent(path: Path) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)

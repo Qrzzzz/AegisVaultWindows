@@ -36,6 +36,8 @@
   "error.settings.invalid_type": "One or more settings has an invalid data type.",
   "error.settings.invalid_value": "One or more settings has an unsupported value.",
   "error.settings.too_large": "The settings data exceeds the safe storage limit.",
+  "error.settings.lock_timeout": "Settings are being updated by another operation. Please try again.",
+  "error.settings.lock_failed": "Settings could not be locked for saving. Check access to the settings folder.",
   "text": "Text",
   "file": "File",
   "settings": "Settings",

@@ -18,7 +18,7 @@ from aegisvault.core.exceptions import (
     ProtocolError,
     ValidationError,
 )
-from aegisvault.core.file_io import atomic_binary_writer, ensure_distinct_paths, file_size
+from aegisvault.core.file_io import atomic_binary_writer, ensure_distinct_paths, ensure_input_unchanged, file_size
 from aegisvault.core.kdf import ScryptParams, derive_key, make_scrypt_params, params_from_header, params_to_header
 from aegisvault.core.models import (
     CancelToken,
@@ -202,23 +202,7 @@ def encrypt_file(
                     break
                 chunk = next_chunk
                 index += 1
-        final_source_stat = os.fstat(source.fileno())
-        initial_signature = (
-            source_stat.st_dev,
-            source_stat.st_ino,
-            source_stat.st_size,
-            source_stat.st_mtime_ns,
-            source_stat.st_ctime_ns,
-        )
-        final_signature = (
-            final_source_stat.st_dev,
-            final_source_stat.st_ino,
-            final_source_stat.st_size,
-            final_source_stat.st_mtime_ns,
-            final_source_stat.st_ctime_ns,
-        )
-        if initial_signature != final_signature or bytes_read != original_size:
-            raise FileIOError("Input file changed during encryption.", code="file.input_changed")
+        ensure_input_unchanged(source, source_stat, bytes_read)
         _check_cancel(cancel_token)
         _emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
         _check_cancel(cancel_token)

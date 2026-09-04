@@ -135,28 +135,12 @@ class BackendServer:
         if op == "hello":
             return {"protocol": PROTOCOL_VERSION, "version": PACKAGE_VERSION, "operations": OPERATIONS,
                     "max_line_bytes": MAX_LINE_BYTES}
+        if op in {"settings.update", "recent.add", "recent.clear"}:
+            return self.store.update(
+                lambda settings: self._change_settings(settings, op, args), cancel_token=self._token
+            ).to_dict()
         settings = self.store.load()
         if op == "settings.get":
-            return settings.to_dict()
-        if op == "settings.update":
-            allowed = set(settings.to_dict()) - {"recent_files"}
-            if set(args) - allowed:
-                raise ValidationError(code="ipc.invalid_request")
-            candidate = AppSettings(**(settings.to_dict() | args))
-            candidate.validate()
-            if candidate.default_output_dir:
-                CryptoService(candidate)._output_dir()
-            if not candidate.remember_recent_files:
-                candidate.recent_files = []
-            self.store.save(candidate)
-            return candidate.to_dict()
-        if op in {"recent.add", "recent.clear"}:
-            if op == "recent.clear":
-                settings.recent_files = []
-            elif settings.remember_recent_files:
-                recent_path = str(Path(_string(args, "input_path")).resolve())
-                settings.recent_files = ([recent_path] + [p for p in settings.recent_files if p != recent_path])[:12]
-            self.store.save(settings)
             return settings.to_dict()
         service = CryptoService(settings)
         if self._token.cancelled:
@@ -183,6 +167,27 @@ class BackendServer:
             return service.base64_encode_file(path, **kwargs)
         if op == "base64.decode_file":
             return service.base64_decode_file(path, **kwargs)
+        raise ValidationError(code="ipc.unknown_operation")
+
+    def _change_settings(self, settings: AppSettings, op: str, args: dict[str, Any]) -> AppSettings:
+        if op == "settings.update":
+            allowed = set(settings.to_dict()) - {"recent_files"}
+            if set(args) - allowed:
+                raise ValidationError(code="ipc.invalid_request")
+            candidate = AppSettings(**(settings.to_dict() | args))
+            candidate.validate()
+            if candidate.default_output_dir:
+                CryptoService(candidate)._output_dir()
+            if not candidate.remember_recent_files:
+                candidate.recent_files = []
+            return candidate
+        if op in {"recent.add", "recent.clear"}:
+            if op == "recent.clear":
+                settings.recent_files = []
+            elif settings.remember_recent_files:
+                recent_path = str(Path(_string(args, "input_path")).resolve())
+                settings.recent_files = ([recent_path] + [p for p in settings.recent_files if p != recent_path])[:12]
+            return settings
         raise ValidationError(code="ipc.unknown_operation")
 
 

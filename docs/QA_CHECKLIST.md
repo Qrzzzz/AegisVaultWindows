@@ -1,7 +1,14 @@
-# AegisVault 2.1 acceptance checklist
+# AegisVault 2.2 acceptance checklist
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md).
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.2.md](ACCEPTANCE_2.2.md);
+[UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
+
+- With synthetic files and a second real handle, truncate Base64 input after the first chunk in both directions; require `file.input_changed`, no committed partial output and no temporary residue. Keep static roundtrip, cancellation and no-overwrite controls.
+- In an isolated real backend process, test overlong JSON integers, ordinary malformed JSON and valid settings; settings get/update and Base64 must remain usable. Preserve `show_advanced_options` and the interpreter's integer digit limit.
+- With two real processes and controlled scheduling, test privacy-off/recent-add, unrelated field updates and recent-clear/update. Wait before the second transaction's load; do not put a two-party barrier inside the lock.
+- Confirm a five-second settings lock timeout, cancelled waits, failed writes and process-exit lock release; require subsequent saving to work and no partial JSON. Ordinary crypto operations must not wait for the settings transaction lock.
+- Check localized lock failure/timeout messages and retained Settings drafts. Record that explicit old drafts from separate windows still use last-writer-wins for submitted preference fields.
 
 - Preserve the AGV1 fixed text/file fixtures byte for byte; roundtrip binary/Unicode data and empty inputs.
 - Confirm wrong passwords, damaged containers and unsupported formats leave no committed plaintext output.

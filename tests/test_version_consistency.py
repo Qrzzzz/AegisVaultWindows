@@ -13,10 +13,10 @@ def test_runtime_version_matches_display_version() -> None:
     assert aegisvault.__version__ == DISPLAY_VERSION
 
 
-def test_version_constants_for_21() -> None:
-    assert PACKAGE_VERSION == "2.1"
-    assert DISPLAY_VERSION == "2.1"
-    assert RELEASE_TAG == "v2.1"
+def test_version_constants_for_22() -> None:
+    assert PACKAGE_VERSION == "2.2"
+    assert DISPLAY_VERSION == "2.2"
+    assert RELEASE_TAG == "v2.2"
 
 
 def test_pyproject_version_matches_package_version() -> None:
