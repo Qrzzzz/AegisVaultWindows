@@ -41,8 +41,31 @@ KDF work is bounded by the existing Core and does not support interruption withi
 Maximum request line size is 16 MiB including LF. Oversized input produces `ipc.request_too_large` and closes
 the service. Duplicate JSON members, non-finite numbers, invalid UTF-8, invalid IDs, Boolean version aliases
 and incorrectly typed arguments are rejected. Unsupported protocol versions and unknown operations have
-separate error codes. IDs are 1–64 characters. Clients must not send a second operation before the first
-process has terminated. Text UI input is additionally limited to 2,097,152 characters.
+separate error codes. IDs are 1–64 Unicode characters and must be encodable as strict UTF-8; isolated
+surrogate code points are rejected before dispatch, while valid non-BMP characters remain supported.
+Clients must not send a second operation before the first process has terminated. Text UI input is additionally
+limited to 2,097,152 characters.
+
+The client validates numeric response members before conversion. `v` is an Int32 JSON integer;
+`processed_bytes`, `total_bytes`, `original_size` and `output_size` are nonnegative Int64 JSON integers.
+Fractional, overflowing and incorrectly typed values produce `ipc.invalid_response`. Progress fields are
+validated even if a caller does not subscribe to progress.
+
+## Client request lifecycle in 2.3
+
+Cancellation registration and independent supervision are established before the first potentially blocking
+pipe write. A cancellation callback only signals state; it never synchronously writes or flushes a pipe. A
+background writer serializes the original request and cooperative `cancel` notification, while the cancellation
+guard can terminate the exact process tree created by the call without waiting for either write to return.
+
+`hello`, `settings.get`, `settings.update`, `recent.add` and `recent.clear` have a 15-second response deadline.
+This covers request write/flush and response reading after a successful process start and leaves room for the backend's existing
+five-second settings-lock limit. Text and file operations have no fixed total deadline. User cancellation gives
+the backend 30 seconds to emit its terminal event; expiry returns `ipc.cancel_timeout`. An ordinary short-request
+expiry returns `ipc.request_timeout`. After a terminal event, stdin is closed and the process has five seconds
+to exit before its owned process tree is terminated; reaping and I/O-task settlement have a further five-second
+boundary. Cleanup failure returns `ipc.cleanup_failed`. stderr is continuously drained without retaining or
+displaying potentially sensitive diagnostics.
 
 Base64 semantics are the existing Core semantics: strict decoding rejects whitespace; relaxed decoding
 may ignore ASCII whitespace when requested. Invalid alphabet, padding and non-UTF-8 decoded text still fail.

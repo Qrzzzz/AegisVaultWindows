@@ -108,6 +108,8 @@
   "error.ipc.unknown_operation": "后端不支持此操作。",
   "error.ipc.busy": "后端正在处理另一个任务。",
   "error.ipc.cancel_timeout": "后端未及时停止，已终止进程。请检查输出文件夹中的临时文件。",
+  "error.ipc.request_timeout": "后端未在请求期限内响应，已终止进程。请重试。",
+  "error.ipc.cleanup_failed": "无法完全停止后端。请关闭 AegisVault 后再试。",
   "error.crypto.format_mismatch": "此容器不适用于当前工作流。",
   "error.crypto.header_too_large": "容器头部超过安全限制。",
   "error.crypto.invalid_encoding": "加密文本的编码无效。",

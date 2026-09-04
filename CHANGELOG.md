@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3 - 2026-09-05
+
+- Bound backend request lifecycle from the first pipe write through process reaping. Cancellation supervision now starts before potentially blocking I/O, never writes synchronously from a UI cancellation callback, and forcibly reaps only the process tree created for that request (#7).
+- Give `hello`, settings and recent-history RPCs a 15-second request deadline while retaining a 30-second cancellation grace period and no fixed total deadline for text or long-running file work. Window initialization, settings operations, workflow cancellation and close now share cancellation signals and restore `IsBusy`/`ActiveTask` on every outcome (#8).
+- Preserve a committed file result when the following recent-history update fails, times out or is cancelled, and report that secondary failure as a warning (#8).
+- Reject request IDs containing isolated Unicode surrogates before dispatch or settings side effects while retaining valid non-BMP Unicode IDs (#15).
+- Validate response version, progress and file-result numeric fields by JSON type and integer range; malformed fault-injection responses consistently return `ipc.invalid_response` instead of leaking `FormatException` (#16).
+- Add linked-source C# lifecycle/fault harnesses, real isolated Python protocol regressions and bilingual timeout/cleanup messages; retain detailed local evidence in `docs/ACCEPTANCE_2.3.md`.
+
 ## 2.2 - 2026-09-05
 
 - Reject detectable Base64 input changes using opened-handle metadata and actual bytes read; roll back incomplete encoding and decoding output (#9).

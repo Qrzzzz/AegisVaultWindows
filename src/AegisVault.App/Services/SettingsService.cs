@@ -15,33 +15,69 @@ public sealed record AppSettings
 
 public sealed class SettingsService(BackendClient backend)
 {
+    private readonly object sync = new();
+    private CancellationTokenSource? activeCancellation;
     public AppSettings Current { get; private set; } = new();
     public event EventHandler? Changed;
     public event EventHandler? BusyChanged;
     public bool IsBusy { get; private set; }
     public Task ActiveTask { get; private set; } = Task.CompletedTask;
-    public Task LoadAsync() => RunAsync("settings.get");
-    public Task SaveAsync(AppSettings settings) => RunAsync("settings.update", new
+    public Task LoadAsync(CancellationToken cancellationToken = default) => RunAsync("settings.get", cancellationToken: cancellationToken);
+    public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) => RunAsync("settings.update", new
     {
         settings.Language, settings.Theme, settings.DefaultOutputDir, settings.OverwriteOutputs,
         settings.RememberRecentFiles, settings.ShowAdvancedOptions
-    });
-    public Task ClearRecentAsync() => RunAsync("recent.clear");
-    public Task AddRecentAsync(string path) => RunAsync("recent.add", new { input_path = path });
-    private Task RunAsync(string operation, object? args = null)
+    }, cancellationToken);
+    public Task ClearRecentAsync(CancellationToken cancellationToken = default) =>
+        RunAsync("recent.clear", cancellationToken: cancellationToken);
+    public Task AddRecentAsync(string path, CancellationToken cancellationToken = default) =>
+        RunAsync("recent.add", new { input_path = path }, cancellationToken);
+    private Task RunAsync(string operation, object? args = null, CancellationToken cancellationToken = default)
     {
-        if (IsBusy) return Task.FromException(new BackendException("ipc.busy"));
-        return ActiveTask = ExecuteAsync(operation, args);
+        lock (sync)
+        {
+            if (IsBusy) return Task.FromException(new BackendException("ipc.busy"));
+            activeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            IsBusy = true; BusyChanged?.Invoke(this, EventArgs.Empty);
+            return ActiveTask = ExecuteAsync(operation, args, activeCancellation);
+        }
     }
-    private async Task ExecuteAsync(string operation, object? args)
+    private async Task ExecuteAsync(string operation, object? args, CancellationTokenSource operationCancellation)
     {
-        IsBusy = true; BusyChanged?.Invoke(this, EventArgs.Empty);
-        try { Apply(await backend.CallAsync(operation, args)); }
-        finally { IsBusy = false; BusyChanged?.Invoke(this, EventArgs.Empty); }
+        try { Apply(await backend.CallAsync(operation, args, cancellationToken: operationCancellation.Token)); }
+        finally
+        {
+            lock (sync)
+            {
+                if (ReferenceEquals(activeCancellation, operationCancellation)) activeCancellation = null;
+                IsBusy = false;
+            }
+            operationCancellation.Dispose();
+            BusyChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+    public void CancelActive()
+    {
+        lock (sync) activeCancellation?.Cancel();
+    }
+    public async Task CancelAndWaitAsync()
+    {
+        Task task;
+        lock (sync) { activeCancellation?.Cancel(); task = ActiveTask; }
+        await task;
     }
     private void Apply(JsonElement result)
     {
-        Current = result.Deserialize<AppSettings>(BackendClient.JsonOptions) ?? throw new BackendException("ipc.invalid_response");
+        AppSettings candidate;
+        try { candidate = result.Deserialize<AppSettings>(BackendClient.JsonOptions) ?? throw BackendResponse.Invalid(); }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
+        {
+            throw BackendResponse.Invalid();
+        }
+        if (candidate.Language is not ("zh-CN" or "en-US") || candidate.Theme is not ("system" or "light" or "dark")
+            || candidate.DefaultOutputDir is null || candidate.RecentFiles is null || candidate.RecentFiles.Any(path => path is null))
+            throw BackendResponse.Invalid();
+        Current = candidate;
         Localization.Instance.SetLanguage(Current.Language);
         Changed?.Invoke(this, EventArgs.Empty);
     }

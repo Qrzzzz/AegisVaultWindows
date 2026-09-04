@@ -59,7 +59,7 @@ public sealed class SettingsViewModel : ObservableObject
             ResetDraft();
         }, "settings_saved");
     }
-    public Task ClearRecentAsync() => Perform(service.ClearRecentAsync, "recent_cleared");
+    public Task ClearRecentAsync() => Perform(() => service.ClearRecentAsync(), "recent_cleared");
     public void Discard()
     {
         if (busy) return;
@@ -85,6 +85,7 @@ public sealed class SettingsViewModel : ObservableObject
         busy = true; HasStatus = false; Raise(nameof(IsIdle));
         try { await action(); statusKey = successKey; Severity = InfoBarSeverity.Success; }
         catch (BackendException ex) { statusKey = $"error.{ex.Code}"; Severity = InfoBarSeverity.Error; }
+        catch (OperationCanceledException) { statusKey = "error.operation.cancelled"; Severity = InfoBarSeverity.Informational; }
         finally { busy = false; HasStatus = true; Raise(nameof(Status)); Raise(nameof(IsIdle)); RefreshDraftState(); }
     }
     public void Fail(string code)

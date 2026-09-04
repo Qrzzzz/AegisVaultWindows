@@ -23,6 +23,8 @@ public sealed partial class MainWindow : Window
     public WorkflowViewModel Base64TextWorkflow { get; }
     public WorkflowViewModel Base64FileWorkflow { get; }
     public IEnumerable<WorkflowViewModel> Workflows => [TextWorkflow, FileWorkflow, Base64TextWorkflow, Base64FileWorkflow];
+    private readonly CancellationTokenSource windowLifetime = new();
+    private Task initializationTask = Task.CompletedTask;
     private bool initialized, closing;
 
     public MainWindow()
@@ -75,14 +77,22 @@ public sealed partial class MainWindow : Window
     {
         if (initialized) return;
         initialized = true;
+        initializationTask = InitializeCoreAsync();
+        await initializationTask;
+    }
+
+    private async Task InitializeCoreAsync()
+    {
         try
         {
-            var hello = await Backend.CallAsync("hello");
-            if (hello.GetProperty("protocol").GetInt32() != 1 || hello.GetProperty("version").GetString() != ProductInfo.Version)
+            var hello = await Backend.CallAsync("hello", cancellationToken: windowLifetime.Token);
+            if (BackendResponse.Int32(hello, "protocol") != 1 || BackendResponse.String(hello, "version") != ProductInfo.Version)
                 throw new BackendException("ipc.version_mismatch");
-            await Settings.LoadAsync();
+            await Settings.LoadAsync(windowLifetime.Token);
         }
         catch (BackendException ex) { StartupError.Message = L.Error(ex.Code); StartupError.IsOpen = true; }
+        catch (OperationCanceledException) when (windowLifetime.IsCancellationRequested) { }
+        catch (Exception) { StartupError.Message = L.Error("app.error"); StartupError.IsOpen = true; }
         ApplySettings();
         Navigation.SelectedItem = Navigation.MenuItems[0];
     }
@@ -110,13 +120,19 @@ public sealed partial class MainWindow : Window
 
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (Settings.IsBusy && !Workflows.Any(w => w.IsBusy))
+        if ((!initializationTask.IsCompleted || Settings.IsBusy) && !Workflows.Any(w => w.IsBusy))
         {
             args.Cancel = true;
             if (closing) return;
             closing = true;
-            try { await Settings.ActiveTask; }
-            catch (BackendException) { }
+            windowLifetime.Cancel();
+            Settings.CancelActive();
+            try
+            {
+                await initializationTask;
+                if (Settings.IsBusy) await Settings.CancelAndWaitAsync();
+            }
+            catch (Exception ex) when (ex is BackendException or OperationCanceledException) { }
             finally { closing = false; }
             Close();
             return;
@@ -136,6 +152,8 @@ public sealed partial class MainWindow : Window
         {
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
+                windowLifetime.Cancel();
+                Settings.CancelActive();
                 await Task.WhenAll(Workflows.Select(w => w.CancelAndWaitAsync()));
                 Close();
             }

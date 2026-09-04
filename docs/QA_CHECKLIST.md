@@ -1,8 +1,20 @@
-# AegisVault 2.2 acceptance checklist
+# AegisVault 2.3 acceptance checklist
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.2.md](ACCEPTANCE_2.2.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.3.md](ACCEPTANCE_2.3.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
+
+- Link the lifecycle harness directly to this worktree's C# sources. Cover a backend that does not read stdin,
+  a read hang, a blocked cancellation notification, a terminal event without process exit, exit/cancel races,
+  sustained stderr, independent settings timeout/retry and committed-file/history failure. Give the harness
+  its own external timeout and verify every injected process PID is reaped.
+- Fault-inject fractional, overflowing and wrongly typed `v`, progress-byte and file-size JSON values. Pass a
+  non-null progress observer and require only `ipc.invalid_response`; keep a valid integer control.
+- In a real isolated Python backend, require isolated high/low surrogate IDs to cause no side effect, one
+  deterministic invalid-request response and empty stderr; require a valid non-BMP ID and subsequent request.
+- Confirm the production 15-second short-RPC deadline and 30-second cancellation grace, plus the absence of a
+  fixed total deadline on file work. Exercise settings cancellation on close and a warning that preserves an
+  already committed file when recent-history persistence fails.
 
 - With synthetic files and a second real handle, truncate Base64 input after the first chunk in both directions; require `file.input_changed`, no committed partial output and no temporary residue. Keep static roundtrip, cancellation and no-overwrite controls.
 - In an isolated real backend process, test overlong JSON integers, ordinary malformed JSON and valid settings; settings get/update and Base64 must remain usable. Preserve `show_advanced_options` and the interpreter's integer digit limit.
