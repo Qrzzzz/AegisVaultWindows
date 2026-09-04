@@ -122,8 +122,8 @@ def test_dependency_locks_are_exact_and_hashed() -> None:
     dev_lock = (ROOT / "requirements-dev.lock").read_text(encoding="utf-8").casefold()
     for package in ("cyclonedx-bom==", "mypy==", "pefile==", "pip-audit==", "pyinstaller==", "pytest==", "ruff=="):
         assert package in dev_lock
-    assert "pyside6==6.9.3" in dev_lock
-    assert "PySide6==6.9.3" in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "pyside6" not in dev_lock
+    assert "PySide6" not in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_release_metadata_cli_derives_current_public_assets() -> None:
@@ -184,9 +184,9 @@ def test_public_release_publisher_has_fail_closed_no_clobber_contract() -> None:
     assert "audit_build_inputs.py" in build_text
     assert '$env:PYTHONHASHSEED = "0"' in build_text
     assert "$env:PYTHONHASHSEED = $PreviousPythonHashSeed" in build_text
-    smoke_text = (ROOT / "scripts" / "smoke_packaged.ps1").read_text(encoding="utf-8")
-    assert '$env:PATH = $CleanRuntimePath' in smoke_text
-    assert "-WorkingDirectory $SmokeRoot" in smoke_text
+    smoke_text = (ROOT / "scripts" / "smoke_backend.py").read_text(encoding="utf-8")
+    assert '"PATH": os.path.join(os.environ["SYSTEMROOT"], "System32")' in smoke_text
+    assert "cwd=directory" in smoke_text
 
 
 def test_locked_installer_checks_the_real_installed_environment() -> None:

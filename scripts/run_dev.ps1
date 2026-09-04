@@ -9,4 +9,7 @@ if (-not (Test-Path $Python)) {
 }
 
 Set-Location $RepoRoot
-& $Python -m aegisvault
+$Dotnet = if ($env:AEGISVAULT_DOTNET) { $env:AEGISVAULT_DOTNET } else { (Get-Command dotnet -ErrorAction Stop).Source }
+$env:AEGISVAULT_PYTHON = $Python
+& $Dotnet run --project src/AegisVault.App/AegisVault.App.csproj -c Debug -p:Platform=x64
+if ($LASTEXITCODE -ne 0) { throw 'WinUI development launch failed.' }

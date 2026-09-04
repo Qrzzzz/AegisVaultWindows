@@ -1,5 +1,0 @@
-/* Packaged dark theme reference. Runtime styles are generated in ui/styles.py. */
-QMainWindow {
-  background: #0f1117;
-  color: #eef1f7;
-}

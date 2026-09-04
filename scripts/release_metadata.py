@@ -7,12 +7,13 @@ import ast
 import json
 import re
 import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / "src" / "aegisvault" / "version.py"
-SEMVER_RE = re.compile(r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$")
+VERSION_RE = re.compile(r"^(?P<major>[1-9]\d*)\.(?P<minor>0|[1-9]\d*)$")
 
 
 class MetadataError(RuntimeError):
@@ -39,8 +40,8 @@ def load_release_metadata(*, expected_tag: str | None = None) -> dict[str, Any]:
         raise MetadataError(f"Missing version constants in {VERSION_FILE}: {', '.join(missing)}")
 
     version = constants["PACKAGE_VERSION"]
-    if not SEMVER_RE.fullmatch(version):
-        raise MetadataError(f"PACKAGE_VERSION must be strict X.Y.Z SemVer, got: {version!r}")
+    if not VERSION_RE.fullmatch(version):
+        raise MetadataError(f"PACKAGE_VERSION must be strict X.Y, got: {version!r}")
     if constants["DISPLAY_VERSION"] != version:
         raise MetadataError("DISPLAY_VERSION must exactly match PACKAGE_VERSION")
 
@@ -48,8 +49,8 @@ def load_release_metadata(*, expected_tag: str | None = None) -> dict[str, Any]:
     if tag != f"v{version}":
         raise MetadataError(f"RELEASE_TAG must be v{version}, got: {tag!r}")
     if expected_tag is not None:
-        if not re.fullmatch(r"v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)", expected_tag):
-            raise MetadataError(f"Expected tag must be strict vX.Y.Z, got: {expected_tag!r}")
+        if not expected_tag.startswith("v") or not VERSION_RE.fullmatch(expected_tag[1:]):
+            raise MetadataError(f"Expected tag must be strict vX.Y, got: {expected_tag!r}")
         if expected_tag != tag:
             raise MetadataError(f"Tag/source version mismatch: expected {expected_tag}, source declares {tag}")
 
@@ -62,6 +63,12 @@ def load_release_metadata(*, expected_tag: str | None = None) -> dict[str, Any]:
         raise MetadataError("pyproject.toml project.version must match PACKAGE_VERSION")
     if pyproject["project"]["name"] != "aegisvault-desktop":
         raise MetadataError("Unexpected project name in pyproject.toml")
+
+    project = ET.parse(ROOT / "src/AegisVault.App/AegisVault.App.csproj").getroot()
+    for key, expected in {"Version": version, "InformationalVersion": version,
+                          "AssemblyVersion": f"{version}.0.0", "FileVersion": f"{version}.0.0"}.items():
+        if project.findtext(f"PropertyGroup/{key}") != expected:
+            raise MetadataError(f"WinUI {key} must match {expected}")
 
     notes_path = Path("docs") / "releases" / f"v{version}.md"
     if not (ROOT / notes_path).is_file():

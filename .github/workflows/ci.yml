@@ -17,7 +17,6 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONIOENCODING: utf-8
   PYTHONUTF8: "1"
-  QT_QPA_PLATFORM: offscreen
 
 defaults:
   run:
@@ -49,7 +48,7 @@ jobs:
         run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked dependencies
         run: .\scripts\install_locked_dependencies.ps1
-      - name: Compile, lint, type check, test, coverage and Qt smoke
+      - name: Compile, lint, type check, test, coverage and backend protocol
         run: .\scripts\verify_release.ps1
       - name: Upload machine-readable coverage
         if: always()
@@ -82,9 +81,17 @@ jobs:
         run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked dependencies
         run: .\scripts\install_locked_dependencies.ps1
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
       - name: Resolve validated artifact names
         id: metadata
         run: python scripts/release_metadata.py --github-output $env:GITHUB_OUTPUT
+      - name: Audit NuGet dependency closure
+        run: .\scripts\audit_nuget.ps1
+      - name: Compile native interaction test harness
+        run: dotnet build tests/AegisVault.NativeTests -c Release -warnaserror
       - name: Build, smoke and audit unsigned CI candidate
         run: .\scripts\build_windows.ps1 -Clean -Zip -SigningMode Optional
       - name: Upload audited package candidate
@@ -92,7 +99,7 @@ jobs:
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}-quality
           path: |
-            dist/${{ steps.metadata.outputs.exe_name }}
+            dist/AegisVault/**
             dist/${{ steps.metadata.outputs.zip_name }}
             dist/${{ steps.metadata.outputs.sbom_name }}
             dist/${{ steps.metadata.outputs.checksums_name }}

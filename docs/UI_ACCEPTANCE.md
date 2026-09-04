@@ -1,49 +1,62 @@
-# Modern Windows UI acceptance
+# AegisVault 2.0 — acceptance evidence
 
-Date: 2026-09-04. UI acceptance evidence for AegisVault 1.2.0.
+Status: **user-reported manual acceptance passed; release authorized** on 2026-09-04.
+The maintainer's instruction was “验收通过；开始release”. This closes the manual acceptance stage;
+it does not turn unmeasured scenarios into automated test results.
+The migration baseline is `master` at `1a74984` (1.2.0), developed on `codex/aegisvault-winui-2.0`.
+Remote CI, tag/source binding, artifact audits and provenance remain enforced by the release workflow.
 
-## Implemented
+## Completed evidence
 
-- Fluent-inspired Qt Widgets shell with a system title bar, sidebar navigation,
-  responsive icon rail and three persistent workspaces.
-- Page headings, exclusive operation switches, responsive password fields,
-  file drop areas, output-path cards and results shown after processing.
-- Light, Dark and system appearance, applied through transactional settings
-  saves without replacing pages or losing inputs, passwords or previous results.
-- Platform-native file/folder dialogs, localized accessible control names,
-  keyboard shortcuts, and reachable operations at 600 x 440 logical pixels.
+| Check | Result |
+| --- | --- |
+| Pre-migration Core baseline | 171 tests passed, including byte-exact AGV1 text/file fixtures |
+| Core preservation | No diff in `src/aegisvault/core`, `services` or `settings` |
+| Full Python suite | 243 passed; coverage 76.48%; compileall, Ruff and mypy passed |
+| JSONL subprocess tests | 21 passed: fixed 1.x token, text/file/Base64, strict validation, oversized input, argv rejection, cancellation/EOF cleanup and settings privacy |
+| x64 Release | Solution build completed with 0 warnings and 0 errors; publish uses warnings-as-errors and locked NuGet restore |
+| Packaged backend | AGV1 text/file and Base64 smoke passed with isolated profile, working directory and minimal PATH |
+| Package inspection | x64 PE/version, WinUI PRI/runtime, backend archive, no retired GUI dependencies, exact ZIP bytes, mixed-runtime SBOM and checksums passed |
+| Dependency advisory scans | pip-audit and NuGet transitive scan reported no known vulnerable dependencies |
+| Native light / English | Actual `WinUIDesktopWin32WindowClass`, Ctrl+Enter, text/file roundtrips, Windows App SDK file picker, Base64 text/file, cancellation cleanup, settings and narrow layout passed |
+| Native dark / Chinese | Same workflows passed, plus ContentDialog close during a task, cooperative shutdown and clean process exit |
+| Native DPI | **168 DPI / 175%** measured with GetDpiForWindow |
+| Window lifecycle | One app top-level window at rest; native modal close dialog; no partial file after cooperative cancellation |
+| Accessible controls | Native labels and automation IDs; 14 focusable Settings controls had nonempty accessible names; keyboard primary action exercised |
+| Visual review | Real window screenshots reviewed in light/English, dark/Chinese, narrow Settings and close dialog; no web or Qt rendering |
 
-This implementation uses PySide6/Qt, not WinUI or an embedded browser.
+The test harness starts the **published** executable, uses synthetic inputs and an isolated profile,
+and restores no production user settings. The filesystem/package tests do not depend on installed Qt.
+The `.NET 10.0.400` SDK used locally is isolated under `%LOCALAPPDATA%/AegisVaultBuild/dotnet`.
 
-## Validation
+## Evidence locations
 
-The project-pinned dependencies were installed with hash verification into an isolated runtime. The acceptance below uses the pinned
-PySide6/Qt **6.9.3**.
+- `.migration-final-verify.log`: complete source gate, clean package, isolated smoke and package audit.
+- `.migration-final-build.log`: solution build with zero warnings/errors.
+- `.migration-final-package.log`: final folder/ZIP rebuild after version-display synchronization.
+- `.migration-native-picker.log`: English/light native workflows and actual file selection.
+- `.migration-native-dark-final.log`: Chinese/dark workflows and close dialog lifecycle.
+- `build/native-evidence/*.png`: real-window screenshots from the UI Automation test harness.
+- `security-reports/pip-audit-2.0.json`, `security-reports/nuget-audit-2.0.json`: advisory reports.
+- `dist/AegisVault/AegisVault.exe`: runnable complete application folder.
+- `dist/AegisVault-v2.0-win64.zip`, `dist/AegisVault-v2.0.cdx.json`, `dist/SHA256SUMS`: local unsigned candidate.
 
-- Full suite: **275 passed**.
-- Windows platform (`QT_QPA_PLATFORM=windows`) workflow and modern UI tests:
-  **11 passed**, including real file cancellation/close cleanup, keyboard
-  operation selection and transactional appearance saves.
-- Ruff passed; mypy passed for all 50 source files; `git diff --check` passed.
-- Windows capture/exercise runs in both Light and Dark completed AGV1 text and
-  file round trips, Base64 text and file round trips, authentication failure,
-  and language changes with results retained. The Windows system DPI observed
-  during capture was **1.75**. Screenshots cover Chinese/English and default,
-  900 x 680 and 600 x 440 logical sizes.
-- Maintained 1024 x 760 offscreen screenshots were regenerated and visually
-  reviewed, including the input, result and settings states.
-- PyInstaller input-root audit passed for **552 absolute paths**.
-- The packaged executable passed isolated startup with a minimal Windows PATH
-  and exit code **0**. This is a startup smoke test; the real workflow tests
-  above execute the source application using the locked runtime.
+Logs, reports and built artifacts are generated local evidence, not source-controlled release claims.
 
-The Windows interaction checks use Qt's test driver and synthetic data, not
-manual acceptance by a person. No real passwords or user files were used.
+## Manual acceptance scope and evidence limits
 
-## Release and cleanup
+- The maintainer accepted the native UI for release. No individual manual test transcript was supplied.
+- High Contrast, DPI 100%–200%, cross-monitor/text scaling, Narrator and full keyboard operation were part
+  of the requested acceptance scope. Automated evidence above measures 175% with High Contrast disabled;
+  the general manual sign-off is recorded separately and is not a per-scenario measurement.
+- Folder/save pickers, clipboard and drag/drop rely on the manual sign-off; automated interaction exercised
+  the native file-open picker, accessible names and Ctrl+Enter.
+- The local package is unsigned. Actual release signing status follows the configured Optional/Required
+  policy and must be reported from the release build. No certificate or Windows 10/11 test matrix is inferred.
 
-The tag workflow rebuilds version 1.2.0, audits the package, and verifies the
-three public assets and their provenance before publication. The earlier
-working-tree trial executable is not a release artifact. Temporary captures,
-trial builds and local validation logs are disposable; the five maintained
-visual regression baselines remain part of the test suite.
+## Remote release evidence
+
+The pull request must pass Quality and Security before merge. The annotated `v2.0` tag must bind the exact
+default-branch commit. The Release workflow builds on a clean Windows runner, audits the full package,
+attests the three public assets and verifies downloaded draft assets before publication. The public release
+and its workflow run provide the final remote record; the local logs above are not substitutes.

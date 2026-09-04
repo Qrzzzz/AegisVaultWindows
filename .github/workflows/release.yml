@@ -15,7 +15,6 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONIOENCODING: utf-8
   PYTHONUTF8: "1"
-  QT_QPA_PLATFORM: offscreen
 
 defaults:
   run:
@@ -67,6 +66,10 @@ jobs:
           --github-output $env:GITHUB_OUTPUT
       - name: Install hash-locked dependencies
         run: .\scripts\install_locked_dependencies.ps1
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
       - name: Verify source and build the release bundle
         env:
           AEGISVAULT_SIGNING_CERTIFICATE_BASE64: ${{ secrets.AEGISVAULT_SIGNING_CERTIFICATE_BASE64 }}
@@ -93,7 +96,7 @@ jobs:
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
           path: |
-            dist/${{ steps.metadata.outputs.exe_name }}
+            dist/AegisVault/**
             dist/${{ steps.metadata.outputs.zip_name }}
             dist/${{ steps.metadata.outputs.sbom_name }}
             dist/${{ steps.metadata.outputs.checksums_name }}
@@ -138,7 +141,7 @@ jobs:
           if ($SigningMode -ne "Required") { $SigningMode = "Optional" }
           if ($SigningMode -eq "Required") {
             .\scripts\sign_windows_artifact.ps1 `
-              -Executable "dist/${{ needs.build-and-attest.outputs.exe_name }}" `
+              -Executable "dist/AegisVault/${{ needs.build-and-attest.outputs.exe_name }}" `
               -SigningMode Required
           }
           python scripts/audit_release_artifacts.py `

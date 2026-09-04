@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-AegisVault 1.2.0 is the current stable release, with the same security and format contracts as 1.0.0. Security fixes target the default branch, `master`, and the latest stable release line.
+Security fixes target the default branch, `master`, and the latest stable release line, 2.0. Historical releases remain available, but the retired desktop frontend is no longer maintained.
 
 ## Reporting A Vulnerability
 
@@ -26,7 +26,7 @@ AegisVault does not protect against:
 
 ## Supported Encryption Formats
 
-AegisVault 1.2.0 decrypts only AGV1 text and file containers. Legacy AES text/files and `AK#key#ciphertext` wrappers are rejected. There is no recovery API, weak legacy password derivation, or setting that enables old-format decryption.
+AegisVault 2.0 decrypts only AGV1 text and file containers. Legacy AES text/files and `AK#key#ciphertext` wrappers are rejected. There is no recovery API, weak legacy password derivation, or setting that enables old-format decryption.
 
 An old settings file cannot re-enable removed functionality. Base64 decoding remains an encoding operation and never invokes a decryptor. Historical releases are not covered by this format-support statement.
 
@@ -35,3 +35,7 @@ An old settings file cannot re-enable removed functionality. Base64 decoding rem
 The `Security` workflow runs dependency review on pull requests and runs pip-audit plus CodeQL on the default branch, on a weekly schedule and on manual dispatch. It retains dependency-review JSON, pip-audit JSON and CodeQL SARIF as machine-readable workflow artifacts.
 
 An advisory is a triage input, not by itself a claim that AegisVault is exploitable. Maintainers must record the affected package and version, whether it is present in the locked runtime closure, the vulnerable code path, AegisVault reachability, mitigations and the upgrade or acceptance decision before describing product impact. Tool errors and unavailable advisory services also fail the gate; they are not vulnerability findings.
+
+## Local backend boundary
+
+The UI launches only its colocated backend in Release builds. Passwords and payloads use UTF-8 stdin; stdout contains versioned protocol events. No shell invocation or password arguments are used. Error responses contain codes, never exception details. Graceful cancellation lets the unchanged atomic Core remove incomplete files. Managed strings are not guaranteed to be zeroized from process memory.

@@ -1,26 +1,34 @@
-# Release Engineering Contract
+# Release engineering — 2.0
 
-This document describes the automation boundary. It does not change AegisVault UI behavior, cryptographic formats or compatibility policy.
+The authoritative product version is `src/aegisvault/version.py`. Metadata validation checks two-component
+`X.Y` / `vX.Y`, Python packaging, WinUI project/assembly versions and matching release notes. Windows binary
+metadata uses `X.Y.0.0`. Annotated tag, event SHA and default-branch ancestry checks remain mandatory for release.
 
-## Trust Flow
+The frontend is a self-contained .NET / Windows App SDK x64 folder, built with the SDK in `global.json` and
+`packages.lock.json` in locked mode. Python uses hashed `requirements-dev.lock` and `requirements.lock`.
+PyInstaller packages only the Core and JSONL backend, with a minimal PATH and an input-root audit. The
+application launches the packaged backend by absolute colocated path and sends no secrets on argv.
 
-1. `src/aegisvault/version.py` supplies the package, display and tag versions.
-2. `scripts/release_metadata.py` requires strict `X.Y.Z` / `vX.Y.Z`, checks `pyproject.toml` and release notes, and derives every artifact name.
-3. The `Quality` workflow installs the hashed lock, runs compile/Ruff/mypy/pytest with coverage and Qt offscreen smoke, then performs a clean Windows package, packaged smoke and PE/ZIP/SBOM audit.
-4. The `Security` workflow performs pull-request dependency review, locked-runtime pip-audit and Python CodeQL. JSON/SARIF reports are retained for triage.
-5. A tag Release requires an annotated tag whose commit equals the event commit and is contained in the remote default branch.
-6. The same Windows build script produces the executable, deterministic ZIP, reproducible CycloneDX 1.6 SBOM and `SHA256SUMS`.
-7. GitHub artifact provenance is issued for the three public assets before the publish job starts.
-8. The publish job re-audits the downloaded build output, creates or resumes a draft, byte-verifies its exact asset set, verifies attestations against the tag source digest and signer workflow, then publishes.
+`build_windows.ps1 -Clean -Zip` validates metadata, packages the backend, builds WinUI Release with warnings
+as errors, signs both executables according to SigningMode, and runs isolated backend smoke. It then creates
+a deterministic folder ZIP, CycloneDX 1.6 SBOM covering Python, NuGet and implicit .NET runtime packs, and
+SHA256SUMS. The audit verifies PE architecture/version, absence of retired UI dependencies in both the
+folder and embedded Python archive, required WinUI files, exact ZIP content/digests and SBOM binding.
 
-## Reproducibility Boundary
+The unpacked candidate lives at `dist/AegisVault/AegisVault.exe`. The ZIP must include the entire folder
+contents, including XAML resources, native runtime DLLs, Assets and backend. A standalone EXE cannot run it.
+The public asset set remains ZIP, SBOM and SHA256SUMS; the internal CI artifact also retains the full folder.
 
-Dependencies and build tools are exact and hash locked; GitHub Actions are pinned to full commits; the ZIP timestamp comes from the Git commit; the PyInstaller process uses a fixed Python hash seed so standard-library archive ordering is stable; and the SBOM removes random/time-dependent values and binds source/artifact hashes. PySide6 is held at the clean-package baseline `6.9.3`; later tested wheels introduced an undeclared host ICU dependency on Windows. Upgrades require a fresh clean-runner PE-import and packaged-smoke audit rather than an unreviewed lock refresh. These controls make the build procedure repeatable and evidence comparable. PyInstaller toolchain changes and Windows signing can still encode toolchain or timestamp-service data, so the contract does not claim independently reproduced signed executables are necessarily byte-for-byte identical. The release records the actual signed executable and ZIP digests.
+Optional signing reports an absent certificate; Required signing rejects it. No synthetic certificate is
+substituted. Signed executables are hashed only after signing. Rebuilding with identical inputs is designed
+to stabilize ZIP ordering/timestamps and SBOM ordering, but deterministic ZIP generation alone does not prove
+independent .NET or signed-binary reproducibility.
 
-## Code Signing Gate
+Quality runs Python checks and Windows packaging. Security scans both Python and C# with CodeQL; dependency
+review inspects Python and NuGet lock changes. Native interaction tests require an interactive Windows
+desktop. Full High Contrast, DPI and Narrator checks remain separate measured acceptance gates.
 
-`Optional` means an absent certificate is reported clearly and an unsigned candidate may continue. If certificate secrets are present, signing and local Authenticode validation must succeed even in Optional mode. `Required` means missing secrets, missing SignTool, timestamp failure or invalid Authenticode stops before ZIP/SBOM/checksum creation. The repository never generates or substitutes a test certificate.
-
-## Immutability
-
-Draft Releases are recoverable staging state. Existing draft assets are reused only when bytes match; missing expected assets may be uploaded; unexpected or mismatched assets stop the run. Published Releases are immutable under this workflow. A matching published Release is idempotent success only after exact remote download, digest and provenance verification.
+Release workflow preserves least privilege, exact source binding, provenance before publication, and the
+release Environment. Published assets are immutable: the publisher verifies matching existing assets without
+mutation and refuses missing, unexpected or mismatching assets. Publication requires maintainer authorization,
+accepted native UI validation and passing remote quality/security gates before creating the annotated tag.

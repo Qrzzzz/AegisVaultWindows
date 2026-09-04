@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0 - 2026-09-04
+
+- Replace the complete Python desktop frontend with C# / WinUI 3 and native Windows App SDK controls.
+- Keep the AGV1 Core unchanged; add versioned JSON Lines IPC, progress and cancellation.
+- Restore Text, File, Base64 and Settings workflows, bilingual resources and native theme behavior.
+- Publish a self-contained x64 folder bundle, with Python and NuGet dependency evidence.
+- Adopt two-component product versions; retain four-component Windows PE versions.
+- Automated validation and user-reported manual acceptance are recorded in docs/UI_ACCEPTANCE.md.
+
 ## 1.2.0 - 2026-09-04
 
 - Implemented the approved modern Windows layout using a Fluent-inspired Qt sidebar, page headings, segmented operations, and responsive password fields.

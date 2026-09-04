@@ -106,6 +106,14 @@ jobs:
         run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked audit tools
         run: .\scripts\install_locked_dependencies.ps1
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+      - name: Audit NuGet dependencies
+        id: nuget-audit
+        continue-on-error: true
+        run: .\scripts\audit_nuget.ps1
       - name: Audit locked runtime dependencies
         id: audit
         continue-on-error: true
@@ -115,15 +123,17 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pip-audit-report
-          path: security-reports/pip-audit.json
+          path: |
+            security-reports/pip-audit.json
+            security-reports/nuget-audit.json
           if-no-files-found: error
           retention-days: 30
       - name: Enforce dependency audit result
-        if: steps.audit.outcome == 'failure'
+        if: steps.audit.outcome == 'failure' || steps.nuget-audit.outcome == 'failure'
         run: throw "pip-audit reported an advisory or tool failure. Triage the JSON report for reachability and product impact; do not label it a product vulnerability without analysis."
 
   codeql:
-    name: CodeQL (Python)
+    name: CodeQL (Python and C#)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -138,12 +148,12 @@ jobs:
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           build-mode: none
-          languages: python
+          languages: python,csharp
           queries: security-extended
       - name: Analyze and retain SARIF
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
-          category: /language:python
+          category: /language:python-csharp
           output: security-reports/codeql
           upload: always
       - name: Upload machine-readable CodeQL report

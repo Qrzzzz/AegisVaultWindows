@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from aegisvault.app import run
+from aegisvault.backend.server import main as run
 
 
 def main() -> int:
@@ -11,4 +11,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

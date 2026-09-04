@@ -1,13 +1,13 @@
-# Format Support In 1.0.0
+# Format support through 2.0
 
-AegisVault 1.0.0 supports AGV1 encryption and decryption only. All legacy decryption and recovery functionality has been removed.
+AegisVault 2.0 preserves the AGV1-only format contract established in 1.x. All legacy decryption and recovery functionality remains removed.
 
 ## Supported
 
 - Text tokens beginning with `AGV1.` and containing a valid authenticated AGV1 envelope.
 - File containers beginning with the binary `AGVFILE\x01` magic, normally named with the `.agv` suffix.
 
-Existing data in these AGV1 formats remains supported. The encryption format has not been changed by the UI simplification.
+Existing data in these AGV1 formats remains supported. The encryption format has not been changed by the WinUI migration.
 
 ## Not Supported
 

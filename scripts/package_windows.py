@@ -24,12 +24,15 @@ def _source_date_epoch() -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--executable", required=True, type=Path)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--executable", type=Path)
+    inputs.add_argument("--directory", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--source-date-epoch", type=int)
     args = parser.parse_args()
 
-    executable = args.executable.resolve(strict=True)
+    directory = args.directory.resolve(strict=True) if args.directory else None
+    executable = args.executable.resolve(strict=True) if args.executable else None
     output = args.output.resolve()
     epoch = args.source_date_epoch if args.source_date_epoch is not None else _source_date_epoch()
     timestamp = dt.datetime.fromtimestamp(epoch, tz=dt.UTC).replace(tzinfo=None)
@@ -40,16 +43,19 @@ def main() -> int:
     temporary = output.with_suffix(output.suffix + ".tmp")
     temporary.unlink(missing_ok=True)
     try:
-        info = zipfile.ZipInfo(executable.name, date_time=zip_timestamp)
-        info.compress_type = zipfile.ZIP_DEFLATED
-        info.create_system = 3
-        info.external_attr = (0o100755 & 0xFFFF) << 16
-        with (
-            zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive,
-            executable.open("rb") as source,
-            archive.open(info, "w", force_zip64=True) as destination,
-        ):
-            shutil.copyfileobj(source, destination, length=1024 * 1024)
+        files = sorted(path for path in directory.rglob("*") if path.is_file()) if directory else [executable]
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+            for path in files:
+                assert path is not None
+                if path.is_symlink():
+                    raise ValueError("Package inputs must not be symlinks")
+                name = path.relative_to(directory).as_posix() if directory else path.name
+                info = zipfile.ZipInfo(name, date_time=zip_timestamp)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = (0o100755 & 0xFFFF) << 16
+                with path.open("rb") as source, archive.open(info, "w", force_zip64=True) as destination:
+                    shutil.copyfileobj(source, destination, length=1024 * 1024)
         temporary.replace(output)
     finally:
         temporary.unlink(missing_ok=True)

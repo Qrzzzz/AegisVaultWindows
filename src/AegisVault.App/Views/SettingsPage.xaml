@@ -1,0 +1,37 @@
+<Page x:Class="AegisVault.App.Views.SettingsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Padding="24" Spacing="20" MaxWidth="880" HorizontalAlignment="Stretch">
+      <UserControl IsEnabled="{Binding IsIdle}"><StackPanel Spacing="16">
+        <ComboBox Header="{Binding L[language]}" SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}" MinWidth="180">
+          <ComboBoxItem Content="简体中文" /><ComboBoxItem Content="English" />
+        </ComboBox>
+        <ComboBox Header="{Binding L[theme]}" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" MinWidth="180" AutomationProperties.AutomationId="Theme">
+          <ComboBoxItem x:Name="SystemTheme" /><ComboBoxItem x:Name="LightTheme" /><ComboBoxItem x:Name="DarkTheme" />
+        </ComboBox>
+        <TextBox Header="{Binding L[output_folder]}" Text="{Binding OutputFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{Binding L[same_folder]}" />
+        <Button Content="{Binding L[choose_folder]}" Click="PickFolder" />
+        <CheckBox Content="{Binding L[remember_recent]}" IsChecked="{Binding RememberRecent, Mode=TwoWay}" />
+        <Expander Header="{Binding L[recent_files]}" HorizontalAlignment="Stretch">
+          <StackPanel Spacing="12">
+            <ItemsControl ItemsSource="{Binding RecentFiles}"><ItemsControl.ItemTemplate><DataTemplate>
+              <TextBlock Text="{Binding}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <Button Content="{Binding L[clear_recent]}" Click="ClearRecent" />
+          </StackPanel>
+        </Expander>
+        <Expander Header="{Binding L[advanced]}" HorizontalAlignment="Stretch">
+          <StackPanel Spacing="12">
+            <CheckBox Content="{Binding L[overwrite]}" IsChecked="{Binding Overwrite, Mode=TwoWay}" />
+            <TextBlock Text="{Binding L[overwrite_warning]}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Expander>
+        <Button Content="{Binding L[save_settings]}" Style="{StaticResource AccentButtonStyle}" Click="Save" AutomationProperties.AutomationId="SaveSettings" />
+      </StackPanel></UserControl>
+      <InfoBar IsOpen="{Binding HasStatus}" Severity="{Binding Severity}" Message="{Binding Status}" IsClosable="False" AutomationProperties.LiveSetting="Polite" />
+      <TextBlock Text="{Binding VersionLabel}" Style="{StaticResource SubtitleTextBlockStyle}" />
+      <TextBlock Text="{Binding L[about]}" TextWrapping="Wrap" />
+      <HyperlinkButton Content="GitHub" NavigateUri="https://github.com/Qrzzzz/AegisVaultWindows" />
+      <TextBlock Text="MIT License" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>
