@@ -10,7 +10,9 @@ They do not contain real passwords or user documents.
 | minimal-base64-zh-CN.png | Base64 idle baseline, 900 x 680 |
 | basic-text-result.png | Input and result share space; result actions remain visible |
 | basic-settings.png | Native form, no theme selector, collapsed dangerous options |
-| basic-legacy.png | Migration warning and default-Cancel recovery confirmation |
+
+Retired recovery UI is no longer part of the product; its former sample is
+removed from the current documentation (Git history is retained).
 
 English, small-window, high-DPI, file-result, advanced and error screenshots
 belong in the task's external QA directory, not in the committed baseline set.

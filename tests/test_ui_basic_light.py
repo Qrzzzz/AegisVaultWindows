@@ -22,7 +22,6 @@ from aegisvault.settings.store import SettingsStore
 from aegisvault.ui import main_window as main_window_module
 from aegisvault.ui.dialogs.about_dialog import AboutDialog
 from aegisvault.ui.dialogs.error_dialog import show_error
-from aegisvault.ui.dialogs.legacy_recovery_dialog import LegacyRecoveryDialog
 from aegisvault.ui.main_window import MainWindow
 from aegisvault.ui.pages.settings_page import SettingsDialog
 from test_ui_visual import qa_application
@@ -62,7 +61,6 @@ def test_old_theme_migration_preserves_other_preferences(tmp_path: Path, old_the
         overwrite_outputs=True,
         remember_recent_files=False,
         show_advanced_options=True,
-        allow_ak_compatibility=True,
         recent_files=["C:/Samples/old.txt"],
     )
     store.save(old)
@@ -88,7 +86,6 @@ def test_all_dialogs_are_light_without_qss_or_theme_selector(
     dialogs = [
         SettingsDialog(window.i18n, settings, window.store),
         AboutDialog(window, window.i18n),
-        LegacyRecoveryDialog(None, window.i18n, Path("C:/Samples/old.aes")),
     ]
     assert not hasattr(dialogs[0], "theme_combo")
     assert len(dialogs[0].findChildren(QComboBox)) == 1

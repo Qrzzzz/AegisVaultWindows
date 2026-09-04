@@ -12,18 +12,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtGui import QDropEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from aegisvault.core.exceptions import FileIOError, OperationCancelled, ValidationError
-from aegisvault.core.legacy import encrypt_legacy_bytes_for_tests
 from aegisvault.core.models import TaskState
 from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
 from aegisvault.ui.controllers.task_controller import TaskController
-from aegisvault.ui.dialogs.legacy_recovery_dialog import LegacyRecoveryDialog
 from aegisvault.ui.main_window import MainWindow
-from aegisvault.ui.pages import file_page as file_page_module
 from aegisvault.ui.pages.settings_page import SettingsDialog
 
 
@@ -94,125 +91,85 @@ def test_file_encrypt_requires_confirmation_and_reports_output(tmp_path: Path) -
     app.processEvents()
 
 
-def test_file_legacy_recovery_decline_never_invokes_compatibility_decryptor(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    app, window = _make_window(tmp_path)
-    page = window.file_page
-    source = tmp_path / "legacy.aes"
-    source.write_bytes(encrypt_legacy_bytes_for_tests("迁移内容".encode(), "legacy-pass"))
-    page.mode.set_current("decrypt")
-    assert page.set_file(source)
-    page.password.edit.setText("legacy-pass")
-
-    strict_calls: list[object] = []
-    recovery_calls: list[Path] = []
-    confirmations: list[Path] = []
-    strict_decrypt = page.service.decrypt_file
-    legacy_recover = page.service.recover_legacy_file
-
-    def record_strict_call(*args: object, **kwargs: object) -> object:
-        strict_calls.append(kwargs.get("allow_legacy"))
-        return strict_decrypt(*args, **kwargs)  # type: ignore[arg-type]
-
-    def record_recovery(input_path: Path, *args: object, **kwargs: object) -> object:
-        recovery_calls.append(input_path)
-        return legacy_recover(input_path, *args, **kwargs)  # type: ignore[arg-type]
-
-    def decline(_parent: object, _translator: object, input_path: Path) -> bool:
-        confirmations.append(input_path)
-        return False
-
-    monkeypatch.setattr(page.service, "decrypt_file", record_strict_call)
-    monkeypatch.setattr(page.service, "recover_legacy_file", record_recovery)
-    monkeypatch.setattr(file_page_module, "confirm_legacy_file_recovery", decline)
-
-    QTest.mouseClick(page.run_button, Qt.MouseButton.LeftButton)
-    _wait_until(app, lambda: bool(confirmations) and not page.controller.busy)
-
-    assert strict_calls == [False]
-    assert confirmations == [source]
-    assert recovery_calls == []
-    assert page.result.output_path is None
-    assert page.alert.label.text() == "Legacy recovery was not started. No output was written."
-    assert not (tmp_path / "legacy").exists()
-    assert not list(tmp_path.glob(".*.tmp"))
-    window.close()
-    app.processEvents()
-
-
-def test_file_legacy_recovery_runs_only_after_explicit_confirmation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    app, window = _make_window(tmp_path)
-    page = window.file_page
-    source = tmp_path / "legacy.aes"
-    plaintext = "逐字节恢复内容".encode()
-    source.write_bytes(encrypt_legacy_bytes_for_tests(plaintext, "legacy-pass"))
-    page.mode.set_current("decrypt")
-    assert page.set_file(source)
-    page.password.edit.setText("legacy-pass")
-
-    strict_calls: list[object] = []
-    recovery_calls: list[Path] = []
-    confirmations: list[Path] = []
-    strict_decrypt = page.service.decrypt_file
-    legacy_recover = page.service.recover_legacy_file
-
-    def record_strict_call(*args: object, **kwargs: object) -> object:
-        strict_calls.append(kwargs.get("allow_legacy"))
-        return strict_decrypt(*args, **kwargs)  # type: ignore[arg-type]
-
-    def record_recovery(input_path: Path, *args: object, **kwargs: object) -> object:
-        recovery_calls.append(input_path)
-        return legacy_recover(input_path, *args, **kwargs)  # type: ignore[arg-type]
-
-    def accept(_parent: object, _translator: object, input_path: Path) -> bool:
-        confirmations.append(input_path)
-        return True
-
-    monkeypatch.setattr(page.service, "decrypt_file", record_strict_call)
-    monkeypatch.setattr(page.service, "recover_legacy_file", record_recovery)
-    monkeypatch.setattr(file_page_module, "confirm_legacy_file_recovery", accept)
-
-    QTest.mouseClick(page.run_button, Qt.MouseButton.LeftButton)
-    _wait_until(app, lambda: page.result.output_path is not None and not page.controller.busy)
-
-    assert strict_calls == [False]
-    assert confirmations == [source]
-    assert recovery_calls == [source]
-    assert page.result.output_path is not None
-    assert page.result.output_path.read_bytes() == plaintext
-    assert "weaker key derivation" in page.result.label.text()
-    window.close()
-    app.processEvents()
-
-
-@pytest.mark.parametrize(
-    ("language", "expected_title", "expected_action", "expected_warning"),
-    [
-        ("en-US", "Confirm legacy file recovery", "Recover legacy file", "plaintext output"),
-        ("zh-CN", "确认恢复旧版文件", "恢复旧版文件", "明文输出"),
-    ],
+# Static pre-AGV1 sample, captured before removing the retired implementation.
+# Plaintext: "retired UI fixture"; password: "fixture-only-password".
+# No old encryptor/decryptor/helper is retained or imported by these tests.
+RETIRED_FILE_BYTES = bytes.fromhex(
+    "010101010101010101010101f84f6f0381aa17e6bb7f75d3494bcbd8b50cd931fa0df510c908c8640f8851315f73"
 )
-def test_legacy_recovery_confirmation_is_localized_and_cancel_is_default(
-    language: str, expected_title: str, expected_action: str, expected_warning: str
-) -> None:
-    app = QApplication.instance() or QApplication([])
-    dialog = LegacyRecoveryDialog(None, Translator(language), Path("C:/trusted/legacy.aes"))
-    assert dialog.windowTitle() == expected_title
-    assert dialog.recover_button.text() == expected_action
-    assert expected_warning in dialog.warning_label.text()
-    assert dialog.cancel_button.isDefault()
-    assert dialog.recover_button.accessibleName() == expected_action
-    dialog.show()
-    QTest.mouseClick(dialog.cancel_button, Qt.MouseButton.LeftButton)
-    assert dialog.result() == dialog.DialogCode.Rejected
+RETIRED_TEXT = "AQEBAQEBAQEBAQEB+E9vA4GqF+a7f3XTSUvL2LUM2TH6DfUQyQjIZA+IUTFfcw=="
 
-    accepted_dialog = LegacyRecoveryDialog(None, Translator(language), Path("C:/trusted/legacy.aes"))
-    accepted_dialog.show()
-    QTest.mouseClick(accepted_dialog.recover_button, Qt.MouseButton.LeftButton)
-    assert accepted_dialog.result() == accepted_dialog.DialogCode.Accepted
+
+@pytest.mark.parametrize("language", ["en-US", "zh-CN"])
+@pytest.mark.parametrize("suffix", [".aes", ".agv"])
+def test_non_agv1_file_is_rejected_without_dialog_or_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, language: str, suffix: str
+) -> None:
+    app, window = _make_window(tmp_path, language=language)
+    window._set_page(1)
+    page = window.file_page
+    source = tmp_path / f"retired{suffix}"
+    source.write_bytes(RETIRED_FILE_BYTES)
+    page.mode.set_current("decrypt")
+    assert page.set_file(source)
+    page.password.edit.setText("fixture-only-password")
+    before = set(tmp_path.rglob("*"))
+    dialogs: list[QDialog] = []
+    failures: list[object] = []
+    monkeypatch.setattr(QDialog, "exec", lambda dialog: dialogs.append(dialog) or QDialog.DialogCode.Rejected)
+    page.error.connect(lambda error, _detail: failures.append(error))
+    app.processEvents()
+
+    QTest.mouseClick(page.run_button, Qt.MouseButton.LeftButton)
+    _wait_until(app, lambda: not page.controller.busy)
+
+    assert page.controller.state == TaskState.FAILED
+    assert len(failures) == 1
+    assert failures[0].code == "protocol.unsupported_format"
+    assert page.alert.label.text() == window.i18n.t("error.protocol.unsupported_format")
+    assert dialogs == []
+    assert page.result.output_path is None
+    assert page.result.isHidden()
+    assert set(tmp_path.rglob("*")) == before
+    assert source.read_bytes() == RETIRED_FILE_BYTES
+    assert not hasattr(page, "_pending_legacy_request")
+    window.close()
+    app.processEvents()
+
+
+@pytest.mark.parametrize("language", ["en-US", "zh-CN"])
+@pytest.mark.parametrize(
+    ("ciphertext", "password"),
+    [(RETIRED_TEXT, "fixture-only-password"), (f"AK#fixture-only-password#{RETIRED_TEXT}", "")],
+    ids=["retired-base64", "ak-without-password"],
+)
+def test_non_agv1_text_is_rejected_without_recovery_or_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, language: str, ciphertext: str, password: str
+) -> None:
+    app, window = _make_window(tmp_path, language=language)
+    page = window.text_page
+    page.mode.set_current("decrypt")
+    page.input.setPlainText(ciphertext)
+    page.password.edit.setText(password)
+    dialogs: list[QDialog] = []
+    failures: list[object] = []
+    monkeypatch.setattr(QDialog, "exec", lambda dialog: dialogs.append(dialog) or QDialog.DialogCode.Rejected)
+    page.error.connect(lambda error, _detail: failures.append(error))
+
+    QTest.mouseClick(page.run_button, Qt.MouseButton.LeftButton)
+    _wait_until(app, lambda: not page.controller.busy)
+
+    assert page.controller.state == TaskState.FAILED
+    assert len(failures) == 1
+    assert failures[0].code == "protocol.unsupported_format"
+    assert page.alert.label.text() == window.i18n.t("error.protocol.unsupported_format")
+    assert page.input.toPlainText() == ciphertext
+    assert page.output.text() == ""
+    assert page.output.isHidden()
+    assert dialogs == []
+    assert not hasattr(page, "recovery_button")
+    assert not list(tmp_path.iterdir())
+    window.close()
     app.processEvents()
 
 
@@ -370,7 +327,9 @@ def test_settings_dialog_uses_real_advanced_section_and_draft_recent_files(tmp_p
     assert dialog.advanced_panel.isHidden()
     QTest.mouseClick(dialog.advanced_toggle, Qt.MouseButton.LeftButton)
     assert not dialog.advanced_panel.isHidden()
-    assert dialog.ak_warning.text()
+    assert not hasattr(dialog, "ak")
+    assert not hasattr(dialog, "ak_warning")
+    assert dialog.advanced_toggle.text() == "Advanced options"
     assert dialog.overwrite_warning.text()
 
     QTest.mouseClick(dialog.clear_recent_button, Qt.MouseButton.LeftButton)
@@ -379,17 +338,15 @@ def test_settings_dialog_uses_real_advanced_section_and_draft_recent_files(tmp_p
 
     dialog = SettingsDialog(translator, settings, store)
     dialog.advanced_toggle.setChecked(True)
-    dialog.ak.setChecked(True)
     dialog.overwrite.setChecked(True)
     dialog.language_combo.setCurrentIndex(0)
     QTest.mouseClick(dialog.clear_recent_button, Qt.MouseButton.LeftButton)
     dialog.save()
     app.processEvents()
     assert settings.language == "zh-CN"
-    assert settings.allow_ak_compatibility is True
     assert settings.overwrite_outputs is True
     assert settings.recent_files == []
-    assert store.load().allow_ak_compatibility is True
+    assert store.load().overwrite_outputs is True
 
 
 @pytest.mark.parametrize(

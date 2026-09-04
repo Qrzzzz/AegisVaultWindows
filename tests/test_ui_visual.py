@@ -19,11 +19,11 @@ from PySide6.QtGui import QFontDatabase, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
+from aegisvault.core.exceptions import ProtocolError
 from aegisvault.core.models import FileProcessResult, TextDecryptResult
 from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
-from aegisvault.ui.dialogs.legacy_recovery_dialog import LegacyRecoveryDialog
 from aegisvault.ui.main_window import MainWindow
 from aegisvault.ui.pages.settings_page import SettingsDialog
 
@@ -80,12 +80,18 @@ def render_workspace(
             elif scenario == "error":
                 window.text_page.password.edit.setText("fixture-only")
                 window.text_page.run_current()
+            elif scenario == "file-decrypt":
+                page_index = 1
+                window.file_page.mode.set_current("decrypt")
+            elif scenario == "unsupported":
+                window.text_page.mode.set_current("decrypt")
+                window.text_page._on_failed(
+                    ProtocolError("Static screenshot fixture", code="protocol.unsupported_format"), ""
+                )
             elif scenario in {"settings", "advanced"}:
                 target = SettingsDialog(window.i18n, settings, store, window)
                 if scenario == "advanced":
                     target.advanced_toggle.setChecked(True)
-            elif scenario == "legacy":
-                target = LegacyRecoveryDialog(window, window.i18n, Path("C:/Samples/archive.aes"))
             window._set_page(page_index, focus=False)
             window.show()
             if target is not window:
@@ -142,8 +148,8 @@ def _update_baselines(qa_dir: Path | None = None) -> None:
             target = destination / f"minimal-{name}-{language}.png"
             render_workspace(target, index, language=language)
             print(target)
-    for scenario in ("text-result", "file-result", "error", "settings", "advanced", "legacy"):
-        destination = BASELINE_DIR if scenario in {"text-result", "settings", "legacy"} else qa_dir
+    for scenario in ("text-result", "file-result", "file-decrypt", "error", "unsupported", "settings", "advanced"):
+        destination = BASELINE_DIR if scenario in {"text-result", "settings"} else qa_dir
         if destination is None:
             continue
         target = destination / f"basic-{scenario}.png"

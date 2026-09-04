@@ -25,7 +25,6 @@ class AboutDialog(QDialog):
         layout.addWidget(QLabel(self.i18n.t("about.version", version=__version__)))
         layout.addWidget(QLabel(self.i18n.t("about.license", license=__license__)))
         layout.addWidget(QLabel(self.i18n.t("about.repo")))
-        layout.addWidget(QLabel(self.i18n.t("about.migration")))
         close = QPushButton(self.i18n.t("action.close"))
         close.setAccessibleName(self.i18n.t("action.close"))
         close.clicked.connect(self.accept)

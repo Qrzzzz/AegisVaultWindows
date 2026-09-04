@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from aegisvault.core.legacy import is_ak_token
 from aegisvault.core.models import TaskState
 from aegisvault.i18n.translator import Translator
 from aegisvault.services.crypto_service import CryptoService
@@ -34,7 +33,6 @@ from aegisvault.ui.pages.common import scroll_page
 class TextPage(QWidget):
     error = Signal(object, str)
     status_message = Signal(str, int)
-    settings_requested = Signal()
 
     def __init__(self, translator: Translator, settings: AppSettings, service: CryptoService) -> None:
         super().__init__()
@@ -65,17 +63,6 @@ class TextPage(QWidget):
         self.output = OutputPreview("", "", "")
         self.output.use_as_input_requested.connect(self.use_result_as_input)
 
-        self.recovery_panel = QWidget()
-        self.recovery_note = QLabel()
-        self.recovery_note.setObjectName("WarningText")
-        self.recovery_note.setWordWrap(True)
-        self.recovery_button = QPushButton()
-        self.recovery_button.clicked.connect(self.settings_requested.emit)
-        recovery_layout = QVBoxLayout(self.recovery_panel)
-        recovery_layout.setContentsMargins(0, 0, 0, 0)
-        recovery_layout.addWidget(self.recovery_note)
-        recovery_layout.addWidget(self.recovery_button, alignment=Qt.AlignmentFlag.AlignLeft)
-
         self.run_button = QPushButton()
         self.run_button.clicked.connect(self.run_current)
         self.clear_button = QPushButton()
@@ -96,7 +83,6 @@ class TextPage(QWidget):
         layout.addWidget(self.input, 1)
         layout.addWidget(self.password)
         layout.addWidget(self.confirm_password)
-        layout.addWidget(self.recovery_panel)
         layout.addWidget(self.output, 1)
         actions = QHBoxLayout()
         actions.addWidget(self.clear_button)
@@ -138,10 +124,6 @@ class TextPage(QWidget):
             self.i18n.t("action.show"),
             self.i18n.t("action.hide"),
         )
-        self.recovery_button.setText(self.i18n.t("action.recovery_settings"))
-        self.recovery_button.setAccessibleName(self.i18n.t("action.recovery_settings"))
-        recovery_key = "recovery.ak_enabled" if self.settings.allow_ak_compatibility else "recovery.note"
-        self.recovery_note.setText(self.i18n.t(recovery_key))
         self.clear_button.setText(self.i18n.t("action.clear_workspace"))
         self.clear_button.setAccessibleName(self.i18n.t("action.clear_workspace"))
         self.output.set_texts(
@@ -175,8 +157,6 @@ class TextPage(QWidget):
     def decrypt(self) -> None:
         ciphertext = self.input.toPlainText()
         password = self.password.text()
-        if not password and is_ak_token(ciphertext.strip()) and self.settings.allow_ak_compatibility:
-            password = ""
         self.controller.run(lambda _progress, _token: self.service.decrypt_text(ciphertext, password))
 
     def has_running_task(self) -> bool:
@@ -220,8 +200,6 @@ class TextPage(QWidget):
             self.output.set_text(result.ciphertext)
         elif hasattr(result, "plaintext"):
             self.output.set_text(result.plaintext)
-            if result.compatibility_warning:
-                self.alert.show_message(self.i18n.t(f"warning.{result.compatibility_warning}"))
         self.status_message.emit(self.i18n.t("status.done"), 3000)
         self.output.editor.setFocus()
 
@@ -244,14 +222,12 @@ class TextPage(QWidget):
         self.input.setReadOnly(busy)
         self.password.setEnabled(not busy)
         self.confirm_password.setEnabled(not busy and self.mode.current == "encrypt")
-        self.recovery_button.setEnabled(not busy)
         self.progress.set_state(state)
 
     def _on_mode_changed(self, value: str) -> None:
         is_encrypt = value == "encrypt"
         self.confirm_password.setVisible(is_encrypt)
         self.confirm_password.setEnabled(not self.controller.busy and is_encrypt)
-        self.recovery_panel.setVisible(not is_encrypt)
         self.run_button.setText(self.i18n.t("action.encrypt" if is_encrypt else "action.decrypt"))
         self.run_button.setAccessibleName(self.run_button.text())
         placeholder_key = "text.input.encrypt_placeholder" if is_encrypt else "text.input.decrypt_placeholder"

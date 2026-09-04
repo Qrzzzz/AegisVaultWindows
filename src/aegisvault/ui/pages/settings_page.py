@@ -93,11 +93,7 @@ class SettingsDialog(QDialog):
         self.overwrite.setChecked(settings.overwrite_outputs)
         self.overwrite_warning = QLabel()
         self.overwrite_warning.setWordWrap(True)
-        self.ak = QCheckBox()
-        self.ak.setChecked(settings.allow_ak_compatibility)
-        self.ak_warning = QLabel()
-        self.ak_warning.setWordWrap(True)
-        for widget in (self.overwrite, self.overwrite_warning, self.ak, self.ak_warning):
+        for widget in (self.overwrite, self.overwrite_warning):
             advanced.addWidget(widget)
 
         self.alert = InlineAlert()
@@ -137,9 +133,7 @@ class SettingsDialog(QDialog):
         self.advanced_toggle.setText(self.i18n.t("settings.advanced"))
         self.overwrite.setText(self.i18n.t("settings.overwrite"))
         self.overwrite_warning.setText(self.i18n.t("settings.overwrite.note"))
-        self.ak.setText(self.i18n.t("settings.ak"))
-        self.ak_warning.setText(self.i18n.t("settings.ak.note"))
-        for button in (self.browse_button, self.clear_recent_button, self.advanced_toggle, self.overwrite, self.ak):
+        for button in (self.browse_button, self.clear_recent_button, self.advanced_toggle, self.overwrite):
             button.setAccessibleName(button.text())
         save = self.buttons.button(QDialogButtonBox.StandardButton.Save)
         cancel = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
@@ -166,7 +160,6 @@ class SettingsDialog(QDialog):
             overwrite_outputs=self.overwrite.isChecked(),
             remember_recent_files=self.remember.isChecked(),
             show_advanced_options=self.advanced_toggle.isChecked(),
-            allow_ak_compatibility=self.ak.isChecked(),
             recent_files=list(self._recent_files),
         )
         try:
@@ -183,7 +176,6 @@ class SettingsDialog(QDialog):
         self.settings.overwrite_outputs = candidate.overwrite_outputs
         self.settings.remember_recent_files = candidate.remember_recent_files
         self.settings.show_advanced_options = candidate.show_advanced_options
-        self.settings.allow_ak_compatibility = candidate.allow_ak_compatibility
         self.settings.recent_files = list(candidate.recent_files)
         if self._recent_was_cleared:
             self.recent_cleared.emit()

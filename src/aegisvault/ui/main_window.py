@@ -72,7 +72,6 @@ class MainWindow(QMainWindow):
             page.error.connect(self._log_error)
             page.status_message.connect(self.statusBar().showMessage)
             self.tabs.addTab(page, "")
-        self.text_page.settings_requested.connect(self._show_settings)
         self.file_page.file_selected.connect(self._remember_file)
         self.base64_page.file_selected.connect(self._remember_file)
         self.file_page.reveal_requested.connect(self._reveal_file)

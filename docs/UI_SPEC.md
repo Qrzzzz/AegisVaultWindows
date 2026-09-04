@@ -50,9 +50,10 @@ documented clearing behavior.
 - Modes: Encrypt and Decrypt.
 - Encrypt shows password and confirmation. A mismatch is rejected before work
   starts.
-- Decrypt shows one password field and a visible Legacy / AK recovery entry.
-- Supported legacy ciphertext is detected automatically. AK parsing remains
-  disabled by default and links to its explicit high-risk setting.
+- Decrypt shows one password field and accepts only an AGV1 token.
+- Non-AGV1 input, including retired Base64 ciphertext and AK wrappers, is
+  rejected with a clear localized AGV1-only error. There is no recovery
+  action, compatibility switch or alternate decryptor.
 - Results support Copy, Clear result, and Use as new input. Using a result as
   input reverses the operation mode.
 
@@ -62,10 +63,10 @@ documented clearing behavior.
 - Modes: Encrypt and Decrypt.
 - Encrypt requires password confirmation; Decrypt requires one password.
 - The output directory and exact candidate path are visible before execution.
-- Legacy file recovery is explained in Decrypt mode. Ordinary decryption uses
-  the modern-only boundary and stops when a legacy file is detected. A
-  localized, migration-only confirmation must be accepted before a separate
-  legacy recovery task can start; declining writes no output.
+- File decryption accepts only AGV1 file contents, regardless of the extension.
+  Other contents are rejected inline with protocol.unsupported_format.
+  Rejection does not open a recovery dialog or create plaintext/temporary
+  output. There is no pending recovery request or second recovery task.
 - Progress includes localized stage, percent, processed size, and cancellation.
 - A successful result includes output path, size change, format, Clear result,
   and Reveal output.
@@ -91,10 +92,11 @@ Normal settings:
 - default output directory;
 - recent-file retention and clearing.
 
-The collapsed **Advanced and recovery options** section contains:
+The collapsed **Advanced options** section contains:
 
 - overwrite existing outputs, with an irreversible-replacement warning;
-- AK compatibility parsing, with the embedded-key migration warning.
+
+No old-format or embedded-key parsing setting is present.
 
 Saving first persists a candidate AppSettings object. Only a successful write
 updates the live settings and existing pages. A rejected dialog or failed save
@@ -102,7 +104,7 @@ must not mutate live preferences or recent-file history.
 
 ## Fixed Basic Light Appearance
 
-The window, menus, settings, About, errors and recovery confirmation use normal
+The window, menus, settings, About and errors use normal
 Qt controls, the system font and a fixed light palette. There is no theme picker.
 The application requests Qt's Light color scheme and uses its standard palette;
 a small semantic-color fallback handles a platform style with a dark palette.
@@ -154,8 +156,9 @@ and uses these committed baselines (replacing the former dark images):
 - docs/screenshots/minimal-file-zh-CN.png
 - docs/screenshots/minimal-base64-zh-CN.png
 
-Only three additional documentation samples are committed: text result,
-settings and legacy confirmation. Additional English, error, file-result,
+Only two additional documentation samples are committed: text result and
+settings. The obsolete recovery-confirmation screenshot is removed.
+Additional English, error, file-result, file-decrypt,
 advanced, 640 x 480 and 150% scaling samples go to an explicit QA directory.
 Every render uses isolated APPDATA / LOCALAPPDATA and generated display
 fixtures, never real configuration, network data or user secrets. Screenshot
@@ -177,14 +180,22 @@ tests/test_ui_basic_light.py exercises native Qt input, shortcuts, phase
 visibility, light dialogs after old settings / platform notifications, compact
 layout reachability, real Base64 file round trips, recent files, output reveal
 dispatch and guarded drops. tests/test_ui_behavior.py retains real encryption,
-legacy refusal/acceptance, settings failure, stale callback, cancellation and
+rejection of static retired-format samples without output or a dialog, settings
+failure, stale callback, cancellation and
 close/wait contracts. Run these tests at both 100% and 150% scale.
 
 ## Integration Boundary
 
-This UI change does not alter core, services, TaskController, cryptography,
-protocol, dependency locks, release scripts or version metadata. The only
-settings model change is the fixed-light default/load migration above.
+The UI calls the AGV1-only CryptoService text/file methods. It has no
+allow_legacy argument, recovery API call, AK settings field or compatibility
+result fields. All non-AGV1 format errors use protocol.unsupported_format,
+localized as "Only AGV1 is supported. Older formats are not supported." and
+"仅支持 AGV1，不支持旧格式。". The UI must not suggest enabling a removed switch.
+
+TaskController lifecycle, settings candidate-before-live persistence,
+cancellation, output overwrite protection and modern/Base64 workflows remain
+unchanged. Backend removal of retired-format code is a separate integration
+dependency, not a reason to weaken these UI safety checks.
 
 Unused runtime skin modules and old card/navigation components are removed.
 The two historical resources/qss files remain solely because the unchanged
