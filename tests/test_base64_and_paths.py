@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import pytest
@@ -30,6 +31,19 @@ def test_base64_file_round_trip(tmp_path: Path) -> None:
     assert restored.output_path.read_bytes() == bytes(range(32))
 
 
+def test_base64_file_decode_handles_whitespace_inside_streaming_block(tmp_path: Path) -> None:
+    plaintext = bytes(range(251)) * 3_300
+    encoded = base64.b64encode(plaintext)
+    assert len(encoded) > 1024 * 1024
+    wrapped = encoded[:101] + b"\r\n" + encoded[101:]
+    source = tmp_path / "stream-boundary.b64"
+    source.write_bytes(wrapped)
+
+    result = CryptoService(AppSettings()).base64_decode_file(source)
+
+    assert result.output_path.read_bytes() == plaintext
+
+
 def test_unique_path_and_output_naming(tmp_path: Path) -> None:
     source = tmp_path / "report.txt"
     source.write_text("x", encoding="utf-8")
@@ -38,4 +52,3 @@ def test_unique_path_and_output_naming(tmp_path: Path) -> None:
     assert encrypted_output_path(source).name == "report.txt (1).agv"
     assert decrypted_output_path(first).name == "report (1).txt"
     assert unique_path(source).name == "report (1).txt"
-

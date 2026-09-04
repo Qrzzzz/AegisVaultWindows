@@ -41,12 +41,6 @@ class ProtocolError(CryptoError):
     default_code = "crypto.protocol_error"
 
 
-class CompatibilityError(CryptoError):
-    """Raised when legacy data cannot be parsed or converted."""
-
-    default_code = "crypto.compatibility_error"
-
-
 class ResourceLimitError(AppError):
     """Raised when untrusted input asks for unsafe memory or CPU cost."""
 

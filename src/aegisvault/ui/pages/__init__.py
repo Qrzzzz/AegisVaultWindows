@@ -1,3 +1,1 @@
-﻿"""Workspace pages."""
-
-
+"""Workspace pages."""

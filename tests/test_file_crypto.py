@@ -5,11 +5,9 @@ from pathlib import Path
 
 import pytest
 
-import aegisvault.services.crypto_service as service_module
 from aegisvault.core.crypto import decrypt_file, encrypt_file
-from aegisvault.core.exceptions import AuthenticationError, CompatibilityError, ProtocolError
+from aegisvault.core.exceptions import AuthenticationError, ProtocolError
 from aegisvault.core.kdf import ScryptParams
-from aegisvault.core.legacy import encrypt_legacy_bytes_for_tests
 from aegisvault.core.protocol import (
     CHUNK_RECORD,
     FILE_MAGIC,
@@ -18,8 +16,6 @@ from aegisvault.core.protocol import (
     canonical_json,
     read_file_header,
 )
-from aegisvault.services.crypto_service import CryptoService
-from aegisvault.settings.models import AppSettings
 
 
 def fast_params() -> ScryptParams:
@@ -48,6 +44,31 @@ def test_multi_chunk_file_round_trip(tmp_path: Path) -> None:
     assert restored.read_bytes() == data
 
 
+@pytest.mark.parametrize(
+    "size",
+    [MIN_CHUNK_SIZE - 1, MIN_CHUNK_SIZE, MIN_CHUNK_SIZE + 1, MIN_CHUNK_SIZE * 2, MIN_CHUNK_SIZE * 2 + 1],
+)
+def test_file_round_trip_at_chunk_boundaries(tmp_path: Path, size: int) -> None:
+    data = (bytes(range(256)) * ((size // 256) + 1))[:size]
+    _source, encrypted, restored = encrypt_fixture(tmp_path, data)
+    decrypt_file(encrypted, restored, "passphrase")
+    assert restored.read_bytes() == data
+
+
+def test_file_round_trip_with_unicode_directories_and_name(tmp_path: Path) -> None:
+    directory = tmp_path / "目录 with spaces 🔐"
+    directory.mkdir()
+    source = directory / "源文件.数据"
+    encrypted = directory / "加密输出.agv"
+    restored = directory / "恢复文件.数据"
+    source.write_bytes("路径与 Unicode 🔐".encode())
+
+    encrypt_file(source, encrypted, "passphrase", kdf_params=fast_params(), chunk_size=MIN_CHUNK_SIZE)
+    decrypt_file(encrypted, restored, "passphrase")
+
+    assert restored.read_bytes() == source.read_bytes()
+
+
 def test_empty_file_round_trip(tmp_path: Path) -> None:
     _source, encrypted, restored = encrypt_fixture(tmp_path, b"")
     decrypt_file(encrypted, restored, "passphrase")
@@ -58,6 +79,8 @@ def test_file_wrong_password_fails(tmp_path: Path) -> None:
     _source, encrypted, restored = encrypt_fixture(tmp_path, b"secret file")
     with pytest.raises(AuthenticationError):
         decrypt_file(encrypted, restored, "wrong")
+    assert not restored.exists()
+    assert not list(tmp_path.glob(".*.tmp"))
 
 
 def test_tampered_file_header_fails(tmp_path: Path) -> None:
@@ -79,6 +102,8 @@ def test_tampered_file_chunk_fails(tmp_path: Path) -> None:
     encrypted.write_bytes(bytes(blob))
     with pytest.raises(AuthenticationError):
         decrypt_file(encrypted, restored, "passphrase")
+    assert not restored.exists()
+    assert not list(tmp_path.glob(".*.tmp"))
 
 
 def test_missing_final_chunk_fails(tmp_path: Path) -> None:
@@ -115,23 +140,3 @@ def test_header_size_limit_is_enforced(tmp_path: Path) -> None:
     source.write_bytes(b"x")
     with pytest.raises(ProtocolError):
         encrypt_file(source, encrypted, "passphrase", kdf_params=fast_params(), chunk_size=MAX_CHUNK_SIZE + 1)
-
-
-def test_legacy_file_compatibility_via_service(tmp_path: Path) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    service = CryptoService(AppSettings())
-    result = service.decrypt_file(encrypted, "legacy-pass")
-    assert result.format_name == "legacy-v2"
-    assert result.compatibility_warning == "legacy_weak_kdf"
-    assert result.output_path.read_bytes() == b"legacy bytes"
-
-
-def test_legacy_file_size_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    monkeypatch.setattr(service_module, "LEGACY_FILE_MAX_BYTES", 8)
-    service = CryptoService(AppSettings())
-    with pytest.raises(CompatibilityError):
-        service.decrypt_file(encrypted, "legacy-pass")
-

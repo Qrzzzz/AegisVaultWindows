@@ -58,8 +58,6 @@ class TextEncryptResult:
 class TextDecryptResult:
     plaintext: str
     format_name: str
-    compatibility_warning: str | None = None
-    bundled_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,4 +67,3 @@ class FileProcessResult:
     original_size: int
     output_size: int
     format_name: str
-    compatibility_warning: str | None = None

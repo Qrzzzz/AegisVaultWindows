@@ -1,18 +1,23 @@
-"""Settings workspace."""
+"""Native settings form with a genuinely collapsed advanced section."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QListWidget,
     QPushButton,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -21,97 +26,123 @@ from aegisvault.core.exceptions import FileIOError
 from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
-from aegisvault.ui.components.action_bar import ActionBar
-from aegisvault.ui.components.card import Card
-from aegisvault.ui.components.form_row import FormRow
 from aegisvault.ui.components.inline_alert import InlineAlert
-from aegisvault.ui.design import spacing
-from aegisvault.ui.pages.common import muted, scroll_page
+from aegisvault.ui.light import ensure_light_appearance
+from aegisvault.ui.pages.common import scroll_page
 
 
-class SettingsPage(QWidget):
+class SettingsDialog(QDialog):
     settings_saved = Signal()
     recent_cleared = Signal()
     error = Signal(object, str)
 
-    def __init__(self, translator: Translator, settings: AppSettings, store: SettingsStore) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        translator: Translator,
+        settings: AppSettings,
+        store: SettingsStore,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        ensure_light_appearance()
         self.i18n = translator
         self.settings = settings
         self.store = store
-        self.alert = InlineAlert()
+        self._recent_files = list(settings.recent_files)
+        self._recent_was_cleared = False
+        self.setModal(True)
+        self.resize(620, 500)
+        self.setMinimumSize(480, 380)
 
-        scroll, layout = scroll_page()
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
-
-        layout.addWidget(self._build_general_card())
-        layout.addWidget(self._build_output_card())
-        layout.addWidget(self._build_compat_card())
-        layout.addWidget(self._build_recent_card())
-        layout.addWidget(self.alert)
-        save = QPushButton(self.i18n.t("action.save"))
-        save.setObjectName("Primary")
-        save.clicked.connect(self.save)
-        layout.addWidget(ActionBar(save))
-        layout.addStretch(1)
-
-    def _build_general_card(self) -> Card:
-        card = Card("General")
         self.language_combo = QComboBox()
-        self.language_combo.addItem("Chinese", "zh-CN")
-        self.language_combo.addItem("English", "en-US")
-        self.language_combo.setCurrentIndex(0 if self.settings.language == "zh-CN" else 1)
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItem(self.i18n.t("settings.theme.dark"), "dark")
-        self.theme_combo.addItem(self.i18n.t("settings.theme.light"), "light")
-        self.theme_combo.addItem(self.i18n.t("settings.theme.system"), "system")
-        self.theme_combo.setCurrentIndex({"dark": 0, "light": 1, "system": 2}.get(self.settings.theme, 0))
-        card.content_layout.addWidget(FormRow(self.i18n.t("settings.language"), self.language_combo))
-        card.content_layout.addWidget(FormRow(self.i18n.t("settings.theme"), self.theme_combo))
-        return card
+        self.language_combo.addItem("", "zh-CN")
+        self.language_combo.addItem("", "en-US")
+        self.language_combo.setCurrentIndex(0 if settings.language == "zh-CN" else 1)
+        self.language_label = QLabel()
+        self.language_label.setBuddy(self.language_combo)
+        self.output_dir = QLineEdit(settings.default_output_dir)
+        self.output_label = QLabel()
+        self.output_label.setBuddy(self.output_dir)
+        self.browse_button = QPushButton()
+        self.browse_button.clicked.connect(self._browse_output_dir)
+        output_row = QHBoxLayout()
+        output_row.addWidget(self.output_dir, 1)
+        output_row.addWidget(self.browse_button)
+        form = QFormLayout()
+        form.addRow(self.language_label, self.language_combo)
+        form.addRow(self.output_label, output_row)
 
-    def _build_output_card(self) -> Card:
-        card = Card("Output")
-        self.output_dir = QLineEdit(self.settings.default_output_dir)
-        browse = QPushButton(self.i18n.t("action.browse"))
-        browse.clicked.connect(self._browse_output_dir)
-        output_row = QWidget()
-        output_layout = QHBoxLayout(output_row)
-        output_layout.setContentsMargins(0, 0, 0, 0)
-        output_layout.setSpacing(spacing.SM)
-        output_layout.addWidget(self.output_dir, 1)
-        output_layout.addWidget(browse)
-        self.overwrite = QCheckBox(self.i18n.t("settings.overwrite"))
-        self.overwrite.setChecked(self.settings.overwrite_outputs)
-        card.content_layout.addWidget(FormRow(self.i18n.t("field.output_dir"), output_row))
-        card.content_layout.addWidget(self.overwrite)
-        return card
-
-    def _build_compat_card(self) -> Card:
-        card = Card("Legacy recovery and compatibility")
-        self.advanced = QCheckBox(self.i18n.t("settings.advanced"))
-        self.advanced.setChecked(self.settings.show_advanced_options)
-        self.ak = QCheckBox(self.i18n.t("settings.ak"))
-        self.ak.setChecked(self.settings.allow_ak_compatibility)
-        card.content_layout.addWidget(self.advanced)
-        card.content_layout.addWidget(self.ak)
-        card.content_layout.addWidget(muted(self.i18n.t("settings.ak.note")))
-        return card
-
-    def _build_recent_card(self) -> Card:
-        card = Card(self.i18n.t("settings.recent_files"))
-        self.remember = QCheckBox(self.i18n.t("settings.recent"))
-        self.remember.setChecked(self.settings.remember_recent_files)
+        self.remember = QCheckBox()
+        self.remember.setChecked(settings.remember_recent_files)
+        self.recent_label = QLabel()
         self.recent_list = QListWidget()
+        self.recent_list.setMinimumHeight(60)
+        self.recent_list.setMaximumHeight(120)
+        self.clear_recent_button = QPushButton()
+        self.clear_recent_button.clicked.connect(self._clear_recent)
+
+        self.advanced_toggle = QToolButton()
+        self.advanced_toggle.setCheckable(True)
+        self.advanced_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.advanced_toggle.setChecked(settings.show_advanced_options)
+        self.advanced_toggle.toggled.connect(self._toggle_advanced)
+        self.advanced_panel = QWidget()
+        advanced = QVBoxLayout(self.advanced_panel)
+        advanced.setContentsMargins(0, 0, 0, 0)
+        self.overwrite = QCheckBox()
+        self.overwrite.setChecked(settings.overwrite_outputs)
+        self.overwrite_warning = QLabel()
+        self.overwrite_warning.setWordWrap(True)
+        for widget in (self.overwrite, self.overwrite_warning):
+            advanced.addWidget(widget)
+
+        self.alert = InlineAlert()
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        self.buttons.accepted.connect(self.save)
+        self.buttons.rejected.connect(self.reject)
+        scroll, content = scroll_page()
+        content.addLayout(form)
+        content.addWidget(self.remember)
+        content.addWidget(self.recent_label)
+        content.addWidget(self.recent_list)
+        content.addWidget(self.clear_recent_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        content.addWidget(self.advanced_toggle, alignment=Qt.AlignmentFlag.AlignLeft)
+        content.addWidget(self.advanced_panel)
+        content.addStretch(1)
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll, 1)
+        layout.addWidget(self.alert)
+        layout.addWidget(self.buttons)
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(self.i18n.t("settings.title"))
+        self.setAccessibleName(self.windowTitle())
+        self.language_combo.setItemText(0, self.i18n.t("settings.language.zh"))
+        self.language_combo.setItemText(1, self.i18n.t("settings.language.en"))
+        self.language_label.setText(self.i18n.t("settings.language"))
+        self.language_combo.setAccessibleName(self.language_label.text())
+        self.output_label.setText(self.i18n.t("field.output_dir"))
+        self.output_dir.setAccessibleName(self.output_label.text())
+        self.output_dir.setPlaceholderText(self.i18n.t("settings.output_same_folder"))
+        self.browse_button.setText(self.i18n.t("action.browse"))
+        self.remember.setText(self.i18n.t("settings.recent"))
+        self.recent_label.setText(self.i18n.t("settings.recent_files"))
+        self.recent_list.setAccessibleName(self.recent_label.text())
+        self.clear_recent_button.setText(self.i18n.t("settings.clear_recent"))
+        self.advanced_toggle.setText(self.i18n.t("settings.advanced"))
+        self.overwrite.setText(self.i18n.t("settings.overwrite"))
+        self.overwrite_warning.setText(self.i18n.t("settings.overwrite.note"))
+        for button in (self.browse_button, self.clear_recent_button, self.advanced_toggle, self.overwrite):
+            button.setAccessibleName(button.text())
+        save = self.buttons.button(QDialogButtonBox.StandardButton.Save)
+        cancel = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        save.setText(self.i18n.t("action.save"))
+        cancel.setText(self.i18n.t("action.cancel"))
+        save.setAccessibleName(save.text())
+        cancel.setAccessibleName(cancel.text())
         self._refresh_recent()
-        clear_recent = QPushButton(self.i18n.t("settings.clear_recent"))
-        clear_recent.clicked.connect(self._clear_recent)
-        card.content_layout.addWidget(self.remember)
-        card.content_layout.addWidget(self.recent_list)
-        card.content_layout.addWidget(ActionBar(clear_recent))
-        return card
+        self._toggle_advanced(self.advanced_toggle.isChecked())
 
     def save(self) -> None:
         self.alert.clear()
@@ -119,33 +150,57 @@ class SettingsPage(QWidget):
         if output_dir and not Path(output_dir).expanduser().is_dir():
             exc = FileIOError("Output directory does not exist.", code="file.output_dir_invalid")
             self.alert.show_error(self.i18n, exc)
+            self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
             self.error.emit(exc, "")
             return
-        self.settings.language = str(self.language_combo.currentData())
-        self.settings.theme = str(self.theme_combo.currentData())
-        self.settings.default_output_dir = output_dir
-        self.settings.overwrite_outputs = self.overwrite.isChecked()
-        self.settings.remember_recent_files = self.remember.isChecked()
-        self.settings.show_advanced_options = self.advanced.isChecked()
-        self.settings.allow_ak_compatibility = self.ak.isChecked()
-        self.store.save(self.settings)
+        candidate = AppSettings(
+            language=str(self.language_combo.currentData()),
+            theme="light",
+            default_output_dir=output_dir,
+            overwrite_outputs=self.overwrite.isChecked(),
+            remember_recent_files=self.remember.isChecked(),
+            show_advanced_options=self.advanced_toggle.isChecked(),
+            recent_files=list(self._recent_files),
+        )
+        try:
+            self.store.save(candidate)
+        except Exception as exc:
+            self.alert.show_error(self.i18n, exc)
+            self.alert.setFocus(Qt.FocusReason.OtherFocusReason)
+            self.error.emit(exc, "")
+            return
+
+        self.settings.language = candidate.language
+        self.settings.theme = candidate.theme
+        self.settings.default_output_dir = candidate.default_output_dir
+        self.settings.overwrite_outputs = candidate.overwrite_outputs
+        self.settings.remember_recent_files = candidate.remember_recent_files
+        self.settings.show_advanced_options = candidate.show_advanced_options
+        self.settings.recent_files = list(candidate.recent_files)
+        if self._recent_was_cleared:
+            self.recent_cleared.emit()
         self.settings_saved.emit()
+        self.accept()
+
+    def _toggle_advanced(self, expanded: bool) -> None:
+        self.advanced_toggle.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
+        self.advanced_panel.setVisible(expanded)
 
     def _browse_output_dir(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, self.i18n.t("field.output_dir"))
+        path = QFileDialog.getExistingDirectory(
+            self, self.i18n.t("field.output_dir"), options=QFileDialog.Option.DontUseNativeDialog
+        )
         if path:
             self.output_dir.setText(path)
 
     def _clear_recent(self) -> None:
-        self.settings.recent_files = []
-        self.store.save(self.settings)
+        self._recent_files = []
+        self._recent_was_cleared = True
         self._refresh_recent()
-        self.recent_cleared.emit()
 
     def _refresh_recent(self) -> None:
         self.recent_list.clear()
-        if not self.settings.recent_files:
+        if not self._recent_files:
             self.recent_list.addItem(self.i18n.t("settings.no_recent"))
             return
-        for item in self.settings.recent_files:
-            self.recent_list.addItem(item)
+        self.recent_list.addItems(self._recent_files)

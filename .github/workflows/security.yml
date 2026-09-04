@@ -1,0 +1,156 @@
+name: Security
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Review dependency changes
+        id: review
+        continue-on-error: true
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          comment-summary-in-pr: never
+          fail-on-severity: high
+          retry-on-snapshot-warnings: true
+      - name: Preserve machine-readable dependency review
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
+          DEPENDENCY_CHANGES: ${{ steps.review.outputs.dependency-changes }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INVALID_LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
+          REVIEW_OUTCOME: ${{ steps.review.outcome }}
+          VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
+        run: |
+          function Convert-ReviewJson([string]$Value) {
+            if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+            return $Value | ConvertFrom-Json
+          }
+          [IO.Directory]::CreateDirectory("security-reports") | Out-Null
+          $Report = [ordered]@{
+            schema = "aegisvault-dependency-review-v1"
+            outcome = $env:REVIEW_OUTCOME
+            base_sha = $env:BASE_SHA
+            head_sha = $env:HEAD_SHA
+            fail_on_severity = "high"
+            dependency_changes = @(Convert-ReviewJson $env:DEPENDENCY_CHANGES)
+            vulnerable_changes = @(Convert-ReviewJson $env:VULNERABLE_CHANGES)
+            invalid_license_changes = @(Convert-ReviewJson $env:INVALID_LICENSE_CHANGES)
+            denied_changes = @(Convert-ReviewJson $env:DENIED_CHANGES)
+          }
+          [IO.File]::WriteAllText(
+            "security-reports/dependency-review.json",
+            ($Report | ConvertTo-Json -Depth 50) + [Environment]::NewLine,
+            [Text.UTF8Encoding]::new($false)
+          )
+      - name: Upload machine-readable dependency review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-review-report
+          path: security-reports/dependency-review.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce dependency review result
+        if: steps.review.outcome == 'failure'
+        run: throw "Dependency review rejected this change. Inspect the machine-readable report before assigning product impact."
+
+  pip-audit:
+    name: Python dependency audit
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - name: Initialize isolated Python environment
+        run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
+      - name: Install hash-locked audit tools
+        run: .\scripts\install_locked_dependencies.ps1
+      - name: Audit locked runtime dependencies
+        id: audit
+        continue-on-error: true
+        run: .\scripts\run_pip_audit.ps1 -OutputPath security-reports/pip-audit.json
+      - name: Upload machine-readable pip-audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pip-audit-report
+          path: security-reports/pip-audit.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce dependency audit result
+        if: steps.audit.outcome == 'failure'
+        run: throw "pip-audit reported an advisory or tool failure. Triage the JSON report for reachability and product impact; do not label it a product vulnerability without analysis."
+
+  codeql:
+    name: CodeQL (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
+        with:
+          build-mode: none
+          languages: python
+          queries: security-extended
+      - name: Analyze and retain SARIF
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
+        with:
+          category: /language:python
+          output: security-reports/codeql
+          upload: always
+      - name: Upload machine-readable CodeQL report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codeql-sarif
+          path: security-reports/codeql
+          if-no-files-found: warn
+          retention-days: 30

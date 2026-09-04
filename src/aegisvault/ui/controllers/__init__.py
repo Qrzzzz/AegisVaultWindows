@@ -1,3 +1,1 @@
-﻿"""UI task controllers."""
-
-
+"""UI task controllers."""

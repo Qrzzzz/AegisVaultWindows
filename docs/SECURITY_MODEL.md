@@ -1,12 +1,18 @@
 # Security Model
 
-AegisVault protects local text and files after they are encrypted with a strong user password and the modern AGV1 protocol.
+AegisVault 1.0.0 protects local text and files after they are encrypted with a strong user password and the modern AGV1 protocol.
+
+AegisVault data is locally encrypted with documented design and tests, but not independently audited.
 
 It does not protect against malware, remote-control software, clipboard monitoring, screen recording, screenshots, weak or reused passwords, plaintext already copied elsewhere, compromised backups, physical access to an unlocked machine, or users losing the password.
 
 ## Passwords
 
 Passwords are never stored by AegisVault. Modern encryption derives AES keys with scrypt and a random salt. Weak passwords remain vulnerable to offline guessing, especially if an attacker obtains the encrypted file or token.
+
+## Modern Encryption
+
+New text and file encryption uses AES-256-GCM. Text tokens authenticate the protocol header as additional authenticated data. File containers encrypt in chunks, and each chunk authenticates the header hash, chunk index and final-chunk flag.
 
 ## Metadata
 
@@ -16,9 +22,9 @@ Encrypted file contents are protected. Filenames, output paths, timestamps, file
 
 AegisVault is a local utility, not an endpoint security product. If the machine is already compromised, attackers may capture plaintext, passwords, screenshots or clipboard data before encryption or after decryption.
 
-## Legacy Formats
+## Unsupported Formats
 
-Legacy formats are migration-only. They use weaker key derivation and should be re-encrypted into the modern AGV1 format immediately after recovery. AK wrappers are disabled by default because they place key material next to ciphertext.
+Legacy AES text/files and AK wrappers are not supported. Version 1.0.0 removes their key derivation, decryption code, recovery interface and compatibility settings. Non-AGV1 data cannot be decrypted by this application; changing a filename extension does not convert its format. Base64 tools do not perform decryption.
 
 ## Temporary Files
 

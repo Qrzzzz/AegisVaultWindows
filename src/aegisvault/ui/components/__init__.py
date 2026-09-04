@@ -1,3 +1,1 @@
-﻿"""Reusable Qt widgets."""
-
-
+"""Reusable Qt widgets."""

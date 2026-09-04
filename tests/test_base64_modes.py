@@ -21,5 +21,6 @@ def test_non_ascii_input_fails() -> None:
 
 
 def test_padding_error_fails() -> None:
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as caught:
         base64_tools.decode_text("aGVsbG8", strict=True)
+    assert caught.value.code == "base64.invalid_text"

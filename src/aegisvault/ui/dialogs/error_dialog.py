@@ -1,4 +1,4 @@
-﻿"""Localized error dialog."""
+"""Localized error dialog."""
 
 from __future__ import annotations
 
@@ -6,11 +6,13 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 
 from aegisvault.core.exceptions import AppError, OperationCancelled
 from aegisvault.i18n.translator import Translator
+from aegisvault.ui.light import ensure_light_appearance
 
 
 def show_error(parent: QWidget, translator: Translator, exc: object, diagnostic: str = "") -> None:
     if isinstance(exc, OperationCancelled):
         return
+    ensure_light_appearance()
     code = exc.code if isinstance(exc, AppError) else "generic"
     message = translator.t(f"error.{code}")
     if message == f"error.{code}":
@@ -22,5 +24,3 @@ def show_error(parent: QWidget, translator: Translator, exc: object, diagnostic:
     if diagnostic:
         box.setDetailedText(diagnostic)
     box.exec()
-
-

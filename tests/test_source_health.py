@@ -25,8 +25,11 @@ def test_critical_text_files_are_not_minified_to_single_line() -> None:
         "docs/QA_CHECKLIST.md",
         "docs/RELEASE_CHECKLIST.md",
         ".github/workflows/ci.yml",
+        ".github/workflows/security.yml",
+        ".github/workflows/release.yml",
         "scripts/build_windows.ps1",
         "scripts/verify_release.ps1",
+        "scripts/publish_github_release.py",
     ]
     for relative in files:
         path = ROOT / relative
@@ -37,9 +40,20 @@ def test_critical_text_files_are_not_minified_to_single_line() -> None:
 
 def test_ci_workflow_contains_expected_jobs() -> None:
     text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    assert "name: CI" in text
+    assert "name: Quality" in text
     assert "runs-on: windows-latest" in text
-    assert "python -m compileall src tests" in text
-    assert "ruff check ." in text
-    assert "mypy src" in text
-    assert "pytest -vv" in text
+    assert '["3.11", "3.12", "3.13"]' in text
+    assert ".\\scripts\\verify_release.ps1" in text
+    assert ".\\scripts\\build_windows.ps1 -Clean -Zip" in text
+    assert "requirements-dev.lock" in text
+
+
+def test_release_workflow_builds_tagged_windows_artifact() -> None:
+    text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "name: Release" in text
+    assert "tags:" in text
+    assert "v*" in text
+    assert ".\\scripts\\verify_release.ps1" in text
+    assert "scripts/publish_github_release.py" in text
+    assert "steps.metadata.outputs.zip_name" in text
+    assert "AegisVault-v1.0.0-win64.zip" not in text

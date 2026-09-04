@@ -1,3 +1,1 @@
-﻿"""Application dialogs."""
-
-
+"""Application dialogs."""
