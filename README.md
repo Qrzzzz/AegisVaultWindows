@@ -10,11 +10,15 @@ AegisVault is intended for users who need a straightforward desktop tool to encr
 
 ## Downloads
 
-Stable release artifact:
+Download the workflow-built assets from the [GitHub Release](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v1.0.0):
 
 - `AegisVault-v1.0.0-win64.zip`
+- `AegisVault-v1.0.0.cdx.json` (software bill of materials)
+- `SHA256SUMS`
 
 Extract the ZIP and run `AegisVault.exe`.
+
+The repository's `release/` directory contains historical binaries and is not the current download source. This release is not Authenticode-signed; verify the checksums and GitHub build provenance before running it.
 
 ## Features
 
@@ -94,7 +98,9 @@ $env:AEGISVAULT_HEADLESS_SMOKE="1"; python -m aegisvault
 
 ## Screenshots
 
-Screenshots can be added under `docs/screenshots/`. The current release keeps a placeholder in that directory so release documentation has a stable path.
+![Fixed-light text workspace](docs/screenshots/minimal-text-zh-CN.png)
+
+[File workspace](docs/screenshots/minimal-file-zh-CN.png) · [Base64 workspace](docs/screenshots/minimal-base64-zh-CN.png) · [Settings](docs/screenshots/basic-settings.png)
 
 ## Project Structure
 

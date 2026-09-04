@@ -1,15 +1,18 @@
 # Changelog
 
-## 1.0.0 - 2026-06-28
+## 1.0.0 - 2026-09-04
 
 - Promoted AegisVault to a stable public `1.0.0` release line with matching package, runtime, display, documentation, script and artifact versions.
+- Replaced the decorative desktop shell with fixed-light native Text, File and Base64 tabs, keeping the full workflow and bilingual settings.
+- Hardened bounded KDF/protocol parsing, atomic output writes, cancellation, explicit legacy recovery confirmation and transactional settings persistence.
 - Kept the modern protocol compatible with existing `AGV1.` text tokens and `.agv` file containers.
 - Preserved AES-256-GCM plus scrypt as the default encryption path for new data.
 - Kept legacy text/file recovery as migration-only compatibility and kept AK parsing disabled by default.
 - Split low-level file primitives used by encryption into `aegisvault.core.file_io` so core crypto no longer imports the service layer.
 - Standardized the Windows release artifact as `AegisVault-v1.0.0-win64.zip` containing `AegisVault.exe`.
 - Added repeatable release verification through `.\scripts\verify_release.ps1 -Build -Zip`.
-- Added a tag-triggered release workflow for uploading the Windows ZIP artifact.
+- Added Python 3.11/3.12/3.13 quality checks, dependency review, pip-audit and CodeQL workflows.
+- Added a tag-triggered release workflow that audits the Windows ZIP, SBOM and checksums, attests each public asset and verifies the draft before publication.
 - Expanded release consistency tests for stale alpha references, release script parameter compatibility, artifact naming, CI content and release workflow content.
 - Rewrote public documentation for security scope, protocol details, migration, QA and release readiness.
 
