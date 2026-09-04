@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
-
-from aegisvault.ui.design import spacing
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
 
 
 class ResultSummary(QFrame):
@@ -16,10 +14,13 @@ class ResultSummary(QFrame):
     def __init__(self, open_label: str, clear_label: str) -> None:
         super().__init__()
         self.setObjectName("ResultSummary")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.output_path: Path | None = None
         self.label = QLabel()
         self.label.setWordWrap(True)
-        self.label.setTextInteractionFlags(self.label.textInteractionFlags())
+        self.label.setTextFormat(Qt.TextFormat.PlainText)
+        self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.open_button = QPushButton(open_label)
         self.clear_button = QPushButton(clear_label)
         self.open_button.clicked.connect(self._reveal)
@@ -29,10 +30,7 @@ class ResultSummary(QFrame):
         actions.addWidget(self.open_button)
         actions.addWidget(self.clear_button)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING
-        )
-        layout.setSpacing(spacing.SM)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.label)
         layout.addLayout(actions)
         self.set_texts(open_label, clear_label)

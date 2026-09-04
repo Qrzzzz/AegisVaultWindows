@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QLabel, QProgressBar, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout
 
 from aegisvault.core.models import ProgressEvent, TaskState
 from aegisvault.i18n.translator import Translator
-from aegisvault.ui.design import spacing
 from aegisvault.ui.pages.common import format_size
 
 
@@ -26,14 +25,13 @@ class TaskProgress(QFrame):
         self.cancel_button = QPushButton()
         self.cancel_button.setObjectName("Danger")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING
-        )
-        layout.setSpacing(spacing.SM)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.stage)
         layout.addWidget(self.detail)
-        layout.addWidget(self.bar)
-        layout.addWidget(self.cancel_button)
+        row = QHBoxLayout()
+        row.addWidget(self.bar, 1)
+        row.addWidget(self.cancel_button)
+        layout.addLayout(row)
         self.retranslate_ui()
         self.reset()
 
@@ -53,6 +51,7 @@ class TaskProgress(QFrame):
                 self.bar.setRange(0, 0)
                 self.stage.setText(self.i18n.t("status.cancelling" if cancelling else "status.running"))
                 self.detail.clear()
+                self.detail.hide()
         else:
             self.cancel_button.setEnabled(False)
 
@@ -81,6 +80,7 @@ class TaskProgress(QFrame):
             )
             detail = f"{detail} · {sizes}" if detail else sizes
         self.detail.setText(detail)
+        self.detail.setVisible(bool(detail))
         self.bar.setValue(percent)
 
     def reset(self) -> None:

@@ -16,14 +16,15 @@ The application uses one native QMainWindow.
 - The only persistent workspace entries are **Text**, **File**, and **Base64**.
 - Settings, recent files, Exit, and About live in the native menu bar.
 - Settings and About open modal dialogs; they are not workspace pages.
-- The page header gives one short purpose statement. The bottom status area is
-  transient and returns to the localized Ready message after its timeout.
+- A native QTabWidget holds exactly three tabs. There is no content branding
+  bar, page header, card hierarchy, segmented button navigation or custom QSS.
+- The native status bar is transient and becomes empty after its timeout.
 - Ctrl+1, Ctrl+2, and Ctrl+3 select the three workspaces. Ctrl+, opens Settings,
   F1 opens About, and Ctrl+Q exits.
 
 ## Workflow Contract
 
-Every workspace follows the same vertical order:
+Every workspace follows the same workflow:
 
 1. mode;
 2. input;
@@ -35,6 +36,14 @@ Secondary controls may clear input, copy or clear a result, use a text result as
 new input, cancel an active task, or reveal a file output. They must not compete
 with the single primary operation. Ctrl+Enter runs the current operation and
 Escape requests cancellation.
+
+The primary operation and Clear stay in a fixed footer. Progress and errors
+appear directly beneath it only when needed. Results occupy the content area;
+empty result editors and result actions are hidden. The input and text result
+share the available vertical space without changing the system font size.
+Starting another task, switching tabs or switching Base64 input types does not
+discard a completed result. Explicit Clear / Use as new input retains its
+documented clearing behavior.
 
 ## Text
 
@@ -79,8 +88,6 @@ password, result, selected file, or active page.
 Normal settings:
 
 - language: Simplified Chinese or English;
-- theme: Dark, Light, or System (resolved from the current Qt system color
-  scheme);
 - default output directory;
 - recent-file retention and clearing.
 
@@ -88,6 +95,32 @@ The collapsed **Advanced and recovery options** section contains:
 
 - overwrite existing outputs, with an irreversible-replacement warning;
 - AK compatibility parsing, with the embedded-key migration warning.
+
+Saving first persists a candidate AppSettings object. Only a successful write
+updates the live settings and existing pages. A rejected dialog or failed save
+must not mutate live preferences or recent-file history.
+
+## Fixed Basic Light Appearance
+
+The window, menus, settings, About, errors and recovery confirmation use normal
+Qt controls, the system font and a fixed light palette. There is no theme picker.
+The application requests Qt's Light color scheme and uses its standard palette;
+a small semantic-color fallback handles a platform style with a dark palette.
+No widget QSS, font override, decorative design tokens or Windows backdrop is
+applied. Later system color-scheme notifications must not turn the UI dark.
+
+The persisted theme field is retained for compatibility. Loading old dark,
+system, light or invalid theme values normalizes only this field to light.
+Other settings follow the existing strict validation and load rules. Existing
+in-memory legacy theme values remain valid until settings are successfully
+saved; the UI ignores their visual meaning.
+
+The default client size is 900 x 680 logical pixels, with a 600 x 440 minimum.
+At 900 x 680 the key inputs and operation fit; text result actions also fit.
+Smaller windows / larger fonts may scroll the content vertically while the
+operation remains visible. Horizontal scrolling/overflow is not permitted.
+File selection uses one read-only selectable path row, Browse and short
+size/type metadata. Base64 uses compact input-type and operation combo boxes.
 
 ## Task and Window State
 
@@ -113,15 +146,48 @@ The collapsed **Advanced and recovery options** section contains:
 
 ## Visual Regression
 
-tests/test_ui_visual.py renders all three workspaces with
-QT_QPA_PLATFORM=offscreen, verifies dimensions and a tolerant structural pixel
-comparison, and uses these committed baselines:
+tests/test_ui_visual.py renders 900 x 680 light workspaces with
+QT_QPA_PLATFORM=offscreen, verifies dimensions and a structural pixel comparison,
+and uses these committed baselines (replacing the former dark images):
 
 - docs/screenshots/minimal-text-zh-CN.png
 - docs/screenshots/minimal-file-zh-CN.png
 - docs/screenshots/minimal-base64-zh-CN.png
 
-Regenerate them intentionally with:
+Only three additional documentation samples are committed: text result,
+settings and legacy confirmation. Additional English, error, file-result,
+advanced, 640 x 480 and 150% scaling samples go to an explicit QA directory.
+Every render uses isolated APPDATA / LOCALAPPDATA and generated display
+fixtures, never real configuration, network data or user secrets. Screenshot
+fixtures are visual evidence, not cryptographic round-trip evidence.
+
+Offscreen Windows font registration is confined to the QA process
+(segoeui.ttf and msyh.ttc). Production uses the Qt/system font unchanged.
+
+Regenerate baselines intentionally with the hash-locked environment:
 
     $env:QT_QPA_PLATFORM = "offscreen"
-    python tests/test_ui_visual.py --update
+    $env:QT_SCALE_FACTOR = "1"
+    .venv/Scripts/python.exe tests/test_ui_visual.py --update --qa-dir <outside-repo-QA-directory>
+
+For high-DPI samples use a separate process with QT_SCALE_FACTOR=1.5 and the
+same --qa-dir. It does not replace the 100% committed baselines.
+
+tests/test_ui_basic_light.py exercises native Qt input, shortcuts, phase
+visibility, light dialogs after old settings / platform notifications, compact
+layout reachability, real Base64 file round trips, recent files, output reveal
+dispatch and guarded drops. tests/test_ui_behavior.py retains real encryption,
+legacy refusal/acceptance, settings failure, stale callback, cancellation and
+close/wait contracts. Run these tests at both 100% and 150% scale.
+
+## Integration Boundary
+
+This UI change does not alter core, services, TaskController, cryptography,
+protocol, dependency locks, release scripts or version metadata. The only
+settings model change is the fixed-light default/load migration above.
+
+Unused runtime skin modules and old card/navigation components are removed.
+The two historical resources/qss files remain solely because the unchanged
+release artifact audit explicitly requires them. The UI does not load them.
+Removing those packaged placeholders later requires a coordinated manifest /
+artifact-audit update, outside this UI task.

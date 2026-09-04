@@ -22,7 +22,7 @@ Extract the ZIP and run `AegisVault.exe`.
 - File encryption and decryption with chunked `.agv` containers.
 - AES-256-GCM encryption with scrypt password-based key derivation for new data.
 - Base64 text and file encode/decode. Base64 is encoding, not encryption.
-- Settings for theme, language, output directory, overwrite behavior, recent files and migration-only compatibility.
+- Fixed basic light Qt UI, with settings for language, output directory, overwrite behavior, recent files and migration-only compatibility.
 - Legacy text/file recovery for supported old data.
 - AK wrapper parsing disabled by default because AK wrappers embed key material.
 - Atomic output writes for file workflows.
@@ -104,7 +104,7 @@ src/aegisvault/
   services/   workflow facade, output naming, recent files
   settings/   persistent settings
   ui/         PySide6 pages, dialogs, components and task controller
-  resources/  icon and QSS
+  resources/  icon and legacy packaged QSS (not loaded by the UI)
 scripts/      build and release verification scripts
 docs/         security, protocol, migration, QA and release notes
 tests/        unit, integration, source-health and release-consistency tests

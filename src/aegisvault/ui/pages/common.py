@@ -4,41 +4,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
-
-from aegisvault.ui.design import spacing
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
 
 
 def scroll_page() -> tuple[QScrollArea, QVBoxLayout]:
     scroll = QScrollArea()
     scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QFrame.Shape.NoFrame)
+    scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     content = QWidget()
     content.setObjectName("ScrollContent")
     layout = QVBoxLayout(content)
-    layout.setContentsMargins(spacing.PAGE_MARGIN, spacing.LG, spacing.PAGE_MARGIN, spacing.LG)
-    layout.setSpacing(spacing.MD)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(8)
     scroll.setWidget(content)
     return scroll, layout
-
-
-def page_header(title: str, description: str) -> QWidget:
-    frame = QWidget()
-    layout = QVBoxLayout(frame)
-    layout.setContentsMargins(0, 0, 0, 0)
-    title_label = QLabel(title)
-    title_label.setObjectName("PageTitle")
-    desc = QLabel(description)
-    desc.setObjectName("Description")
-    desc.setWordWrap(True)
-    layout.addWidget(title_label)
-    layout.addWidget(desc)
-    return frame
-
-
-def muted(text: str = "") -> QLabel:
-    label = QLabel(text)
-    label.setObjectName("Muted")
-    return label
 
 
 def format_size(value: int) -> str:

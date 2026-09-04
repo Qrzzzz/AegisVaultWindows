@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QPlainTextEdit, QPushButton, QVBoxLayout
-
-from aegisvault.ui.design import spacing
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout
 
 
 class OutputPreview(QFrame):
@@ -17,6 +15,8 @@ class OutputPreview(QFrame):
         self.setObjectName("OutputPreview")
         self.editor = QPlainTextEdit()
         self.editor.setReadOnly(True)
+        self.editor.setMinimumHeight(90)
+        self.editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         self.copy_button = QPushButton(copy_label)
         self.clear_button = QPushButton(clear_label)
         self.use_as_input_button = QPushButton(use_as_input_label)
@@ -31,10 +31,7 @@ class OutputPreview(QFrame):
         actions.addWidget(self.clear_button)
         actions.addWidget(self.use_as_input_button)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING, spacing.CARD_PADDING
-        )
-        layout.setSpacing(spacing.SM)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.editor)
         layout.addLayout(actions)
         self.set_texts(copy_label, clear_label, use_as_input_label)
@@ -73,3 +70,4 @@ class OutputPreview(QFrame):
         self.copy_button.setEnabled(has_text)
         self.clear_button.setEnabled(has_text)
         self.use_as_input_button.setEnabled(has_text)
+        self.setVisible(has_text)

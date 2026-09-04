@@ -7,7 +7,6 @@ from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
 from aegisvault.core.exceptions import AppError
 from aegisvault.i18n.translator import Translator
-from aegisvault.ui.design import spacing
 
 
 class InlineAlert(QFrame):
@@ -16,10 +15,11 @@ class InlineAlert(QFrame):
         self.setObjectName("InlineAlert")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(spacing.MD, spacing.SM, spacing.MD, spacing.SM)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.label = QLabel()
         self.label.setObjectName("InlineAlertText")
         self.label.setWordWrap(True)
+        self.label.setTextFormat(Qt.TextFormat.PlainText)
         layout.addWidget(self.label)
         self.hide()
 

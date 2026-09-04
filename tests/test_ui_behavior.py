@@ -287,7 +287,7 @@ def test_drag_drop_routes_file_and_running_task_blocks_replacement(tmp_path: Pat
     window.dropEvent(drop)
     assert drop.isAccepted()
     assert window.file_page.selected_file == first
-    assert window.shell.stack.currentIndex() == 1
+    assert window.tabs.currentIndex() == 1
 
     started = Event()
 
@@ -320,18 +320,18 @@ def test_drag_drop_routes_file_and_running_task_blocks_replacement(tmp_path: Pat
     app.processEvents()
 
 
-def test_status_timeout_restarts_and_restores_localized_ready(tmp_path: Path) -> None:
+def test_native_status_timeout_restarts_and_returns_to_empty(tmp_path: Path) -> None:
     app, window = _make_window(tmp_path)
-    status = window.shell.status
-    status.show_message("first", 25)
+    status = window.statusBar()
+    status.showMessage("first", 25)
     QTest.qWait(10)
-    status.show_message("second", 90)
+    status.showMessage("second", 90)
     QTest.qWait(35)
     app.processEvents()
-    assert status.label.text() == "second"
+    assert status.currentMessage() == "second"
     QTest.qWait(80)
     app.processEvents()
-    assert status.label.text() == "Ready"
+    assert status.currentMessage() == ""
     window.close()
     app.processEvents()
 
@@ -409,7 +409,7 @@ def test_settings_save_failure_is_localized_and_preserves_live_settings(
     settings = AppSettings(language=language, theme="dark")
     store = SettingsStore(tmp_path / "settings.json")
     dialog = SettingsDialog(Translator(language), settings, store)
-    dialog.theme_combo.setCurrentIndex(1)
+    dialog.remember.setChecked(False)
     errors: list[object] = []
     dialog.error.connect(lambda exc, _diagnostic: errors.append(exc))
 
@@ -421,6 +421,7 @@ def test_settings_save_failure_is_localized_and_preserves_live_settings(
     app.processEvents()
 
     assert settings.theme == "dark"
+    assert settings.remember_recent_files is True
     assert expected in dialog.alert.label.text()
     assert len(errors) == 1
     assert isinstance(errors[0], ValidationError)

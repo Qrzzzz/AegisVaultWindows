@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QShortcut
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget
 
 from aegisvault.core.exceptions import FileIOError
 from aegisvault.i18n.translator import Translator
@@ -16,15 +16,13 @@ from aegisvault.services.file_io import reveal_file
 from aegisvault.services.recent_files import RecentFilesService
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
-from aegisvault.ui.components.app_shell import AppShell, NavigationBar
 from aegisvault.ui.dialogs.about_dialog import AboutDialog
 from aegisvault.ui.dialogs.error_dialog import show_error
+from aegisvault.ui.light import ensure_light_appearance
 from aegisvault.ui.pages.base64_page import Base64Page
 from aegisvault.ui.pages.file_page import FilePage
 from aegisvault.ui.pages.settings_page import SettingsDialog
 from aegisvault.ui.pages.text_page import TextPage
-from aegisvault.ui.platform_effects import apply_windows_backdrop
-from aegisvault.ui.styles import app_stylesheet
 from aegisvault.utils.paths import resource_path
 
 LOGGER = logging.getLogger(__name__)
@@ -33,14 +31,9 @@ LOGGER = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Compact shell hosting the three user workspaces."""
 
-    PAGE_META = {
-        0: ("text.title", "text.description"),
-        1: ("file.title", "file.description"),
-        2: ("base64.title", "base64.description"),
-    }
-
     def __init__(self, settings: AppSettings, store: SettingsStore, translator: Translator) -> None:
         super().__init__()
+        ensure_light_appearance()
         self.settings = settings
         self.store = store
         self.i18n = translator
@@ -53,31 +46,22 @@ class MainWindow(QMainWindow):
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
         self.setAcceptDrops(True)
-        self.setMinimumSize(900, 680)
-        self.resize(1080, 780)
+        self.setMinimumSize(600, 440)
+        self.resize(900, 680)
         self._build_ui()
         self._build_menu()
         self._install_shortcuts()
         self.retranslate_ui()
-        self._apply_theme()
         app = QApplication.instance()
-        if isinstance(app, QApplication) and hasattr(app.styleHints(), "colorSchemeChanged"):
-            app.styleHints().colorSchemeChanged.connect(self._system_theme_changed)
-        QTimer.singleShot(0, self._apply_backdrop)
+        if isinstance(app, QApplication):
+            app.styleHints().colorSchemeChanged.connect(self._keep_light)
 
     def _build_ui(self) -> None:
-        navigation = NavigationBar(
-            self.i18n.t("app.title"),
-            [
-                (self.i18n.t("nav.text"), 0),
-                (self.i18n.t("nav.file"), 1),
-                (self.i18n.t("nav.base64"), 2),
-            ],
-        )
-        navigation.page_selected.connect(self._set_page)
-        self.shell = AppShell(navigation, self.i18n.t("status.ready"))
-        self.setCentralWidget(self.shell)
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
+        self.statusBar().setSizeGripEnabled(False)
         self._build_pages()
+        self.tabs.currentChanged.connect(self._focus_page)
         self._set_page(0, focus=False)
 
     def _build_pages(self) -> None:
@@ -86,8 +70,8 @@ class MainWindow(QMainWindow):
         self.base64_page = Base64Page(self.i18n, self.settings, self.service)
         for page in (self.text_page, self.file_page, self.base64_page):
             page.error.connect(self._log_error)
-            page.status_message.connect(self.shell.status.show_message)
-            self.shell.stack.addWidget(page)
+            page.status_message.connect(self.statusBar().showMessage)
+            self.tabs.addTab(page, "")
         self.text_page.settings_requested.connect(self._show_settings)
         self.file_page.file_selected.connect(self._remember_file)
         self.base64_page.file_selected.connect(self._remember_file)
@@ -120,33 +104,25 @@ class MainWindow(QMainWindow):
             self._shortcuts.append(shortcut)
 
     def _set_page(self, index: int, *, focus: bool = True) -> None:
-        if index not in self.PAGE_META:
+        if index not in range(3):
             return
-        self.shell.stack.setCurrentIndex(index)
-        self.shell.navigation.set_current(index)
-        title_key, desc_key = self.PAGE_META[index]
-        self.shell.header.set_page(self.i18n.t(title_key), self.i18n.t(desc_key))
+        self.tabs.setCurrentIndex(index)
         if focus:
-            page = self.shell.stack.currentWidget()
-            if hasattr(page, "focus_initial"):
-                QTimer.singleShot(0, page.focus_initial)
+            self._focus_page(index)
+
+    def _focus_page(self, index: int) -> None:
+        page = self.tabs.widget(index)
+        if hasattr(page, "focus_initial"):
+            QTimer.singleShot(0, page.focus_initial)
 
     def retranslate_ui(self) -> None:
         self.setWindowTitle(self.i18n.t("app.title"))
-        self.shell.navigation.set_labels(
-            self.i18n.t("app.title"),
-            [
-                (self.i18n.t("nav.text"), 0),
-                (self.i18n.t("nav.file"), 1),
-                (self.i18n.t("nav.base64"), 2),
-            ],
-        )
+        for index, key in enumerate(("nav.text", "nav.file", "nav.base64")):
+            self.tabs.setTabText(index, self.i18n.t(key))
+        self.tabs.setAccessibleName(self.i18n.t("access.workspaces"))
         self.text_page.retranslate_ui()
         self.file_page.retranslate_ui()
         self.base64_page.retranslate_ui()
-        self.shell.status.set_ready_text(self.i18n.t("status.ready"))
-        current = self.shell.stack.currentIndex()
-        self._set_page(current, focus=False)
         self.app_menu.setTitle(self.i18n.t("menu.app"))
         self.settings_action.setText(self.i18n.t("nav.settings"))
         self.recent_menu.setTitle(self.i18n.t("settings.recent_files"))
@@ -157,10 +133,9 @@ class MainWindow(QMainWindow):
 
     def _show_settings(self) -> None:
         if self._has_running_tasks():
-            self.shell.status.show_message(self.i18n.t("settings.blocked_while_running"), 4000)
+            self.statusBar().showMessage(self.i18n.t("settings.blocked_while_running"), 4000)
             return
         dialog = SettingsDialog(self.i18n, self.settings, self.store, self)
-        dialog.setStyleSheet(self.styleSheet())
         dialog.error.connect(self._log_error)
         dialog.settings_saved.connect(self._settings_saved)
         dialog.recent_cleared.connect(self._recent_cleared)
@@ -173,13 +148,13 @@ class MainWindow(QMainWindow):
         self.service = CryptoService(self.settings)
         for page in (self.text_page, self.file_page, self.base64_page):
             page.set_service(self.service)
-        self._apply_theme()
+        ensure_light_appearance()
         self.retranslate_ui()
-        self.shell.status.show_message(self.i18n.t("settings.saved"), 3000)
+        self.statusBar().showMessage(self.i18n.t("settings.saved"), 3000)
 
     def _recent_cleared(self) -> None:
         self._refresh_recent_menu()
-        self.shell.status.show_message(self.i18n.t("settings.recent_cleared"), 3000)
+        self.statusBar().showMessage(self.i18n.t("settings.recent_cleared"), 3000)
 
     def _remember_file(self, path: object) -> None:
         if isinstance(path, Path):
@@ -204,7 +179,7 @@ class MainWindow(QMainWindow):
             return
         if self.file_page.set_file(path):
             self._set_page(1)
-            self.shell.status.show_message(self.i18n.t("file.recent_opened"), 3000)
+            self.statusBar().showMessage(self.i18n.t("file.recent_opened"), 3000)
 
     def _reveal_file(self, path: object) -> None:
         if not isinstance(path, Path):
@@ -226,31 +201,8 @@ class MainWindow(QMainWindow):
         self._log_error(exc, diagnostic)
         show_error(self, self.i18n, exc, diagnostic)
 
-    def _resolved_theme(self) -> str:
-        if self.settings.theme != "system":
-            return self.settings.theme
-        app = QApplication.instance()
-        if not isinstance(app, QApplication):
-            return "dark"
-        hints = app.styleHints()
-        if hasattr(hints, "colorScheme") and hasattr(Qt, "ColorScheme"):
-            scheme = hints.colorScheme()
-            if scheme == Qt.ColorScheme.Dark:
-                return "dark"
-            if scheme == Qt.ColorScheme.Light:
-                return "light"
-        return "dark" if app.palette().window().color().lightness() < 128 else "light"
-
-    def _apply_theme(self) -> None:
-        self.setStyleSheet(app_stylesheet(self._resolved_theme()))
-        QTimer.singleShot(0, self._apply_backdrop)
-
-    def _apply_backdrop(self) -> None:
-        apply_windows_backdrop(int(self.winId()), dark=self._resolved_theme() == "dark")
-
-    def _system_theme_changed(self, _scheme: object) -> None:
-        if self.settings.theme == "system":
-            self._apply_theme()
+    def _keep_light(self, _scheme: object) -> None:
+        QTimer.singleShot(0, ensure_light_appearance)
 
     def _has_running_tasks(self) -> bool:
         return any(page.has_running_task() for page in (self.text_page, self.file_page, self.base64_page))
@@ -267,7 +219,7 @@ class MainWindow(QMainWindow):
     def dropEvent(self, event: QDropEvent) -> None:
         if self._has_running_tasks():
             event.ignore()
-            self.shell.status.show_message(self.i18n.t("drag.blocked_running"), 4000)
+            self.statusBar().showMessage(self.i18n.t("drag.blocked_running"), 4000)
             return
         data = event.mimeData()
         if data.hasUrls():
@@ -275,7 +227,7 @@ class MainWindow(QMainWindow):
                 path = Path(url.toLocalFile())
                 if not path.is_file():
                     continue
-                if self.shell.stack.currentIndex() == 2 and self.base64_page.kind.current == "file":
+                if self.tabs.currentIndex() == 2 and self.base64_page.kind.current == "file":
                     accepted = self.base64_page.set_file(path)
                     target = 2
                 else:
@@ -283,13 +235,13 @@ class MainWindow(QMainWindow):
                     target = 1
                 if accepted:
                     self._set_page(target)
-                    self.shell.status.show_message(self.i18n.t("drag.file_detected"), 3000)
+                    self.statusBar().showMessage(self.i18n.t("drag.file_detected"), 3000)
                     event.acceptProposedAction()
                 return
         if data.hasText():
             self.text_page.input.setPlainText(data.text())
             self._set_page(0)
-            self.shell.status.show_message(self.i18n.t("drag.text_detected"), 3000)
+            self.statusBar().showMessage(self.i18n.t("drag.text_detected"), 3000)
             event.acceptProposedAction()
             return
         event.ignore()
@@ -319,7 +271,7 @@ class MainWindow(QMainWindow):
         finally:
             QApplication.restoreOverrideCursor()
         if not stopped:
-            self.shell.status.show_message(self.i18n.t("close.waiting"), 5000)
+            self.statusBar().showMessage(self.i18n.t("close.waiting"), 5000)
             event.ignore()
             return
         event.accept()

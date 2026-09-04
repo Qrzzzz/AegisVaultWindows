@@ -6,7 +6,16 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from aegisvault.core.exceptions import AppError, ValidationError
 from aegisvault.core.models import FileProcessResult, ProgressEvent, TaskState
@@ -14,14 +23,11 @@ from aegisvault.i18n.translator import Translator
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.services.file_io import decrypted_output_path, encrypted_output_path
 from aegisvault.settings.models import AppSettings
-from aegisvault.ui.components.action_bar import ActionBar
-from aegisvault.ui.components.card import Card
-from aegisvault.ui.components.file_picker_card import FilePickerCard
-from aegisvault.ui.components.form_row import FormRow
+from aegisvault.ui.components.file_picker import FilePicker
 from aegisvault.ui.components.inline_alert import InlineAlert
+from aegisvault.ui.components.mode_combo import ModeCombo
 from aegisvault.ui.components.password_input import PasswordInput
 from aegisvault.ui.components.result_summary import ResultSummary
-from aegisvault.ui.components.segmented_control import SegmentedControl
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
 from aegisvault.ui.dialogs.legacy_recovery_dialog import confirm_legacy_file_recovery
@@ -49,22 +55,25 @@ class FilePage(QWidget):
         self.controller.cancelled.connect(self._on_cancelled)
         self.controller.state_changed.connect(self._on_state)
 
-        self.mode = SegmentedControl(
+        self.mode = ModeCombo(
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             "encrypt",
             self.i18n.t("access.operation_mode"),
         )
         self.mode.changed.connect(self._on_mode_changed)
-        self.picker = FilePickerCard("", "", "")
+        self.picker = FilePicker("", "", "")
         self.picker.file_selected.connect(self.set_file)
         self.password = PasswordInput("", "", "", "")
         self.confirm_password = PasswordInput("", "", "", "")
         self.output_dir = QLineEdit()
         self.output_dir.setReadOnly(True)
-        self.output_dir_row = FormRow("", self.output_dir)
+        self.output_dir_label = QLabel()
+        self.output_dir_label.setBuddy(self.output_dir)
         self.output_preview = QLabel()
         self.output_preview.setObjectName("Muted")
         self.output_preview.setWordWrap(True)
+        self.output_preview.setTextFormat(Qt.TextFormat.PlainText)
+        self.output_preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.overwrite_warning = QLabel()
         self.overwrite_warning.setObjectName("WarningText")
         self.overwrite_warning.setWordWrap(True)
@@ -73,7 +82,6 @@ class FilePage(QWidget):
         self.legacy_note.setWordWrap(True)
         self.alert = InlineAlert()
         self.run_button = QPushButton()
-        self.run_button.setObjectName("Primary")
         self.run_button.clicked.connect(self.run_current)
         self.clear_button = QPushButton()
         self.clear_button.clicked.connect(self.clear_file)
@@ -84,27 +92,31 @@ class FilePage(QWidget):
 
         scroll, layout = scroll_page()
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
-        self.mode_card = Card()
-        self.mode_card.content_layout.addWidget(self.mode)
-        self.input_card = Card()
-        self.input_card.content_layout.addWidget(self.picker)
-        self.parameters_card = Card()
-        self.parameters_card.content_layout.addWidget(self.password)
-        self.parameters_card.content_layout.addWidget(self.confirm_password)
-        self.parameters_card.content_layout.addWidget(self.output_dir_row)
-        self.parameters_card.content_layout.addWidget(self.output_preview)
-        self.parameters_card.content_layout.addWidget(self.overwrite_warning)
-        self.parameters_card.content_layout.addWidget(self.legacy_note)
-        self.parameters_card.content_layout.addWidget(ActionBar(self.clear_button, self.run_button))
-        layout.addWidget(self.mode_card)
-        layout.addWidget(self.input_card)
-        layout.addWidget(self.parameters_card)
-        layout.addWidget(self.progress)
-        layout.addWidget(self.alert)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.addWidget(scroll, 1)
+        self.mode_label = QLabel()
+        self.mode_label.setBuddy(self.mode)
+        mode_form = QFormLayout()
+        mode_form.addRow(self.mode_label, self.mode)
+        layout.addLayout(mode_form)
+        layout.addWidget(self.picker)
+        layout.addWidget(self.password)
+        layout.addWidget(self.confirm_password)
+        output_form = QFormLayout()
+        output_form.addRow(self.output_dir_label, self.output_dir)
+        layout.addLayout(output_form)
+        layout.addWidget(self.output_preview)
+        layout.addWidget(self.overwrite_warning)
+        layout.addWidget(self.legacy_note)
         layout.addWidget(self.result)
         layout.addStretch(1)
+        actions = QHBoxLayout()
+        actions.addWidget(self.clear_button)
+        actions.addStretch(1)
+        actions.addWidget(self.run_button)
+        outer.addLayout(actions)
+        outer.addWidget(self.progress)
+        outer.addWidget(self.alert)
 
         self.run_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.run_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -124,9 +136,7 @@ class FilePage(QWidget):
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             self.i18n.t("access.operation_mode"),
         )
-        self.mode_card.set_title(self.i18n.t("flow.mode"))
-        self.input_card.set_title(self.i18n.t("flow.input"))
-        self.parameters_card.set_title(self.i18n.t("flow.parameters"))
+        self.mode_label.setText(self.i18n.t("flow.mode"))
         self.picker.set_texts(
             self.i18n.t("action.select_file"),
             self.i18n.t("file.no_file"),
@@ -144,7 +154,7 @@ class FilePage(QWidget):
             self.i18n.t("action.show"),
             self.i18n.t("action.hide"),
         )
-        self.output_dir_row.set_label(self.i18n.t("field.output_dir"))
+        self.output_dir_label.setText(self.i18n.t("field.output_dir"))
         self.output_dir.setAccessibleName(self.i18n.t("field.output_dir"))
         self.overwrite_warning.setText(self.i18n.t("warning.overwrite_enabled"))
         self.legacy_note.setText(self.i18n.t("recovery.file_note"))
@@ -163,7 +173,6 @@ class FilePage(QWidget):
             return False
         self.selected_file = file_path
         self.file_selected.emit(file_path)
-        self.result.clear()
         self.alert.clear()
         self._refresh_preview()
         return True
@@ -332,6 +341,7 @@ class FilePage(QWidget):
         output_dir = self.settings.default_output_dir or (str(path.parent) if path else "")
         self.output_dir.setText(output_dir or self.i18n.t("file.output_same_folder"))
         self.overwrite_warning.setVisible(self.settings.overwrite_outputs)
+        self.output_preview.setVisible(path is not None)
         if path is None:
             self.output_preview.setText(self.i18n.t("file.output_preview_empty"))
             self.picker.clear()

@@ -6,19 +6,26 @@ from typing import Any
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from aegisvault.core.legacy import is_ak_token
 from aegisvault.core.models import TaskState
 from aegisvault.i18n.translator import Translator
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
-from aegisvault.ui.components.action_bar import ActionBar
-from aegisvault.ui.components.card import Card
 from aegisvault.ui.components.inline_alert import InlineAlert
+from aegisvault.ui.components.mode_combo import ModeCombo
 from aegisvault.ui.components.output_preview import OutputPreview
 from aegisvault.ui.components.password_input import PasswordInput
-from aegisvault.ui.components.segmented_control import SegmentedControl
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
 from aegisvault.ui.pages.common import scroll_page
@@ -41,14 +48,15 @@ class TextPage(QWidget):
         self.controller.cancelled.connect(self._on_cancelled)
         self.controller.state_changed.connect(self._on_state)
 
-        self.mode = SegmentedControl(
+        self.mode = ModeCombo(
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             "encrypt",
             self.i18n.t("access.operation_mode"),
         )
         self.mode.changed.connect(self._on_mode_changed)
         self.input = QPlainTextEdit()
-        self.input.setMinimumHeight(125)
+        self.input.setMinimumHeight(90)
+        self.input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         self.password = PasswordInput("", "", "", "")
         self.confirm_password = PasswordInput("", "", "", "")
         self.alert = InlineAlert()
@@ -57,41 +65,46 @@ class TextPage(QWidget):
         self.output = OutputPreview("", "", "")
         self.output.use_as_input_requested.connect(self.use_result_as_input)
 
-        self.recovery_card = Card()
+        self.recovery_panel = QWidget()
         self.recovery_note = QLabel()
         self.recovery_note.setObjectName("WarningText")
         self.recovery_note.setWordWrap(True)
         self.recovery_button = QPushButton()
         self.recovery_button.clicked.connect(self.settings_requested.emit)
-        self.recovery_card.content_layout.addWidget(self.recovery_note)
-        self.recovery_card.content_layout.addWidget(self.recovery_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        recovery_layout = QVBoxLayout(self.recovery_panel)
+        recovery_layout.setContentsMargins(0, 0, 0, 0)
+        recovery_layout.addWidget(self.recovery_note)
+        recovery_layout.addWidget(self.recovery_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
         self.run_button = QPushButton()
-        self.run_button.setObjectName("Primary")
         self.run_button.clicked.connect(self.run_current)
         self.clear_button = QPushButton()
         self.clear_button.clicked.connect(self.clear)
 
         scroll, layout = scroll_page()
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
-        self.mode_card = Card()
-        self.mode_card.content_layout.addWidget(self.mode)
-        self.input_card = Card()
-        self.input_card.content_layout.addWidget(self.input)
-        self.password_card = Card()
-        self.password_card.content_layout.addWidget(self.password)
-        self.password_card.content_layout.addWidget(self.confirm_password)
-        self.password_card.content_layout.addWidget(self.recovery_card)
-        self.password_card.content_layout.addWidget(ActionBar(self.clear_button, self.run_button))
-        layout.addWidget(self.mode_card)
-        layout.addWidget(self.input_card)
-        layout.addWidget(self.password_card)
-        layout.addWidget(self.progress)
-        layout.addWidget(self.alert)
-        layout.addWidget(self.output)
-        layout.addStretch(1)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.addWidget(scroll, 1)
+        self.mode_label = QLabel()
+        self.mode_label.setBuddy(self.mode)
+        form = QFormLayout()
+        form.addRow(self.mode_label, self.mode)
+        layout.addLayout(form)
+        self.input_label = QLabel()
+        self.input_label.setBuddy(self.input)
+        layout.addWidget(self.input_label)
+        layout.addWidget(self.input, 1)
+        layout.addWidget(self.password)
+        layout.addWidget(self.confirm_password)
+        layout.addWidget(self.recovery_panel)
+        layout.addWidget(self.output, 1)
+        actions = QHBoxLayout()
+        actions.addWidget(self.clear_button)
+        actions.addStretch(1)
+        actions.addWidget(self.run_button)
+        outer.addLayout(actions)
+        outer.addWidget(self.progress)
+        outer.addWidget(self.alert)
 
         self.run_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.run_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -110,9 +123,8 @@ class TextPage(QWidget):
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             self.i18n.t("access.operation_mode"),
         )
-        self.mode_card.set_title(self.i18n.t("flow.mode"))
-        self.input_card.set_title(self.i18n.t("flow.input"))
-        self.password_card.set_title(self.i18n.t("flow.parameters"))
+        self.mode_label.setText(self.i18n.t("flow.mode"))
+        self.input_label.setText(self.i18n.t("flow.input"))
         self.input.setAccessibleName(self.i18n.t("access.text_input"))
         self.password.set_texts(
             self.i18n.t("field.password"),
@@ -126,7 +138,6 @@ class TextPage(QWidget):
             self.i18n.t("action.show"),
             self.i18n.t("action.hide"),
         )
-        self.recovery_card.set_title(self.i18n.t("recovery.title"))
         self.recovery_button.setText(self.i18n.t("action.recovery_settings"))
         self.recovery_button.setAccessibleName(self.i18n.t("action.recovery_settings"))
         recovery_key = "recovery.ak_enabled" if self.settings.allow_ak_compatibility else "recovery.note"
@@ -210,7 +221,7 @@ class TextPage(QWidget):
         elif hasattr(result, "plaintext"):
             self.output.set_text(result.plaintext)
             if result.compatibility_warning:
-                self.status_message.emit(self.i18n.t(f"warning.{result.compatibility_warning}"), 8000)
+                self.alert.show_message(self.i18n.t(f"warning.{result.compatibility_warning}"))
         self.status_message.emit(self.i18n.t("status.done"), 3000)
         self.output.editor.setFocus()
 
@@ -240,7 +251,7 @@ class TextPage(QWidget):
         is_encrypt = value == "encrypt"
         self.confirm_password.setVisible(is_encrypt)
         self.confirm_password.setEnabled(not self.controller.busy and is_encrypt)
-        self.recovery_card.setVisible(not is_encrypt)
+        self.recovery_panel.setVisible(not is_encrypt)
         self.run_button.setText(self.i18n.t("action.encrypt" if is_encrypt else "action.decrypt"))
         self.run_button.setAccessibleName(self.run_button.text())
         placeholder_key = "text.input.encrypt_placeholder" if is_encrypt else "text.input.decrypt_placeholder"
