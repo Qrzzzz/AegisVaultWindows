@@ -5,12 +5,11 @@ using Microsoft.Windows.Storage.Pickers;
 namespace AegisVault.App.Views;
 public sealed partial class SettingsPage : Page
 {
-    private readonly SettingsViewModel vm = new(App.Window.Settings);
-    public SettingsPage() { InitializeComponent(); DataContext = vm; UpdateLabels(); }
-    private void UpdateLabels()
-    { SystemTheme.Content = vm.L["system"]; LightTheme.Content = vm.L["light"]; DarkTheme.Content = vm.L["dark"]; }
-    private async void Save(object sender, RoutedEventArgs e) { await vm.SaveAsync(); UpdateLabels(); }
+    private readonly SettingsViewModel vm = App.Window.SettingsDraft;
+    public SettingsPage() { InitializeComponent(); DataContext = vm; }
+    private async void Save(object sender, RoutedEventArgs e) => await vm.SaveAsync();
     private async void ClearRecent(object sender, RoutedEventArgs e) => await vm.ClearRecentAsync();
+    private void Discard(object sender, RoutedEventArgs e) => vm.Discard();
     private async void PickFolder(object sender, RoutedEventArgs e)
     {
         try

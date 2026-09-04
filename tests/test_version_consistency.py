@@ -13,10 +13,10 @@ def test_runtime_version_matches_display_version() -> None:
     assert aegisvault.__version__ == DISPLAY_VERSION
 
 
-def test_version_constants_for_20() -> None:
-    assert PACKAGE_VERSION == "2.0"
-    assert DISPLAY_VERSION == "2.0"
-    assert RELEASE_TAG == "v2.0"
+def test_version_constants_for_21() -> None:
+    assert PACKAGE_VERSION == "2.1"
+    assert DISPLAY_VERSION == "2.1"
+    assert RELEASE_TAG == "v2.1"
 
 
 def test_pyproject_version_matches_package_version() -> None:
@@ -26,7 +26,7 @@ def test_pyproject_version_matches_package_version() -> None:
 
 
 def test_docs_reference_display_version() -> None:
-    for relative in ["README.md", "CHANGELOG.md", "SECURITY.md", "docs/QA_CHECKLIST.md", "docs/releases/v2.0.md"]:
+    for relative in ["README.md", "CHANGELOG.md", "SECURITY.md", "docs/QA_CHECKLIST.md", f"docs/releases/{RELEASE_TAG}.md"]:
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert DISPLAY_VERSION in text
 
@@ -38,7 +38,7 @@ def test_public_release_docs_do_not_reference_stale_alpha_line() -> None:
         "SECURITY.md",
         "docs/QA_CHECKLIST.md",
         "docs/RELEASE_CHECKLIST.md",
-        "docs/releases/v2.0.md",
+        f"docs/releases/{RELEASE_TAG}.md",
     ]:
         text = (ROOT / relative).read_text(encoding="utf-8")
         for term in stale_terms:
@@ -47,7 +47,7 @@ def test_public_release_docs_do_not_reference_stale_alpha_line() -> None:
 
 def test_release_artifact_name_is_standardized() -> None:
     expected = f"AegisVault-{RELEASE_TAG}-win64.zip"
-    for relative in ["README.md", "docs/RELEASE_CHECKLIST.md", "docs/releases/v2.0.md"]:
+    for relative in ["README.md", "docs/RELEASE_CHECKLIST.md", f"docs/releases/{RELEASE_TAG}.md"]:
         assert expected in (ROOT / relative).read_text(encoding="utf-8")
 
 

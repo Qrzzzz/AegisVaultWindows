@@ -10,6 +10,8 @@ import tempfile
 import threading
 from pathlib import Path
 
+from release_metadata import load_release_metadata
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -39,7 +41,7 @@ def main() -> int:
                     assert result["type"] == "result", result
                     return result["result"]
             try:
-                assert call("hello")["version"] == "2.0"
+                assert call("hello")["version"] == load_release_metadata()["version"]
                 encrypted = call("text.encrypt", {"text": "WinUI 验收 🔐", "password": "smoke-password"})
                 decrypted = call("text.decrypt", {"text": encrypted["ciphertext"], "password": "smoke-password"})
                 assert decrypted["plaintext"] == "WinUI 验收 🔐"

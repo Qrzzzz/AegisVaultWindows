@@ -13,6 +13,7 @@ import pytest
 
 from aegisvault.backend.server import MAX_LINE_BYTES, BackendServer
 from aegisvault.settings.store import SettingsStore
+from aegisvault.version import DISPLAY_VERSION
 from test_protocol_fixtures import FIXED_PASSWORD, FIXED_PLAINTEXT, FIXED_TEXT_TOKEN
 
 
@@ -75,7 +76,7 @@ def test_hello_reports_version_and_no_ui_dependencies(client: Client) -> None:
     client.send("hello")
     event, _ = client.terminal()
     assert event["result"]["protocol"] == 1
-    assert event["result"]["version"] == "2.0"
+    assert event["result"]["version"] == DISPLAY_VERSION
     assert "file.decrypt" in event["result"]["operations"]
 
 

@@ -3,11 +3,14 @@ using Microsoft.UI.Xaml.Controls;
 namespace AegisVault.App.Views;
 public sealed partial class Base64Page : Page
 {
+    private bool ready;
     public Base64Page()
     {
         InitializeComponent(); DataContext = App.Window.Base64TextWorkflow;
         TextKind.Content = App.Window.L["text"]; FileKind.Content = App.Window.L["file"];
-        TextWorkflow.Attach(App.Window.Base64TextWorkflow); FileWorkflow.Attach(App.Window.Base64FileWorkflow);
+        Workflow.Attach(App.Window.Base64InputKind == 0 ? App.Window.Base64TextWorkflow : App.Window.Base64FileWorkflow);
+        InputKind.SelectedIndex = App.Window.Base64InputKind;
+        ready = true;
         Loaded += (_, _) => { App.Window.Base64TextWorkflow.PropertyChanged += BusyChanged; App.Window.Base64FileWorkflow.PropertyChanged += BusyChanged; };
         Unloaded += (_, _) => { App.Window.Base64TextWorkflow.PropertyChanged -= BusyChanged; App.Window.Base64FileWorkflow.PropertyChanged -= BusyChanged; };
     }
@@ -15,8 +18,8 @@ public sealed partial class Base64Page : Page
         InputKind.IsEnabled = !App.Window.Workflows.Any(w => w.IsBusy);
     private void ChangeKind(object sender, SelectionChangedEventArgs e)
     {
-        if (TextWorkflow is null || FileWorkflow is null) return;
-        TextWorkflow.Visibility = InputKind.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
-        FileWorkflow.Visibility = InputKind.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+        if (!ready || App.Window.Workflows.Any(w => w.IsBusy)) return;
+        App.Window.Base64InputKind = InputKind.SelectedIndex;
+        Workflow.Attach(InputKind.SelectedIndex == 0 ? App.Window.Base64TextWorkflow : App.Window.Base64FileWorkflow);
     }
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1 - Unreleased
+
+- Keep workflow actions and feedback visible while input and results scroll; align native page headings and forms.
+- Focus visible results after completion, adapt result actions to window width, copy exact file paths and reuse text results as reverse-operation input.
+- Preserve password entries for validation corrections, hide inactive cancellation, guard busy input and ignore late progress callbacks.
+- Retain Settings drafts and Base64 input type across navigation; add save/discard feedback and retranslate retained workflow status.
+- Extend native interaction coverage for narrow layouts, correction/reuse, clipboard, draft persistence and failed settings writes.
+
 ## 2.0 - 2026-09-04
 
 - Replace the complete Python desktop frontend with C# / WinUI 3 and native Windows App SDK controls.

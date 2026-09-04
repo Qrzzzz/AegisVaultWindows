@@ -5,7 +5,8 @@
   <Grid x:Name="Root" RowDefinitions="Auto,*">
     <TitleBar x:Name="AppTitleBar" Title="AegisVault" Subtitle="{Binding AppVersion}" />
     <NavigationView x:Name="Navigation" Grid.Row="1" IsBackButtonVisible="Collapsed"
-        PaneDisplayMode="Auto" OpenPaneLength="220" AlwaysShowHeader="True" Header="AegisVault" IsSettingsVisible="False" SelectionChanged="Navigate">
+        PaneDisplayMode="Auto" OpenPaneLength="220" AlwaysShowHeader="False" IsSettingsVisible="False"
+        SelectionChanged="Navigate" DisplayModeChanged="DisplayModeChanged">
       <NavigationView.MenuItems>
         <NavigationViewItem Content="{Binding L[text]}" Tag="text" AutomationProperties.AutomationId="NavText"><NavigationViewItem.Icon><SymbolIcon Symbol="Edit" /></NavigationViewItem.Icon></NavigationViewItem>
         <NavigationViewItem Content="{Binding L[file]}" Tag="file" AutomationProperties.AutomationId="NavFile"><NavigationViewItem.Icon><SymbolIcon Symbol="Document" /></NavigationViewItem.Icon></NavigationViewItem>
@@ -14,7 +15,7 @@
       <NavigationView.FooterMenuItems>
         <NavigationViewItem Content="{Binding L[settings]}" Tag="settings" AutomationProperties.AutomationId="NavSettings"><NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon></NavigationViewItem>
       </NavigationView.FooterMenuItems>
-      <Grid RowDefinitions="Auto,*">
+      <Grid x:Name="PageHost" RowDefinitions="Auto,*">
         <InfoBar x:Name="StartupError" Severity="Error" IsClosable="False" />
         <Frame x:Name="ContentFrame" Grid.Row="1" />
       </Grid>

@@ -1,4 +1,44 @@
-# AegisVault 2.0 — acceptance evidence
+# AegisVault 2.1 — acceptance evidence
+
+Status: **local candidate validated; user acceptance and publication pending**.
+Baseline: released 2.0 at `bd6f5e7`. Review: [UI_REVIEW_2.1.md](UI_REVIEW_2.1.md).
+
+2.0 was rebuilt and its existing native light/English suite passed before implementation, at 168 DPI
+with High Contrast disabled. The comparison screenshots confirmed that completed results were below
+the visible area despite the previous suite passing.
+
+Current evidence is generated under `build/native-evidence`; the tests use isolated profiles and synthetic
+inputs and restore the clipboard after exercising copy. Large synthetic fixtures are removed when a run ends.
+The new native coverage exercises correction/focus, visible narrow-window actions/results, text reuse,
+clipboard/save picker, output invalidation, draft retention/discard and a real locked-file save failure/retry.
+
+| 2.1 check | Measured result |
+| --- | --- |
+| Python source gate | 243 tests passed; 76.48% coverage; compileall, Ruff and mypy passed; final UI/version contract checks passed |
+| WinUI build/publish | x64 Release, locked restore and warnings-as-errors passed; PE `2.1.0.0`, product `2.1` |
+| Packaged backend and bundle | AGV1 text/file and Base64 smoke passed with isolated profile/minimal PATH; input-root, PE/runtime, ZIP, SBOM and checksum audit passed |
+| Native light/English and dark/Chinese | Text/file/Base64 roundtrips, correction focus and password clearing, reverse-result reuse through narrow command overflow, text/path clipboard and native open/save pickers passed |
+| Native state and lifecycle | Destination edits invalidate results; Base64 mode and Settings drafts survive navigation; discard, real failed settings write/retry, theme/language application, localized theme selection and status translation passed |
+| Native narrow layout | 680 x 640 physical pixels at **168 DPI / 175%**; fixed Run/Cancel and Settings actions, content below the navigation toggle, result focus/scrolling and screenshots reviewed |
+| Accessibility and close | 13 focusable narrow Settings elements have names; Ctrl+Enter, cooperative cancellation, ContentDialog close and clean exit passed; one top-level app window at rest |
+| Scope preservation | No changes to Python Core, services, settings or dependency locks |
+
+Evidence files:
+
+- `build/validation-2.1/source-checks.log`, `build/validation-2.1/contracts.log`
+- `build/validation-2.1/package.log`
+- `build/validation-2.1/native-light.log`, `build/validation-2.1/native-dark.log`
+- `build/native-evidence/*.png` (actual native screenshots, including the intentional settings-write failure)
+- `dist/AegisVault/AegisVault.exe`, `dist/AegisVault-v2.1-win64.zip`, `dist/AegisVault-v2.1.cdx.json`, `dist/SHA256SUMS`
+
+High Contrast was disabled during automation. Other DPI scales, cross-monitor behavior, Narrator, drag/drop,
+folder pickers and a Windows 10/11 device matrix were not independently exercised in this run. The candidate
+is unsigned. These local checks do not establish remote CI, PR, tag or Release status; publication remains
+separate release work.
+
+The historical 2.0 sign-off below applies only to 2.0 and is not acceptance of this candidate.
+
+## Historical 2.0 evidence
 
 Status: **user-reported manual acceptance passed; release authorized** on 2026-09-04.
 The maintainer's instruction was “验收通过；开始release”. This closes the manual acceptance stage;
