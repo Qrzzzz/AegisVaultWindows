@@ -22,7 +22,8 @@ if ($ExportGitHubEnvironment) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($BasePython)) {
-    $BasePython = (Get-Command python -CommandType Application -ErrorAction Stop).Source
+    # Application lookup can return every PATH match; preserve setup-python/venv priority as one path.
+    $BasePython = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 }
 $BasePython = (Resolve-Path -LiteralPath $BasePython).Path
 & $BasePython -m venv $EnvironmentRoot
