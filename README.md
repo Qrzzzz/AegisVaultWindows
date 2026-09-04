@@ -1,6 +1,6 @@
 # AegisVault
 
-AegisVault 1.0.0 is a local Windows desktop utility for encrypting text and files in the AGV1 format. It also includes Base64 encode/decode workflows. Old AES and AK formats are not supported.
+AegisVault 1.1.0 is a local Windows desktop utility for encrypting text and files in the AGV1 format. It also includes Base64 encode/decode workflows. Old AES and AK formats are not supported.
 
 The app is offline and local-first. It does not add accounts, cloud sync, telemetry, network features or enterprise key management.
 
@@ -10,10 +10,10 @@ AegisVault is intended for users who need a straightforward desktop tool to encr
 
 ## Downloads
 
-Download the workflow-built assets from the [GitHub Release](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v1.0.0):
+Download the workflow-built 1.1.0 assets from the [GitHub Release](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v1.1.0):
 
-- `AegisVault-v1.0.0-win64.zip`
-- `AegisVault-v1.0.0.cdx.json` (software bill of materials)
+- `AegisVault-v1.1.0-win64.zip`
+- `AegisVault-v1.1.0.cdx.json` (software bill of materials)
 - `SHA256SUMS`
 
 Extract the ZIP and run `AegisVault.exe`.
@@ -26,7 +26,7 @@ The repository's `release/` directory contains historical binaries and is not th
 - File encryption and decryption with chunked `.agv` containers.
 - AES-256-GCM encryption with scrypt password-based key derivation for new data.
 - Base64 text and file encode/decode. Base64 is encoding, not encryption.
-- Fixed basic light Qt UI, with settings for language, output directory, overwrite behavior and recent files.
+- Native Windows Qt controls with fixed light appearance, aligned input/options/result groups, and settings for language, output directory, overwrite behavior and recent files.
 - AGV1-only decryption; no legacy recovery, AK parsing or compatibility switch.
 - Atomic output writes for file workflows.
 
@@ -79,7 +79,7 @@ $env:AEGISVAULT_HEADLESS_SMOKE="1"
 The expected artifact is:
 
 ```text
-dist\AegisVault-v1.0.0-win64.zip
+dist\AegisVault-v1.1.0-win64.zip
 ```
 
 The ZIP contains `AegisVault.exe`.
@@ -97,9 +97,11 @@ $env:AEGISVAULT_HEADLESS_SMOKE="1"; .\.venv\Scripts\python.exe -m aegisvault
 
 ## Screenshots
 
-![Fixed-light text workspace](docs/screenshots/minimal-text-zh-CN.png)
+![Text workspace with a result](docs/screenshots/basic-text-result.png)
 
-[File workspace](docs/screenshots/minimal-file-zh-CN.png) · [Base64 workspace](docs/screenshots/minimal-base64-zh-CN.png) · [Settings](docs/screenshots/basic-settings.png)
+[File workspace](docs/screenshots/minimal-file-zh-CN.png) · [Base64 workspace](docs/screenshots/minimal-base64-zh-CN.png) · [Settings](docs/screenshots/basic-settings.png) · [v1.1.0 release notes](docs/releases/v1.1.0.md)
+
+These synthetic documentation samples are rendered offscreen. See the release notes for the Windows interaction checks.
 
 ## Project Structure
 

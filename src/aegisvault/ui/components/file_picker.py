@@ -55,7 +55,8 @@ class FilePicker(QWidget):
 
     def set_file(self, path: Path, labels: dict[str, str]) -> None:
         self.path_edit.setText(str(path))
-        self.path_edit.setCursorPosition(0)
+        self.path_edit.setToolTip(str(path))
+        self.path_edit.setCursorPosition(len(str(path)))
         # The full path is already selectable above; don't repeat it in metadata.
         self.meta.setText(" · ".join(f"{key}: {value}" for key, value in labels.items() if value != str(path)))
         self.meta.setVisible(bool(self.meta.text()))
@@ -63,6 +64,7 @@ class FilePicker(QWidget):
 
     def clear(self) -> None:
         self.path_edit.clear()
+        self.path_edit.setToolTip("")
         self.meta.clear()
         self.meta.hide()
         self.hint.show()
@@ -93,6 +95,8 @@ class FilePicker(QWidget):
     def _browse(self) -> None:
         if not self._enabled_for_input:
             return
+        # The Windows shell picker follows the OS dark scheme independently of
+        # Qt. Use Qt's standard dialog to preserve this app's fixed-light rule.
         path, _ = QFileDialog.getOpenFileName(
             self, self.select_button.text(), options=QFileDialog.Option.DontUseNativeDialog
         )

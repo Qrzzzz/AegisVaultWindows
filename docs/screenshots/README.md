@@ -1,6 +1,7 @@
 # Basic light Qt UI
 
-All samples are synthetic, rendered offscreen with isolated configuration.
+All samples are synthetic and use isolated configuration. These maintained
+documentation samples and regression baselines are rendered offscreen.
 They do not contain real passwords or user documents.
 
 | Sample | Purpose |
@@ -14,6 +15,6 @@ They do not contain real passwords or user documents.
 Retired recovery UI is no longer part of the product; its former sample is
 removed from the current documentation (Git history is retained).
 
-English, small-window, high-DPI, file-result, advanced and error screenshots
-belong in the task's external QA directory, not in the committed baseline set.
+Temporary Windows validation screenshots, stress-DPI samples and raw logs are
+generated separately and are not part of the maintained screenshot set.
 See [UI_SPEC.md](../UI_SPEC.md) for regeneration and behavior-test commands.

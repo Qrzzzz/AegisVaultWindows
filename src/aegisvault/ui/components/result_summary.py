@@ -5,10 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
+from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
 
 
-class ResultSummary(QFrame):
+class ResultSummary(QGroupBox):
+    content_changed = Signal()
     reveal_requested = Signal(object)
 
     def __init__(self, open_label: str, clear_label: str) -> None:
@@ -19,7 +20,9 @@ class ResultSummary(QFrame):
         self.label = QLabel()
         self.label.setWordWrap(True)
         self.label.setTextFormat(Qt.TextFormat.PlainText)
-        self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
         self.label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.open_button = QPushButton(open_label)
         self.clear_button = QPushButton(clear_label)
@@ -30,7 +33,8 @@ class ResultSummary(QFrame):
         actions.addWidget(self.open_button)
         actions.addWidget(self.clear_button)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
         layout.addWidget(self.label)
         layout.addLayout(actions)
         self.set_texts(open_label, clear_label)
@@ -48,6 +52,7 @@ class ResultSummary(QFrame):
         self.setAccessibleName(text)
         self.open_button.setVisible(output_path is not None)
         self.show()
+        self.content_changed.emit()
 
     def clear(self) -> None:
         self.output_path = None
@@ -55,6 +60,7 @@ class ResultSummary(QFrame):
         self.setAccessibleName("")
         self.open_button.hide()
         self.hide()
+        self.content_changed.emit()
 
     def _reveal(self) -> None:
         if self.output_path is not None:

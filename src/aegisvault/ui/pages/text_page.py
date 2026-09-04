@@ -27,7 +27,7 @@ from aegisvault.ui.components.output_preview import OutputPreview
 from aegisvault.ui.components.password_input import PasswordInput
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
-from aegisvault.ui.pages.common import scroll_page
+from aegisvault.ui.pages.common import form_group, input_group, result_area, scroll_page, tab_order
 
 
 class TextPage(QWidget):
@@ -53,6 +53,7 @@ class TextPage(QWidget):
         )
         self.mode.changed.connect(self._on_mode_changed)
         self.input = QPlainTextEdit()
+        self.input.setTabChangesFocus(True)
         self.input.setMinimumHeight(90)
         self.input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         self.password = PasswordInput("", "", "", "")
@@ -71,19 +72,19 @@ class TextPage(QWidget):
         scroll, layout = scroll_page()
         outer = QVBoxLayout(self)
         outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(12)
         outer.addWidget(scroll, 1)
         self.mode_label = QLabel()
         self.mode_label.setBuddy(self.mode)
         form = QFormLayout()
         form.addRow(self.mode_label, self.mode)
         layout.addLayout(form)
-        self.input_label = QLabel()
-        self.input_label.setBuddy(self.input)
-        layout.addWidget(self.input_label)
-        layout.addWidget(self.input, 1)
-        layout.addWidget(self.password)
-        layout.addWidget(self.confirm_password)
-        layout.addWidget(self.output, 1)
+        self.input_group = input_group(self.input)
+        layout.addWidget(self.input_group, 1)
+        self.parameters_group, self.parameters_form = form_group()
+        self.password.add_to_form(self.parameters_form)
+        self.confirm_password.add_to_form(self.parameters_form)
+        layout.addWidget(self.parameters_group)
         actions = QHBoxLayout()
         actions.addWidget(self.clear_button)
         actions.addStretch(1)
@@ -91,6 +92,15 @@ class TextPage(QWidget):
         outer.addLayout(actions)
         outer.addWidget(self.progress)
         outer.addWidget(self.alert)
+        self.result_scroll = result_area(self.output)
+        outer.addWidget(self.result_scroll, 1)
+        self.output.content_changed.connect(lambda: self.result_scroll.setVisible(bool(self.output.text())))
+        tab_order(
+            self.mode, self.input, self.password.edit, self.password.toggle,
+            self.confirm_password.edit, self.confirm_password.toggle, self.run_button,
+            self.clear_button, self.output.editor, self.output.copy_button,
+            self.output.clear_button, self.output.use_as_input_button,
+        )
 
         self.run_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.run_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -110,7 +120,9 @@ class TextPage(QWidget):
             self.i18n.t("access.operation_mode"),
         )
         self.mode_label.setText(self.i18n.t("flow.mode"))
-        self.input_label.setText(self.i18n.t("flow.input"))
+        self.input_group.setTitle(self.i18n.t("flow.input"))
+        self.parameters_group.setTitle(self.i18n.t("flow.parameters"))
+        self.output.setTitle(self.i18n.t("flow.result"))
         self.input.setAccessibleName(self.i18n.t("access.text_input"))
         self.password.set_texts(
             self.i18n.t("field.password"),
@@ -222,11 +234,12 @@ class TextPage(QWidget):
         self.input.setReadOnly(busy)
         self.password.setEnabled(not busy)
         self.confirm_password.setEnabled(not busy and self.mode.current == "encrypt")
+        self.output.set_busy(busy)
         self.progress.set_state(state)
 
     def _on_mode_changed(self, value: str) -> None:
         is_encrypt = value == "encrypt"
-        self.confirm_password.setVisible(is_encrypt)
+        self.parameters_form.setRowVisible(self.confirm_password, is_encrypt)
         self.confirm_password.setEnabled(not self.controller.busy and is_encrypt)
         self.run_button.setText(self.i18n.t("action.encrypt" if is_encrypt else "action.decrypt"))
         self.run_button.setAccessibleName(self.run_button.text())

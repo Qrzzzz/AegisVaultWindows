@@ -51,7 +51,7 @@ class SettingsDialog(QDialog):
         self._recent_files = list(settings.recent_files)
         self._recent_was_cleared = False
         self.setModal(True)
-        self.resize(620, 500)
+        self.resize(560, 420)
         self.setMinimumSize(480, 380)
 
         self.language_combo = QComboBox()
@@ -69,6 +69,8 @@ class SettingsDialog(QDialog):
         output_row.addWidget(self.output_dir, 1)
         output_row.addWidget(self.browse_button)
         form = QFormLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
         form.addRow(self.language_label, self.language_combo)
         form.addRow(self.output_label, output_row)
 
@@ -110,6 +112,8 @@ class SettingsDialog(QDialog):
         content.addWidget(self.advanced_panel)
         content.addStretch(1)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
         layout.addWidget(scroll, 1)
         layout.addWidget(self.alert)
         layout.addWidget(self.buttons)
@@ -188,7 +192,8 @@ class SettingsDialog(QDialog):
 
     def _browse_output_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(
-            self, self.i18n.t("field.output_dir"), options=QFileDialog.Option.DontUseNativeDialog
+            self, self.i18n.t("field.output_dir"), self.output_dir.text(),
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path:
             self.output_dir.setText(path)

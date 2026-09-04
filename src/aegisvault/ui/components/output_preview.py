@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout
+from PySide6.QtWidgets import (
+    QApplication,
+    QGroupBox,
+    QHBoxLayout,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+)
 
 
-class OutputPreview(QFrame):
+class OutputPreview(QGroupBox):
+    content_changed = Signal()
     use_as_input_requested = Signal()
     swap_requested = Signal()
 
     def __init__(self, copy_label: str, clear_label: str, use_as_input_label: str) -> None:
         super().__init__()
+        self._busy = False
         self.setObjectName("OutputPreview")
         self.editor = QPlainTextEdit()
+        self.editor.setTabChangesFocus(True)
         self.editor.setReadOnly(True)
         self.editor.setMinimumHeight(90)
         self.editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
@@ -31,7 +42,8 @@ class OutputPreview(QFrame):
         actions.addWidget(self.clear_button)
         actions.addWidget(self.use_as_input_button)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
         layout.addWidget(self.editor)
         layout.addLayout(actions)
         self.set_texts(copy_label, clear_label, use_as_input_label)
@@ -65,9 +77,14 @@ class OutputPreview(QFrame):
         self.use_as_input_requested.emit()
         self.swap_requested.emit()
 
+    def set_busy(self, busy: bool) -> None:
+        self._busy = busy
+        self._sync_actions()
+
     def _sync_actions(self) -> None:
         has_text = bool(self.editor.toPlainText())
         self.copy_button.setEnabled(has_text)
-        self.clear_button.setEnabled(has_text)
-        self.use_as_input_button.setEnabled(has_text)
+        self.clear_button.setEnabled(has_text and not self._busy)
+        self.use_as_input_button.setEnabled(has_text and not self._busy)
         self.setVisible(has_text)
+        self.content_changed.emit()
