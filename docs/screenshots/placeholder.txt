@@ -1,1 +1,0 @@
-Screenshots for release notes and README can be added here after the packaged 1.0.0 build is verified.

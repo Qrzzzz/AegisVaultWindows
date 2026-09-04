@@ -38,8 +38,8 @@ def verify_release_ref(
     require_clean: bool,
 ) -> str:
     load_release_metadata(expected_tag=expected_tag)
-    if not re.fullmatch(r"v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)", expected_tag):
-        raise RefError(f"Release tag must be strict vX.Y.Z, got: {expected_tag!r}")
+    if not re.fullmatch(r"v[1-9]\d*\.(?:0|[1-9]\d*)", expected_tag):
+        raise RefError(f"Release tag must be strict vX.Y, got: {expected_tag!r}")
 
     tag_ref = f"refs/tags/{expected_tag}"
     if _git("show-ref", "--verify", "--quiet", tag_ref, check=False).returncode != 0:

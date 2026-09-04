@@ -34,3 +34,9 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# WinUI / .NET
+**/bin/
+**/obj/
+.vs/
+TestResults/
+

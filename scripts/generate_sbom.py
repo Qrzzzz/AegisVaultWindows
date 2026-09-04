@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import importlib.metadata
 import json
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -91,6 +93,37 @@ def _wire_dependency_graph(bom: dict[str, Any], root_ref: str) -> None:
     bom["dependencies"] = dependencies
 
 
+def _add_dotnet_components(bom: dict[str, Any], root_ref: str, executable: Path) -> None:
+    lock = json.loads((ROOT / "src/AegisVault.App/packages.lock.json").read_text(encoding="utf-8"))
+    packages = next(iter(lock["dependencies"].values()))
+    references = {name: f"pkg:nuget/{name}@{data['resolved']}" for name, data in packages.items()}
+    for name, data in packages.items():
+        reference = references[name]
+        bom["components"].append({"type": "library", "name": name, "version": data["resolved"],
+                                  "bom-ref": reference, "purl": reference,
+                                  "hashes": [{"alg": "SHA-512", "content": base64.b64decode(data["contentHash"]).hex()}]})
+        bom["dependencies"].append({"ref": reference, "dependsOn": [references[key] for key in data.get("dependencies", {})]})
+    graph_root = next(item for item in bom["dependencies"] if item["ref"] == root_ref)
+    graph_root["dependsOn"].extend(references[name] for name, data in packages.items() if data["type"] == "Direct")
+    # .NET runtime packs are implicit SDK dependencies and are recorded in the published deps file.
+    deps = json.loads(executable.with_suffix(".deps.json").read_text(encoding="utf-8"))
+    for library, data in deps["libraries"].items():
+        name, version = library.rsplit("/", 1)
+        name = name.removeprefix("runtimepack.")
+        if name in packages or data["type"] == "project":
+            continue
+        reference = f"pkg:nuget/{name}@{version}"
+        bom["components"].append({"type": "library", "name": name, "version": version,
+                                  "bom-ref": reference, "purl": reference})
+        bom["dependencies"].append({"ref": reference, "dependsOn": []})
+        graph_root["dependsOn"].append(reference)
+    python_ref = f"pkg:generic/cpython@{platform.python_version()}"
+    bom["components"].append({"type": "platform", "name": "CPython", "version": platform.python_version(),
+                              "bom-ref": python_ref, "purl": python_ref})
+    bom["dependencies"].append({"ref": python_ref, "dependsOn": []})
+    graph_root["dependsOn"].append(python_ref)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--requirements", required=True, type=Path)
@@ -170,6 +203,7 @@ def main() -> int:
         key=lambda item: item["name"],
     )
     _wire_dependency_graph(bom, component["bom-ref"])
+    _add_dotnet_components(bom, component["bom-ref"], executable)
     _sort_bom(bom)
     output.write_text(json.dumps(bom, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     print(output)

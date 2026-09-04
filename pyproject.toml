@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegisvault-desktop"
-version = "1.2.0"
+version = "2.0"
 description = "A modern open-source AES-256-GCM desktop encryption app for Windows."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "AegisVault contributors" }]
-keywords = ["aes", "encryption", "pyside6", "desktop", "windows"]
+keywords = ["aes", "encryption", "winui", "desktop", "windows"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Win32 (MS Windows)",
@@ -24,7 +24,6 @@ classifiers = [
 ]
 dependencies = [
   "cryptography>=42.0",
-  "PySide6==6.9.3",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +49,7 @@ aegisvault = "aegisvault.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aegisvault = ["i18n/locales/*.json", "resources/*", "resources/qss/*.qss"]
+aegisvault = []
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -74,7 +73,3 @@ warn_return_any = true
 disallow_untyped_defs = true
 packages = ["aegisvault"]
 exclude = ["docs/legacy/"]
-
-[[tool.mypy.overrides]]
-module = ["PySide6.*"]
-ignore_missing_imports = true

@@ -1,0 +1,46 @@
+<UserControl x:Class="AegisVault.App.Views.WorkflowControl"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel Spacing="16" HorizontalAlignment="Stretch" AllowDrop="True" DragOver="DragOverInput" Drop="DropInput">
+    <UserControl IsEnabled="{Binding IsIdle}"><StackPanel x:Name="Inputs" Spacing="16">
+      <ComboBox x:Name="ModePicker" Header="{Binding L[operation]}" SelectionChanged="ModeChanged" MinWidth="180" AutomationProperties.AutomationId="OperationMode" />
+      <TextBox x:Name="TextInput" Header="{Binding L[input]}" Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+          TextWrapping="Wrap" MinHeight="150" MaxHeight="300" MaxLength="2097152" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="TextInput" />
+      <Button x:Name="ImportButton" Content="{Binding L[import_text]}" Click="ImportText" />
+      <StackPanel x:Name="FileInputs" Spacing="12">
+        <TextBox Header="{Binding L[input_file]}" Text="{Binding InputPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="InputFile" />
+        <Button Content="{Binding L[choose_file]}" Click="PickFile" AutomationProperties.AutomationId="PickFile" />
+        <ComboBox Header="{Binding L[recent_files]}" ItemsSource="{Binding RecentFiles}" Visibility="{Binding RecentVisibility}" SelectionChanged="SelectRecent" HorizontalAlignment="Stretch" />
+        <TextBox Header="{Binding L[output_folder]}" Text="{Binding OutputDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            PlaceholderText="{Binding L[default_folder]}" AutomationProperties.AutomationId="OutputFolder" />
+        <Button Content="{Binding L[choose_folder]}" Click="PickFolder" />
+        <InfoBar IsOpen="True" IsClosable="False" Severity="Warning" Visibility="{Binding OverwriteWarning}" Message="{Binding L[overwrite_warning]}" />
+      </StackPanel>
+      <StackPanel x:Name="Passwords" Spacing="12">
+        <PasswordBox x:Name="Password" Header="{Binding L[password]}" PasswordRevealMode="Peek" MaxLength="1024" AutomationProperties.AutomationId="Password" />
+        <PasswordBox x:Name="Confirmation" Header="{Binding L[confirm_password]}" PasswordRevealMode="Peek" MaxLength="1024" Visibility="{Binding NeedsConfirmation}" AutomationProperties.AutomationId="ConfirmPassword" />
+        <TextBlock Text="{Binding L[password_note]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+      <StackPanel x:Name="DecodeOptions" Spacing="8">
+        <CheckBox Content="{Binding L[ignore_whitespace]}" IsChecked="{Binding IgnoreWhitespace, Mode=TwoWay}" AutomationProperties.AutomationId="IgnoreWhitespace" />
+      </StackPanel>
+    </StackPanel></UserControl>
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <Button x:Name="RunButton" Content="{Binding ActionLabel}" Style="{StaticResource AccentButtonStyle}" IsEnabled="{Binding IsIdle}" Click="Run" AutomationProperties.AutomationId="Run">
+        <Button.KeyboardAccelerators><KeyboardAccelerator Key="Enter" Modifiers="Control" /></Button.KeyboardAccelerators>
+      </Button>
+      <Button Content="{Binding L[cancel]}" Command="{Binding CancelCommand}" AutomationProperties.AutomationId="Cancel" />
+      <Button Content="{Binding L[clear]}" Command="{Binding ClearCommand}" Click="ClearPasswords" />
+    </StackPanel>
+    <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Visibility="{Binding BusyVisibility}" AutomationProperties.Name="{Binding L[progress]}" />
+    <TextBlock Text="{Binding ProgressText}" Visibility="{Binding BusyVisibility}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+    <InfoBar IsOpen="{Binding HasStatus}" Severity="{Binding Severity}" Message="{Binding Status}" IsClosable="False" AutomationProperties.AutomationId="Status" AutomationProperties.LiveSetting="Polite" />
+    <TextBox x:Name="ResultOutput" Header="{Binding L[result]}" Text="{Binding Output}" Visibility="{Binding ResultVisibility}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="320"
+        ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="Result" />
+    <UserControl Visibility="{Binding ResultVisibility}"><StackPanel Orientation="Horizontal" Spacing="12">
+      <Button Content="{Binding L[copy]}" Click="Copy" />
+      <Button x:Name="SaveButton" Content="{Binding L[save_text]}" Click="SaveText" />
+      <Button x:Name="RevealButton" Content="{Binding L[open_folder]}" Click="Reveal" />
+    </StackPanel></UserControl>
+  </StackPanel>
+</UserControl>

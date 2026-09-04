@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
 
 import aegisvault.core.file_io as core_file_io
 from aegisvault.core.exceptions import FileIOError, ValidationError
-from aegisvault.i18n.translator import SUPPORTED_LANGUAGES, Translator
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SETTINGS_MAX_BYTES, SettingsStore
@@ -145,48 +143,3 @@ def test_settings_size_limit_applies_to_load_and_save(tmp_path: Path) -> None:
     assert caught.value.code == "settings.too_large"
     assert path.stat().st_size == SETTINGS_MAX_BYTES + 1
     assert not list(tmp_path.glob(".*.tmp"))
-
-
-def test_i18n_keys_are_complete() -> None:
-    base: set[str] | None = None
-    for language in SUPPORTED_LANGUAGES:
-        with Path("src/aegisvault/i18n/locales", f"{language}.json").open("r", encoding="utf-8") as handle:
-            keys = set(json.load(handle))
-        if base is None:
-            base = keys
-        else:
-            assert keys == base
-    translator = Translator("en-US")
-    assert translator.t("app.title") == "AegisVault"
-
-
-def test_ui_literal_translation_keys_exist_in_every_locale() -> None:
-    source = "\n".join(path.read_text(encoding="utf-8") for path in Path("src/aegisvault/ui").rglob("*.py"))
-    literal_keys = set(re.findall(r'\.t\("([^"]+)"', source))
-    for language in SUPPORTED_LANGUAGES:
-        path = Path("src/aegisvault/i18n/locales", f"{language}.json")
-        messages = json.loads(path.read_text(encoding="utf-8"))
-        missing = sorted(literal_keys - set(messages))
-        assert not missing, f"{language} is missing UI keys: {missing}"
-        assert all(str(messages[key]).strip() for key in literal_keys)
-
-
-def test_integrated_backend_error_codes_have_specific_bilingual_messages() -> None:
-    integrated_codes = (
-        "crypto.size_mismatch",
-        "file.input_changed",
-        "file.read_failed",
-        "file.same_input_output",
-        "protocol.unsupported_format",
-        "resource.limit_exceeded",
-        "settings.invalid_type",
-        "settings.invalid_value",
-        "settings.too_large",
-    )
-    for language in SUPPORTED_LANGUAGES:
-        translator = Translator(language)
-        generic = translator.t("error.generic")
-        for code in integrated_codes:
-            key = f"error.{code}"
-            message = translator.t(key)
-            assert message not in {key, generic}, f"{language} has no specific message for {code}"

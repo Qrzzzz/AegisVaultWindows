@@ -59,11 +59,9 @@ if ($ExpectedTag) {
 
 $PreviousUtf8 = $env:PYTHONUTF8
 $PreviousIoEncoding = $env:PYTHONIOENCODING
-$PreviousQtPlatform = $env:QT_QPA_PLATFORM
 try {
     $env:PYTHONUTF8 = "1"
     $env:PYTHONIOENCODING = "utf-8"
-    $env:QT_QPA_PLATFORM = "offscreen"
     Write-Host "== Compile =="
     Invoke-Native $Python "compileall" @("-m", "compileall", "-q", "src", "tests", "scripts")
     Write-Host "== Ruff =="
@@ -76,31 +74,9 @@ try {
         "--cov-fail-under=70"
     )
 
-    Write-Host "== Source headless smoke =="
-    $SystemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-    $SmokeRoot = [IO.Path]::GetFullPath((Join-Path $SystemTemp ("aegisvault-source-smoke-{0}" -f [Guid]::NewGuid().ToString("N"))))
-    if (-not $SmokeRoot.StartsWith($SystemTemp, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to create source smoke directory outside the system temp root."
-    }
-    [IO.Directory]::CreateDirectory($SmokeRoot) | Out-Null
-    $PreviousAppData = $env:APPDATA
-    $PreviousLocalAppData = $env:LOCALAPPDATA
-    $PreviousSmoke = $env:AEGISVAULT_HEADLESS_SMOKE
-    try {
-        $env:APPDATA = $SmokeRoot
-        $env:LOCALAPPDATA = $SmokeRoot
-        $env:AEGISVAULT_HEADLESS_SMOKE = "1"
-        Invoke-Native $Python "headless smoke" @("-m", "aegisvault")
-    } finally {
-        $env:APPDATA = $PreviousAppData
-        $env:LOCALAPPDATA = $PreviousLocalAppData
-        $env:AEGISVAULT_HEADLESS_SMOKE = $PreviousSmoke
-        Remove-Item -LiteralPath $SmokeRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
 } finally {
     $env:PYTHONUTF8 = $PreviousUtf8
     $env:PYTHONIOENCODING = $PreviousIoEncoding
-    $env:QT_QPA_PLATFORM = $PreviousQtPlatform
 }
 
 if ($Build) {
