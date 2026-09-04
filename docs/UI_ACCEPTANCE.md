@@ -1,6 +1,9 @@
 # AegisVault 2.1 — acceptance evidence
 
-Status: **local candidate validated; user acceptance and publication pending**.
+Status: **local candidate validated; maintainer authorized release** on 2026-09-04.
+The maintainer requested "release" for the pushed candidate `21e8163`, authorizing publication using
+the recorded native validation. No additional per-scenario manual test results were supplied.
+Remote quality/security checks, tag binding and artifact provenance remain required before publication.
 Baseline: released 2.0 at `bd6f5e7`. Review: [UI_REVIEW_2.1.md](UI_REVIEW_2.1.md).
 
 2.0 was rebuilt and its existing native light/English suite passed before implementation, at 168 DPI

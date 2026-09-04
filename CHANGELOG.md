@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1 - Unreleased
+## 2.1 - 2026-09-04
 
 - Keep workflow actions and feedback visible while input and results scroll; align native page headings and forms.
 - Focus visible results after completion, adapt result actions to window width, copy exact file paths and reuse text results as reverse-operation input.

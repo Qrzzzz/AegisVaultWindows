@@ -6,12 +6,12 @@ the Python AGV1 Core, scrypt and AES-256-GCM remain unchanged. There is no legac
 
 ## Use the application
 
-The 2.1 development package is `AegisVault-v2.1-win64.zip`. Extract the entire ZIP and run `AegisVault.exe`.
+Download [AegisVault v2.1](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v2.1),
+then extract the entire `AegisVault-v2.1-win64.zip` and run `AegisVault.exe`.
 Keep all runtime files and the `backend` directory together. The package includes Python, .NET and the
 Windows App SDK runtime. Windows 10 2004 or newer, x64, is required; Mica is provided on supported Windows 11 systems.
 
-2.1 is under development; the published stable package is [AegisVault v2.0](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v2.0).
-Local builds appear under `dist/AegisVault/`. Automated evidence and user-reported manual acceptance
+Local builds appear under `dist/AegisVault/`. Automated evidence and maintainer release authorization
 are recorded in [UI acceptance](docs/UI_ACCEPTANCE.md).
 
 ## Workflows
