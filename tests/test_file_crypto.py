@@ -5,12 +5,9 @@ from pathlib import Path
 
 import pytest
 
-import aegisvault.services.crypto_service as service_module
 from aegisvault.core.crypto import decrypt_file, encrypt_file
-from aegisvault.core.exceptions import AuthenticationError, CompatibilityError, OperationCancelled, ProtocolError
+from aegisvault.core.exceptions import AuthenticationError, ProtocolError
 from aegisvault.core.kdf import ScryptParams
-from aegisvault.core.legacy import encrypt_legacy_bytes_for_tests
-from aegisvault.core.models import CancelToken
 from aegisvault.core.protocol import (
     CHUNK_RECORD,
     FILE_MAGIC,
@@ -19,8 +16,6 @@ from aegisvault.core.protocol import (
     canonical_json,
     read_file_header,
 )
-from aegisvault.services.crypto_service import CryptoService
-from aegisvault.settings.models import AppSettings
 
 
 def fast_params() -> ScryptParams:
@@ -145,111 +140,3 @@ def test_header_size_limit_is_enforced(tmp_path: Path) -> None:
     source.write_bytes(b"x")
     with pytest.raises(ProtocolError):
         encrypt_file(source, encrypted, "passphrase", kdf_params=fast_params(), chunk_size=MAX_CHUNK_SIZE + 1)
-
-
-def test_legacy_file_compatibility_via_service(tmp_path: Path) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    service = CryptoService(AppSettings())
-    result = service.decrypt_file(encrypted, "legacy-pass")
-    assert result.format_name == "legacy-v2"
-    assert result.compatibility_warning == "legacy_weak_kdf"
-    assert result.output_path.read_bytes() == b"legacy bytes"
-
-
-def test_legacy_file_size_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    monkeypatch.setattr(service_module, "LEGACY_FILE_MAX_BYTES", 8)
-    service = CryptoService(AppSettings())
-    with pytest.raises(CompatibilityError):
-        service.decrypt_file(encrypted, "legacy-pass")
-
-
-def test_legacy_file_limit_cannot_be_bypassed_by_stale_path_stat(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    monkeypatch.setattr(service_module, "LEGACY_FILE_MAX_BYTES", 8)
-    monkeypatch.setattr(service_module, "file_size", lambda _path: 1)
-
-    with pytest.raises(CompatibilityError) as caught:
-        CryptoService(AppSettings()).decrypt_file(encrypted, "legacy-pass")
-
-    assert caught.value.code == "legacy.file_too_large"
-    assert not (tmp_path / "legacy").exists()
-
-
-def test_legacy_file_cancellation_after_authentication_leaves_no_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-    token = CancelToken()
-    real_decrypt = service_module.decrypt_legacy_bytes
-
-    def decrypt_then_cancel(data: bytes, password: str) -> bytes:
-        plaintext = real_decrypt(data, password)
-        token.cancel()
-        return plaintext
-
-    monkeypatch.setattr(service_module, "decrypt_legacy_bytes", decrypt_then_cancel)
-
-    with pytest.raises(OperationCancelled):
-        CryptoService(AppSettings()).decrypt_file(encrypted, "legacy-pass", cancel_token=token)
-
-    assert not (tmp_path / "legacy").exists()
-    assert not list(tmp_path.glob(".*.tmp"))
-
-
-def test_legacy_file_recovery_has_explicit_service_boundary(tmp_path: Path) -> None:
-    encrypted = tmp_path / "旧文件 🔐.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests("恢复内容".encode(), "legacy-pass"))
-    service = CryptoService(AppSettings())
-
-    with pytest.raises(CompatibilityError) as caught:
-        service.decrypt_file(encrypted, "legacy-pass", allow_legacy=False)
-    assert caught.value.code == "legacy.file_recovery_required"
-    assert not (tmp_path / "旧文件 🔐").exists()
-
-    result = service.recover_legacy_file(encrypted, "legacy-pass")
-    assert result.output_path.read_bytes() == "恢复内容".encode()
-    assert result.compatibility_warning == "legacy_weak_kdf"
-
-
-def test_explicit_legacy_recovery_honors_a_stricter_call_limit(tmp_path: Path) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    payload = encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass")
-    encrypted.write_bytes(payload)
-
-    with pytest.raises(CompatibilityError) as caught:
-        CryptoService(AppSettings()).recover_legacy_file(
-            encrypted,
-            "legacy-pass",
-            max_input_bytes=len(payload) - 1,
-        )
-
-    assert caught.value.code == "legacy.file_too_large"
-    assert not (tmp_path / "legacy").exists()
-
-
-def test_explicit_legacy_wrong_password_leaves_no_output(tmp_path: Path) -> None:
-    encrypted = tmp_path / "legacy.aes"
-    encrypted.write_bytes(encrypt_legacy_bytes_for_tests(b"legacy bytes", "legacy-pass"))
-
-    with pytest.raises(AuthenticationError):
-        CryptoService(AppSettings()).recover_legacy_file(encrypted, "wrong-pass")
-
-    assert not (tmp_path / "legacy").exists()
-    assert not list(tmp_path.glob(".*.tmp"))
-
-
-def test_explicit_legacy_recovery_rejects_modern_container(tmp_path: Path) -> None:
-    source, encrypted, _restored = encrypt_fixture(tmp_path, b"modern data")
-
-    with pytest.raises(CompatibilityError) as caught:
-        CryptoService(AppSettings()).recover_legacy_file(encrypted, "passphrase")
-
-    assert caught.value.code == "legacy.modern_file"
-    assert source.read_bytes() == b"modern data"

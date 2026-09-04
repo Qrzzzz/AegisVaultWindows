@@ -20,7 +20,6 @@ from aegisvault.core.exceptions import (
 )
 from aegisvault.core.file_io import atomic_binary_writer, ensure_distinct_paths, file_size
 from aegisvault.core.kdf import ScryptParams, derive_key, make_scrypt_params, params_from_header, params_to_header
-from aegisvault.core.legacy import decrypt_legacy_text
 from aegisvault.core.models import (
     CancelToken,
     FileProcessResult,
@@ -34,7 +33,6 @@ from aegisvault.core.protocol import (
     FILE_MAGIC,
     FLAG_LAST_CHUNK,
     TEXT_MAGIC,
-    TEXT_PREFIX,
     chunk_aad,
     chunk_nonce,
     decode_token,
@@ -110,8 +108,9 @@ def encrypt_text(plaintext: str, password: str, *, kdf_params: ScryptParams | No
 def decrypt_text(token: str, password: str) -> TextDecryptResult:
     """Decrypt a modern ``AGV1.`` text token."""
 
+    package = decode_token(token.strip())
     _require_password(password)
-    header, header_bytes, ciphertext = unpack_envelope(TEXT_MAGIC, decode_token(token.strip()))
+    header, header_bytes, ciphertext = unpack_envelope(TEXT_MAGIC, package)
     validate_text_header(header)
     nonce = _unb64(header.get("nonce"), field="nonce")
     if len(nonce) != 12:
@@ -126,17 +125,6 @@ def decrypt_text(token: str, password: str) -> TextDecryptResult:
         return TextDecryptResult(plaintext.decode("utf-8"), "aegisvault-v1")
     except UnicodeDecodeError as exc:
         raise ProtocolError("Decrypted data is not UTF-8 text.", code="crypto.invalid_plaintext") from exc
-
-
-def decrypt_text_auto(token: str, password: str | None = None, *, allow_legacy: bool = True) -> TextDecryptResult:
-    """Decrypt either modern text or a supported legacy text format."""
-
-    value = token.strip()
-    if value.startswith(TEXT_PREFIX):
-        return decrypt_text(value, password or "")
-    if allow_legacy:
-        return decrypt_legacy_text(value, password)
-    raise ProtocolError("Unsupported text format.", code="crypto.unsupported_format")
 
 
 def encrypt_file(
@@ -251,13 +239,13 @@ def decrypt_file(
 
     input_path = input_path.expanduser().resolve()
     output_path = output_path.expanduser().resolve()
-    _require_password(password)
     ensure_distinct_paths(input_path, output_path)
     encrypted_size = file_size(input_path)
     _emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=encrypted_size)
 
     with input_path.open("rb") as source:
         header, header_bytes = read_file_header(source)
+        _require_password(password)
         chunk_size = validate_file_header(header)
         params = params_from_header(_expect_dict(header.get("kdf"), "kdf"))
         nonce_prefix = _unb64(header.get("nonce_prefix"), field="nonce_prefix")

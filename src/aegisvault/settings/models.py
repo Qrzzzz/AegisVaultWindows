@@ -20,7 +20,6 @@ class AppSettings:
     overwrite_outputs: bool = False
     remember_recent_files: bool = True
     show_advanced_options: bool = False
-    allow_ak_compatibility: bool = False
     recent_files: list[str] = field(default_factory=list)
 
     @classmethod
@@ -49,9 +48,6 @@ class AppSettings:
             show_advanced_options=cls._bool_or_default(
                 data.get("show_advanced_options"), defaults.show_advanced_options
             ),
-            allow_ak_compatibility=cls._bool_or_default(
-                data.get("allow_ak_compatibility"), defaults.allow_ak_compatibility
-            ),
             recent_files=(
                 [item for item in recent_files if type(item) is str and "\x00" not in item][:MAX_RECENT_FILES]
                 if type(recent_files) is list
@@ -76,7 +72,6 @@ class AppSettings:
             self.overwrite_outputs,
             self.remember_recent_files,
             self.show_advanced_options,
-            self.allow_ak_compatibility,
         )
         if any(type(value) is not bool for value in boolean_values):
             raise ValidationError("Invalid Boolean settings value.", code="settings.invalid_type")

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from aegisvault.core.exceptions import ValidationError
+from aegisvault.core.protocol import FILE_MAGIC
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
 
@@ -28,6 +29,6 @@ def test_encrypt_file_empty_password_fails(tmp_path: Path) -> None:
 
 def test_decrypt_file_empty_password_fails(tmp_path: Path) -> None:
     source = tmp_path / "cipher.agv"
-    source.write_bytes(b"not real")
+    source.write_bytes(FILE_MAGIC + b"\x00\x00\x00\x02{}")
     with pytest.raises(ValidationError):
         CryptoService(AppSettings()).decrypt_file(source, "")

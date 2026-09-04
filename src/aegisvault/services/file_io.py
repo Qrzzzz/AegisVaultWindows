@@ -58,7 +58,7 @@ def decrypted_output_path(input_path: Path, output_dir: Path | None = None, *, o
     base_dir = output_dir or input_path.parent
     name = input_path.name
     lower_name = name.lower()
-    if lower_name.endswith(".agv") or lower_name.endswith(".aes") or lower_name.endswith(".b64"):
+    if lower_name.endswith(".agv"):
         candidate_name = name.rsplit(".", 1)[0]
     else:
         candidate_name = f"{input_path.stem}.decrypted{input_path.suffix}"

@@ -16,12 +16,12 @@ from aegisvault.settings.store import SETTINGS_MAX_BYTES, SettingsStore
 
 def test_settings_load_save(tmp_path: Path) -> None:
     store = SettingsStore(tmp_path / "settings.json")
-    settings = AppSettings(language="en-US", default_output_dir=str(tmp_path), allow_ak_compatibility=True)
+    settings = AppSettings(language="en-US", default_output_dir=str(tmp_path), show_advanced_options=True)
     store.save(settings)
     loaded = store.load()
     assert loaded.language == "en-US"
     assert loaded.default_output_dir == str(tmp_path)
-    assert loaded.allow_ak_compatibility is True
+    assert loaded.show_advanced_options is True
 
 
 def test_settings_load_rejects_wrong_field_types(tmp_path: Path) -> None:
@@ -35,7 +35,6 @@ def test_settings_load_rejects_wrong_field_types(tmp_path: Path) -> None:
                 "overwrite_outputs": "false",
                 "remember_recent_files": 1,
                 "show_advanced_options": None,
-                "allow_ak_compatibility": "true",
                 "recent_files": "C:/secret.txt",
             }
         ),
@@ -45,6 +44,38 @@ def test_settings_load_rejects_wrong_field_types(tmp_path: Path) -> None:
     loaded = SettingsStore(path).load()
 
     assert loaded == AppSettings()
+
+
+@pytest.mark.parametrize("removed_flag", [True, False, "true", 1, None])
+def test_removed_settings_flag_is_ignored_without_resetting_other_preferences(
+    tmp_path: Path, removed_flag: object
+) -> None:
+    path = tmp_path / "settings.json"
+    expected = AppSettings(
+        language="en-US",
+        default_output_dir=str(tmp_path),
+        overwrite_outputs=True,
+        remember_recent_files=False,
+        show_advanced_options=True,
+        recent_files=["文档 🔐.agv"],
+    )
+    data = expected.to_dict() | {"allow_ak_compatibility": removed_flag}
+    original = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    path.write_bytes(original)
+    store = SettingsStore(path)
+
+    loaded = store.load()
+
+    assert loaded == expected
+    assert not hasattr(loaded, "allow_ak_compatibility")
+    assert path.read_bytes() == original
+    assert list(tmp_path.iterdir()) == [path]
+
+    store.save(loaded)
+
+    assert json.loads(path.read_text(encoding="utf-8")) == expected.to_dict()
+    assert store.load() == expected
+    assert list(tmp_path.iterdir()) == [path]
 
 
 def test_settings_save_rejects_invalid_runtime_types(tmp_path: Path) -> None:
@@ -76,7 +107,7 @@ def test_settings_save_is_atomic_and_preserves_previous_file_on_replace_failure(
 
 def test_crypto_service_rejects_invalid_in_memory_settings() -> None:
     settings = AppSettings()
-    settings.allow_ak_compatibility = "true"  # type: ignore[assignment]
+    settings.overwrite_outputs = "true"  # type: ignore[assignment]
 
     with pytest.raises(ValidationError):
         CryptoService(settings)
@@ -146,10 +177,7 @@ def test_integrated_backend_error_codes_have_specific_bilingual_messages() -> No
         "file.input_changed",
         "file.read_failed",
         "file.same_input_output",
-        "legacy.file_recovery_required",
-        "legacy.invalid_limit",
-        "legacy.invalid_option",
-        "legacy.modern_file",
+        "protocol.unsupported_format",
         "resource.limit_exceeded",
         "settings.invalid_type",
         "settings.invalid_value",

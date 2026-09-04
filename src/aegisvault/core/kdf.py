@@ -1,9 +1,8 @@
 """Password based key derivation.
 
-The legacy application used ``sha256(password)`` directly as an AES key. This
-module intentionally replaces that with scrypt, a memory-hard KDF available in
-the widely used ``cryptography`` package and suitable for offline password
-guessing resistance on desktop machines.
+AGV1 uses scrypt, a memory-hard KDF available in the ``cryptography`` package,
+with bounded memory and CPU costs for offline password guessing resistance
+on desktop machines.
 """
 
 from __future__ import annotations

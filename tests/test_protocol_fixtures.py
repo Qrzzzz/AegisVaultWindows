@@ -19,6 +19,8 @@ from aegisvault.core.protocol import (
     validate_file_header,
     validate_text_header,
 )
+from aegisvault.services.crypto_service import CryptoService
+from aegisvault.settings.models import AppSettings
 
 FIXED_PASSWORD = "pässwörd-密钥"
 FIXED_PLAINTEXT = "AegisVault 固定样本 🔐"
@@ -45,6 +47,12 @@ def test_fixed_agv1_text_fixture_decrypts() -> None:
     assert decrypt_text(FIXED_TEXT_TOKEN, FIXED_PASSWORD).plaintext == FIXED_PLAINTEXT
 
 
+def test_service_decrypts_only_the_modern_fixed_text_fixture() -> None:
+    result = CryptoService(AppSettings()).decrypt_text(FIXED_TEXT_TOKEN, FIXED_PASSWORD)
+    assert result.plaintext == FIXED_PLAINTEXT
+    assert result.format_name == "aegisvault-v1"
+
+
 def test_agv1_text_writer_remains_byte_compatible_with_fixed_fixture() -> None:
     with (
         patch("aegisvault.core.crypto.os.urandom", return_value=bytes(range(12))),
@@ -62,6 +70,17 @@ def test_fixed_agv1_file_fixture_decrypts(tmp_path: Path) -> None:
     decrypt_file(encrypted, restored, FIXED_PASSWORD)
 
     assert restored.read_bytes() == "AegisVault 固定文件样本\n".encode()
+
+
+def test_service_decrypts_modern_fixed_file_even_with_an_unrecognized_suffix(tmp_path: Path) -> None:
+    encrypted = tmp_path / "renamed.data"
+    encrypted.write_bytes(base64.b64decode(FIXED_FILE_BASE64, validate=True))
+
+    result = CryptoService(AppSettings()).decrypt_file(encrypted, FIXED_PASSWORD)
+
+    assert result.output_path.name == "renamed.decrypted.data"
+    assert result.output_path.read_bytes() == "AegisVault 固定文件样本\n".encode()
+    assert result.format_name == "aegisvault-v1"
 
 
 def test_agv1_file_writer_remains_byte_compatible_with_fixed_fixture(tmp_path: Path) -> None:

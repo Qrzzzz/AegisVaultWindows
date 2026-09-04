@@ -81,7 +81,7 @@ def encode_token(package: bytes) -> str:
 
 def decode_token(token: str) -> bytes:
     if not token.startswith(TEXT_PREFIX):
-        raise ProtocolError("Unsupported text token.", code="crypto.unsupported_format")
+        raise ProtocolError("Only AGV1 text tokens are supported.", code="protocol.unsupported_format")
     payload = token[len(TEXT_PREFIX) :]
     if not payload:
         raise ProtocolError("Invalid text token encoding.", code="crypto.invalid_encoding")
@@ -102,7 +102,7 @@ def pack_envelope(magic: bytes, header: dict[str, Any], payload: bytes) -> bytes
 
 def unpack_envelope(magic: bytes, package: bytes) -> tuple[dict[str, Any], bytes, bytes]:
     if not package.startswith(magic):
-        raise ProtocolError("Unsupported encrypted data format.", code="crypto.unsupported_format")
+        raise ProtocolError("Only AGV1 encrypted data is supported.", code="protocol.unsupported_format")
     offset = len(magic)
     if len(package) < offset + 4:
         raise ProtocolError("Encrypted data is truncated.", code="crypto.truncated")
@@ -137,9 +137,9 @@ def write_file_header(stream: BinaryIO, header: dict[str, Any]) -> bytes:
 
 
 def read_file_header(stream: BinaryIO) -> tuple[dict[str, Any], bytes]:
-    magic = read_exact(stream, len(FILE_MAGIC))
+    magic = stream.read(len(FILE_MAGIC))
     if magic != FILE_MAGIC:
-        raise ProtocolError("Unsupported file format.", code="crypto.unsupported_format")
+        raise ProtocolError("Only AGV1 encrypted files are supported.", code="protocol.unsupported_format")
     header_len = struct.unpack(">I", read_exact(stream, 4))[0]
     if header_len <= 0 or header_len > HEADER_MAX_SIZE:
         raise ProtocolError("Invalid protocol header length.", code="crypto.invalid_header")
