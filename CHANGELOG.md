@@ -7,6 +7,7 @@
 - Preserve password entries for validation corrections, hide inactive cancellation, guard busy input and ignore late progress callbacks.
 - Retain Settings drafts and Base64 input type across navigation; add save/discard feedback and retranslate retained workflow status.
 - Extend native interaction coverage for narrow layouts, correction/reuse, clipboard, draft persistence and failed settings writes.
+- Bound packaged backend smoke failures and clean up bootloader child processes before closing their output pipes.
 
 ## 2.0 - 2026-09-04
 

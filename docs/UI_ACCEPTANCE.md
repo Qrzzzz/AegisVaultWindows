@@ -17,9 +17,10 @@ clipboard/save picker, output invalidation, draft retention/discard and a real l
 
 | 2.1 check | Measured result |
 | --- | --- |
-| Python source gate | 243 tests passed; 76.48% coverage; compileall, Ruff and mypy passed; final UI/version contract checks passed |
+| Python source gate | 246 tests passed; 76.48% coverage; compileall, Ruff and mypy passed; final UI/version contract checks passed |
 | WinUI build/publish | x64 Release, locked restore and warnings-as-errors passed; PE `2.1.0.0`, product `2.1` |
 | Packaged backend and bundle | AGV1 text/file and Base64 smoke passed with isolated profile/minimal PATH; input-root, PE/runtime, ZIP, SBOM and checksum audit passed |
+| Packaged smoke failure lifecycle | Real child processes are stopped after a backend error or request deadline; continuing progress cannot extend the deadline; stderr flooding and early exit report a failure without blocking |
 | Native light/English and dark/Chinese | Text/file/Base64 roundtrips, correction focus and password clearing, reverse-result reuse through narrow command overflow, text/path clipboard and native open/save pickers passed |
 | Native state and lifecycle | Destination edits invalidate results; Base64 mode and Settings drafts survive navigation; discard, real failed settings write/retry, theme/language application, localized theme selection and status translation passed |
 | Native narrow layout | 680 x 640 physical pixels at **168 DPI / 175%**; fixed Run/Cancel and Settings actions, content below the navigation toggle, result focus/scrolling and screenshots reviewed |
@@ -29,6 +30,7 @@ clipboard/save picker, output invalidation, draft retention/discard and a real l
 Evidence files:
 
 - `build/validation-2.1/source-checks.log`, `build/validation-2.1/contracts.log`
+- `build/validation-2.1/source-release-final.log`, `build/validation-2.1/smoke-lifecycle.log`, `build/validation-2.1/packaged-smoke-final.log`
 - `build/validation-2.1/package.log`
 - `build/validation-2.1/native-light.log`, `build/validation-2.1/native-dark.log`
 - `build/native-evidence/*.png` (actual native screenshots, including the intentional settings-write failure)

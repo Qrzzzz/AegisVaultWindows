@@ -50,3 +50,9 @@ available viewport without reducing fonts. The native harness now waits for actu
 handles both Windows open/save filename controls and verifies localized theme selection.
 
 Current measurements and remaining manual scope are recorded in [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md).
+
+The first release PR Quality run (`33885603613`) completed native compilation but stalled in packaged
+backend smoke and was cancelled. The smoke harness could retain a blocked pipe reader after killing only
+the PyInstaller bootloader. It now closes input, bounds shutdown, terminates the process tree when needed,
+captures stderr without a pipe bottleneck and logs each operation. Failure/timeout process-lifecycle
+regressions and the actual packaged backend pass locally; the product backend and Core are unchanged.
