@@ -49,14 +49,15 @@ def render_workspace(
     page_index: int = 0,
     *,
     language: str = "zh-CN",
-    window_size: tuple[int, int] = (900, 680),
+    window_size: tuple[int, int] = (1024, 760),
     scenario: str = "idle",
+    theme: str = "light",
 ) -> QImage:
     with tempfile.TemporaryDirectory(prefix="aegisvault-ui-") as temp_dir:
         temp = Path(temp_dir)
         with patch.dict(os.environ, {"APPDATA": str(temp), "LOCALAPPDATA": str(temp)}):
             app = qa_application()
-            settings = AppSettings(language=language, theme="dark")
+            settings = AppSettings(language=language, theme=theme)
             store = SettingsStore(temp / "settings.json")
             window = MainWindow(settings, store, Translator(language))
             window.resize(*window_size)
@@ -126,7 +127,7 @@ def test_offscreen_workspace_screenshots_match_light_baselines(tmp_path: Path) -
         baseline = QImage(str(baseline_path)).convertToFormat(QImage.Format.Format_RGB32)
         assert not baseline.isNull(), f"Missing UI baseline: {baseline_path}"
         assert rendered.size() == baseline.size()
-        assert rendered.width() == 900 and rendered.height() == 680
+        assert rendered.width() == 1024 and rendered.height() == 760
         assert _sample_difference(rendered, baseline) < 0.06
         assert rendered.pixelColor(2, 50).lightness() > 180
 

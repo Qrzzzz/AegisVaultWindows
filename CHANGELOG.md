@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - 2026-09-04
+
+- Implemented the approved modern Windows layout using a Fluent-inspired Qt sidebar, page headings, segmented operations, and responsive password fields.
+- Added Light, Dark and system appearance while preserving stored settings and in-progress workspace contents.
+- Restored platform-native file and directory dialogs; retained the system window title bar.
+- Kept AGV1 and Base64 workflows, atomic writes, cancellation, bilingual controls and accessible keyboard interaction.
+
 ## 1.1.0 - 2026-09-04
 
 - Rebuilt the three workspaces as native Windows forms with aligned input, options and result groups.

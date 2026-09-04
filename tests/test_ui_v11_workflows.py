@@ -27,6 +27,7 @@ from aegisvault.core.models import TaskState
 from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
+from aegisvault.ui.components.mode_switch import ModeSwitch
 from aegisvault.ui.main_window import MainWindow
 from aegisvault.ui.pages.settings_page import SettingsDialog
 
@@ -162,6 +163,11 @@ def test_mode_labels_fit_after_language_changes(window: MainWindow) -> None:
                 for selected in range(combo.count()):
                     combo.setCurrentIndex(selected)
                     QTest.qWait(10)
+                    if isinstance(combo, ModeSwitch):
+                        for button in combo.buttons:
+                            assert button.width() >= button.fontMetrics().horizontalAdvance(button.text()) + 20
+                            assert inside(button, combo)
+                        continue
                     option = QStyleOptionComboBox()
                     combo.initStyleOption(option)
                     field = combo.style().subControlRect(

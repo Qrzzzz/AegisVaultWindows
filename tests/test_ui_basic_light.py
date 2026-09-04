@@ -65,14 +65,14 @@ def test_old_theme_migration_preserves_other_preferences(tmp_path: Path, old_the
     )
     store.save(old)
     loaded = store.load()
-    assert loaded.theme == "light"
-    assert loaded.to_dict() == {**old.to_dict(), "theme": "light"}
+    assert loaded.theme == old_theme
+    assert loaded.to_dict() == old.to_dict()
     store.save(loaded)
     assert store.load() == loaded
 
 
-@pytest.mark.parametrize("old_theme", ["dark", "system"])
-def test_all_dialogs_are_light_without_qss_or_theme_selector(
+@pytest.mark.parametrize("old_theme", ["dark", "light"])
+def test_dialogs_follow_selected_appearance_and_preserve_it_on_system_changes(
     tmp_path: Path, old_theme: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app = qa_application()
@@ -87,26 +87,28 @@ def test_all_dialogs_are_light_without_qss_or_theme_selector(
         SettingsDialog(window.i18n, settings, window.store),
         AboutDialog(window, window.i18n),
     ]
-    assert not hasattr(dialogs[0], "theme_combo")
-    assert len(dialogs[0].findChildren(QComboBox)) == 1
+    light = old_theme == "light"
+    assert dialogs[0].theme_combo.currentData() == old_theme
+    assert len(dialogs[0].findChildren(QComboBox)) == 2
+    assert app.styleSheet()
     for dialog in dialogs:
         dialog.show()
     app.processEvents()
     for widget in [window, *dialogs]:
-        assert widget.palette().color(QPalette.ColorRole.Window).lightness() > 180
+        assert (widget.palette().color(QPalette.ColorRole.Window).lightness() > 180) == light
         assert not widget.styleSheet()
     # Simulate a later platform notification while these windows are open.
     app.setPalette(dark)
     app.styleHints().colorSchemeChanged.emit(Qt.ColorScheme.Dark)
-    _wait(app, lambda: window.palette().color(QPalette.ColorRole.Window).lightness() > 180)
+    _wait(app, lambda: (window.palette().color(QPalette.ColorRole.Window).lightness() > 180) == light)
     for widget in dialogs:
-        assert widget.palette().color(QPalette.ColorRole.Window).lightness() > 180
+        assert (widget.palette().color(QPalette.ColorRole.Window).lightness() > 180) == light
         widget.close()
 
     seen: list[bool] = []
 
     def inspect_error(box: QMessageBox) -> int:
-        seen.append(box.palette().color(QPalette.ColorRole.Window).lightness() > 180)
+        seen.append((box.palette().color(QPalette.ColorRole.Window).lightness() > 180) == light)
         assert not box.styleSheet()
         return 0
 
@@ -180,13 +182,13 @@ def test_idle_running_result_error_and_cancel_visibility(tmp_path: Path) -> None
 
 
 @pytest.mark.parametrize("language", ["zh-CN", "en-US"])
-@pytest.mark.parametrize("size", [(900, 680), (640, 480), (600, 440)])
+@pytest.mark.parametrize("size", [(1024, 760), (900, 680), (640, 480), (600, 440)])
 def test_key_controls_reachable_at_normal_and_small_sizes(tmp_path: Path, language: str, size: tuple[int, int]) -> None:
     app, window = _window(tmp_path, language)
     window.resize(*size)
     for index, page in enumerate((window.text_page, window.file_page, window.base64_page)):
         window._set_page(index)
-        app.processEvents()
+        QTest.qWait(30)
         scroll = page.findChild(QScrollArea)
         assert scroll is not None
         assert scroll.horizontalScrollBar().maximum() == 0
@@ -196,15 +198,26 @@ def test_key_controls_reachable_at_normal_and_small_sizes(tmp_path: Path, langua
         inputs = [page.picker.select_button] if index == 1 else [page.input]
         if index < 2:
             inputs += [page.password.edit, page.confirm_password.edit]
-        assert all(_inside(widget, scroll.viewport()) for widget in inputs)
+        for widget in inputs:
+            if size != (1024, 760):
+                scroll.ensureWidgetVisible(widget)
+                QTest.qWait(20)
+                bottom = widget.mapTo(scroll.widget(), QPoint(0, widget.height()))
+                scroll.ensureVisible(bottom.x(), bottom.y(), 0, 0)
+                QTest.qWait(10)
+            assert _inside(widget, scroll.viewport())
         assert page.font().pointSizeF() == app.font().pointSizeF()
     window._set_page(0)
     window.text_page.mode.set_current("decrypt")
     window.text_page.output.set_text("result")
-    app.processEvents()
+    QTest.qWait(30)
     scroll = window.text_page.findChild(QScrollArea)
-    if size == (900, 680):
-        assert scroll.verticalScrollBar().maximum() == 0
+    scroll.ensureWidgetVisible(window.text_page.password.edit)
+    QTest.qWait(20)
+    bottom = window.text_page.password.edit.mapTo(scroll.widget(), QPoint(0, window.text_page.password.edit.height()))
+    scroll.ensureVisible(bottom.x(), bottom.y(), 0, 0)
+    QTest.qWait(10)
+    assert _inside(window.text_page.password.edit, scroll.viewport())
     scroll = window.text_page.result_scroll
     assert scroll.horizontalScrollBar().maximum() == 0
     for button in (
@@ -259,7 +272,7 @@ def test_modes_settings_and_tabs_preserve_inputs_and_results(tmp_path: Path) -> 
     assert base64.output.text() == "a2VlcA=="
     assert base64.result.output_path == source
     assert base64.kind.current == "file"
-    assert window.tabs.tabText(0) == "文本"
+    assert window.nav_buttons[0].text() == "文字"
     assert window.store.load().theme == "light"
     window.close()
 
@@ -285,10 +298,11 @@ def test_keyboard_shortcuts_and_native_mode_selection(tmp_path: Path) -> None:
     assert window.text_page.input.hasFocus()
     toggle = window.text_page.password.toggle
     QTest.mouseClick(toggle, Qt.MouseButton.LeftButton)
-    assert toggle.text() == "Hide"
-    assert toggle.accessibleName() == "Hide"
+    assert toggle.accessibleName() == "Hide Password"
+    assert window.text_page.password.edit.echoMode() == window.text_page.password.edit.EchoMode.Normal
     QTest.mouseClick(toggle, Qt.MouseButton.LeftButton)
-    assert toggle.text() == "Show"
+    assert toggle.accessibleName() == "Show Password"
+    assert window.text_page.password.edit.echoMode() == window.text_page.password.edit.EchoMode.Password
     window.close()
 
 

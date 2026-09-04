@@ -5,16 +5,20 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
+from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy
+
+from aegisvault.ui.pages.common import AdaptiveRow, Section
 
 
-class ResultSummary(QGroupBox):
+class ResultSummary(Section):
     content_changed = Signal()
     reveal_requested = Signal(object)
 
     def __init__(self, open_label: str, clear_label: str) -> None:
         super().__init__()
         self.setObjectName("ResultSummary")
+        self.setProperty("card", True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.output_path: Path | None = None
         self.label = QLabel()
@@ -28,15 +32,13 @@ class ResultSummary(QGroupBox):
         self.clear_button = QPushButton(clear_label)
         self.open_button.clicked.connect(self._reveal)
         self.clear_button.clicked.connect(self.clear)
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        actions.addWidget(self.open_button)
-        actions.addWidget(self.clear_button)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
+        self.clear_button.setProperty("quiet", True)
+        actions = AdaptiveRow(self.open_button, self.clear_button)
+        layout = self.outer
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
         layout.addWidget(self.label)
-        layout.addLayout(actions)
+        layout.addWidget(actions)
         self.set_texts(open_label, clear_label)
         self.clear()
 

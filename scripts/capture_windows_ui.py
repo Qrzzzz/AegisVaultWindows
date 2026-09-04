@@ -16,6 +16,7 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--exercise", action="store_true", help="Run real synthetic round trips before result captures")
+    parser.add_argument("--theme", choices=("light", "dark", "system"), default="light")
     args = parser.parse_args()
     os.environ["QT_QPA_PLATFORM"] = "windows"
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -36,7 +37,7 @@ def main() -> int:
         os.environ["APPDATA"] = os.environ["LOCALAPPDATA"] = temp
         app = QApplication([])
         before = app.style().objectName()
-        settings = AppSettings(language="zh-CN")
+        settings = AppSettings(language="zh-CN", theme=args.theme)
         window = MainWindow(settings, SettingsStore(Path(temp) / "settings.json"), Translator(settings.language))
         window.show()
         app.processEvents()
@@ -47,7 +48,8 @@ def main() -> int:
             "style_after": app.style().objectName(),
             "available_styles": QStyleFactory.keys(),
             "font": app.font().toString(),
-            "stylesheet": app.styleSheet(),
+            "stylesheet_applied": bool(app.styleSheet()),
+            "theme": settings.theme,
             "window_color": app.palette().color(QPalette.ColorRole.Window).name(),
             "device_pixel_ratio": window.devicePixelRatioF(),
             "scale_factor": os.environ.get("QT_SCALE_FACTOR", "system"),
@@ -57,7 +59,7 @@ def main() -> int:
         for language in ("zh-CN", "en-US"):
             settings.language = language
             window._settings_saved()
-            for width, height in ((900, 680), (600, 440)):
+            for width, height in ((1024, 760), (900, 680), (600, 440)):
                 window.resize(width, height)
                 for index, name in enumerate(("text", "file", "base64")):
                     window._set_page(index)
@@ -65,7 +67,7 @@ def main() -> int:
                     QTest.qWait(150)
                     path = args.output / f"{name}-{language}-{width}x{height}.png"
                     assert window.grab().save(str(path))
-        window.resize(900, 680)
+        window.resize(1024, 760)
         settings.language = "zh-CN"
         window._settings_saved()
         dialog = SettingsDialog(window.i18n, settings, window.store, window)
@@ -162,7 +164,7 @@ def main() -> int:
             runtime["settings_saved_and_results_retained"] = True
             (args.output / "runtime.json").write_text(json.dumps(runtime, indent=2), encoding="utf-8")
             print("Real round trips, authentication error and settings persistence passed.", flush=True)
-        window.resize(900, 680)
+        window.resize(1024, 760)
         window._set_page(0)
         if args.interactive:
             return app.exec()

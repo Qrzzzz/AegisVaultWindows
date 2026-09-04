@@ -29,13 +29,12 @@ class AppSettings:
             return defaults
 
         language = data.get("language")
+        theme = data.get("theme")
         default_output_dir = data.get("default_output_dir")
         recent_files = data.get("recent_files")
         return cls(
             language=language if type(language) is str and language in SUPPORTED_LANGUAGES else defaults.language,
-            # Keep the persisted field for older installations, but all loaded
-            # themes now use the fixed light UI. Other preferences are retained.
-            theme="light",
+            theme=theme if type(theme) is str and theme in SUPPORTED_THEMES else defaults.theme,
             default_output_dir=(
                 default_output_dir
                 if type(default_output_dir) is str and "\x00" not in default_output_dir

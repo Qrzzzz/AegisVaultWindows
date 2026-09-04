@@ -7,13 +7,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QFormLayout,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from aegisvault.core.exceptions import ValidationError
@@ -24,12 +21,15 @@ from aegisvault.services.file_io import decrypted_output_path, encrypted_output_
 from aegisvault.settings.models import AppSettings
 from aegisvault.ui.components.file_picker import FilePicker
 from aegisvault.ui.components.inline_alert import InlineAlert
-from aegisvault.ui.components.mode_combo import ModeCombo
-from aegisvault.ui.components.password_input import PasswordInput
+from aegisvault.ui.components.mode_switch import ModeSwitch
+from aegisvault.ui.components.password_input import PasswordInput, PasswordPair
 from aegisvault.ui.components.result_summary import ResultSummary
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
 from aegisvault.ui.pages.common import (
+    PageHeader,
+    WorkspacePage,
+    action_row,
     form_group,
     format_size,
     input_group,
@@ -40,7 +40,7 @@ from aegisvault.ui.pages.common import (
 )
 
 
-class FilePage(QWidget):
+class FilePage(WorkspacePage):
     error = Signal(object, str)
     status_message = Signal(str, int)
     reveal_requested = Signal(object)
@@ -61,7 +61,7 @@ class FilePage(QWidget):
         self.controller.cancelled.connect(self._on_cancelled)
         self.controller.state_changed.connect(self._on_state)
 
-        self.mode = ModeCombo(
+        self.mode = ModeSwitch(
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             "encrypt",
             self.i18n.t("access.operation_mode"),
@@ -73,10 +73,12 @@ class FilePage(QWidget):
         self.confirm_password = PasswordInput("", "", "", "")
         self.output_dir = QLineEdit()
         self.output_dir.setReadOnly(True)
+        self.output_dir.setProperty("outputPath", True)
         self.output_dir_label = QLabel()
         self.output_dir_label.setBuddy(self.output_dir)
         self.output_preview = QLineEdit()
         self.output_preview.setReadOnly(True)
+        self.output_preview.setProperty("outputPath", True)
         self.output_preview_label = QLabel()
         self.output_preview_label.setBuddy(self.output_preview)
         self.overwrite_warning = QLabel()
@@ -94,30 +96,25 @@ class FilePage(QWidget):
 
         scroll, layout = scroll_page()
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(12)
+        outer.setContentsMargins(32, 24, 32, 24)
+        outer.setSpacing(20)
         outer.addWidget(scroll)
-        self.mode_label = QLabel()
-        self.mode_label.setBuddy(self.mode)
-        mode_form = QFormLayout()
-        mode_form.addRow(self.mode_label, self.mode)
-        layout.addLayout(mode_form)
+        self.header = PageHeader()
+        layout.addWidget(self.header)
+        layout.addWidget(self.mode, alignment=Qt.AlignmentFlag.AlignLeft)
         self.input_group = input_group(self.picker)
         layout.addWidget(self.input_group)
-        self.parameters_group, self.parameters_form = form_group()
-        self.password.add_to_form(self.parameters_form)
-        self.confirm_password.add_to_form(self.parameters_form)
+        self.password_hint = QLabel()
+        self.password_hint.setProperty("muted", True)
+        self.password_hint.setWordWrap(True)
+        self.parameters_group = PasswordPair(self.password, self.confirm_password, self.password_hint)
         layout.addWidget(self.parameters_group)
         self.output_group, self.output_form = form_group()
         self.output_form.addRow(self.output_dir_label, self.output_dir)
         self.output_form.addRow(self.output_preview_label, self.output_preview)
         self.output_form.addRow(self.overwrite_warning)
         layout.addWidget(self.output_group)
-        actions = QHBoxLayout()
-        actions.addWidget(self.clear_button)
-        actions.addStretch(1)
-        actions.addWidget(self.run_button)
-        outer.addLayout(actions)
+        outer.addLayout(action_row(self.run_button, self.clear_button))
         outer.addWidget(self.progress)
         outer.addWidget(self.alert)
         self.result_scroll = result_area(self.result)
@@ -151,10 +148,8 @@ class FilePage(QWidget):
             [(self.i18n.t("action.encrypt"), "encrypt"), (self.i18n.t("action.decrypt"), "decrypt")],
             self.i18n.t("access.operation_mode"),
         )
-        self.mode_label.setText(self.i18n.t("flow.mode"))
-        self.input_group.setTitle(self.i18n.t("flow.input"))
-        self.parameters_group.setTitle(self.i18n.t("flow.parameters"))
-        self.output_group.setTitle(self.i18n.t("field.output"))
+        self.input_group.setTitle("")
+        self.output_group.setTitle("")
         self.result.setTitle(self.i18n.t("flow.result"))
         self.picker.set_texts(
             self.i18n.t("action.select_file"),
@@ -325,9 +320,14 @@ class FilePage(QWidget):
 
     def _on_mode_changed(self, value: str) -> None:
         is_encrypt = value == "encrypt"
-        self.parameters_form.setRowVisible(self.confirm_password, is_encrypt)
+        self.confirm_password.setVisible(is_encrypt)
+        self.header.set_texts(
+            self.i18n.t("modern.file.encrypt" if is_encrypt else "modern.file.decrypt"),
+            self.i18n.t("modern.file.encrypt_description" if is_encrypt else "modern.file.decrypt_description"),
+        )
+        self.password_hint.setText(self.i18n.t("modern.password.keep" if is_encrypt else "modern.password.decrypt"))
         self.confirm_password.setEnabled(not self.controller.busy and is_encrypt)
-        self.run_button.setText(self.i18n.t("action.encrypt" if is_encrypt else "action.decrypt"))
+        self.run_button.setText(self.i18n.t("action.encrypt_file" if is_encrypt else "action.decrypt_file"))
         self.run_button.setAccessibleName(self.run_button.text())
         self._refresh_preview()
 

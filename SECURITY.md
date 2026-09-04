@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-AegisVault 1.1.0 is the current stable release, with the same security and format contracts as 1.0.0. Security fixes target the default branch, `master`, and the latest stable release line.
+AegisVault 1.2.0 is the current stable release, with the same security and format contracts as 1.0.0. Security fixes target the default branch, `master`, and the latest stable release line.
 
 ## Reporting A Vulnerability
 
@@ -26,7 +26,7 @@ AegisVault does not protect against:
 
 ## Supported Encryption Formats
 
-AegisVault 1.1.0 decrypts only AGV1 text and file containers. Legacy AES text/files and `AK#key#ciphertext` wrappers are rejected. There is no recovery API, weak legacy password derivation, or setting that enables old-format decryption.
+AegisVault 1.2.0 decrypts only AGV1 text and file containers. Legacy AES text/files and `AK#key#ciphertext` wrappers are rejected. There is no recovery API, weak legacy password derivation, or setting that enables old-format decryption.
 
 An old settings file cannot re-enable removed functionality. Base64 decoding remains an encoding operation and never invokes a decryptor. Historical releases are not covered by this format-support statement.
 

@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
-    QGroupBox,
-    QHBoxLayout,
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
-    QVBoxLayout,
 )
 
+from aegisvault.ui.pages.common import AdaptiveRow, Section
 
-class OutputPreview(QGroupBox):
+
+class OutputPreview(Section):
     content_changed = Signal()
     use_as_input_requested = Signal()
     swap_requested = Signal()
@@ -23,11 +22,14 @@ class OutputPreview(QGroupBox):
         super().__init__()
         self._busy = False
         self.setObjectName("OutputPreview")
+        self.setProperty("card", True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.editor = QPlainTextEdit()
         self.editor.setTabChangesFocus(True)
         self.editor.setReadOnly(True)
         self.editor.setMinimumHeight(90)
-        self.editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        self.editor.setMaximumHeight(90)
+        self.editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.copy_button = QPushButton(copy_label)
         self.clear_button = QPushButton(clear_label)
         self.use_as_input_button = QPushButton(use_as_input_label)
@@ -36,16 +38,14 @@ class OutputPreview(QGroupBox):
         self.clear_button.clicked.connect(self.clear)
         self.use_as_input_button.clicked.connect(self._use_as_input)
         self.editor.textChanged.connect(self._sync_actions)
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        actions.addWidget(self.copy_button)
-        actions.addWidget(self.clear_button)
-        actions.addWidget(self.use_as_input_button)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
+        self.clear_button.setProperty("quiet", True)
+        self.use_as_input_button.setProperty("quiet", True)
+        actions = AdaptiveRow(self.copy_button, self.use_as_input_button, self.clear_button)
+        layout = self.outer
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
         layout.addWidget(self.editor)
-        layout.addLayout(actions)
+        layout.addWidget(actions)
         self.set_texts(copy_label, clear_label, use_as_input_label)
         self._sync_actions()
 

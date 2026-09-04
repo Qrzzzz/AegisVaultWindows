@@ -27,11 +27,16 @@ from aegisvault.settings.models import AppSettings
 from aegisvault.ui.components.file_picker import FilePicker
 from aegisvault.ui.components.inline_alert import InlineAlert
 from aegisvault.ui.components.mode_combo import ModeCombo
+from aegisvault.ui.components.mode_switch import ModeSwitch
 from aegisvault.ui.components.output_preview import OutputPreview
 from aegisvault.ui.components.result_summary import ResultSummary
 from aegisvault.ui.components.task_progress import TaskProgress
 from aegisvault.ui.controllers.task_controller import TaskController
 from aegisvault.ui.pages.common import (
+    AdaptiveRow,
+    PageHeader,
+    WorkspacePage,
+    action_row,
     form_group,
     format_size,
     input_group,
@@ -42,7 +47,7 @@ from aegisvault.ui.pages.common import (
 )
 
 
-class Base64Page(QWidget):
+class Base64Page(WorkspacePage):
     error = Signal(object, str)
     status_message = Signal(str, int)
     reveal_requested = Signal(object)
@@ -69,7 +74,7 @@ class Base64Page(QWidget):
             self.i18n.t("access.input_kind"),
         )
         self.kind.changed.connect(self._on_kind_changed)
-        self.mode = ModeCombo(
+        self.mode = ModeSwitch(
             [(self.i18n.t("action.encode"), "encode"), (self.i18n.t("action.decode"), "decode")],
             "encode",
             self.i18n.t("access.operation_mode"),
@@ -78,13 +83,12 @@ class Base64Page(QWidget):
         self.mode.changed.connect(self._on_mode_changed)
         self.kind_label = QLabel()
         self.kind_label.setBuddy(self.kind)
-        self.mode_label = QLabel()
-        self.mode_label.setBuddy(self.mode)
 
         self.input = QPlainTextEdit()
         self.input.setTabChangesFocus(True)
         self.input.setMinimumHeight(90)
-        self.input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        self.input.setMaximumHeight(210)
+        self.input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.relaxed_decode = QCheckBox()
         self.text_input = QWidget()
         text_layout = QVBoxLayout(self.text_input)
@@ -96,10 +100,12 @@ class Base64Page(QWidget):
         self.picker.file_selected.connect(self.set_file)
         self.output_dir = QLineEdit()
         self.output_dir.setReadOnly(True)
+        self.output_dir.setProperty("outputPath", True)
         self.output_dir_label = QLabel()
         self.output_dir_label.setBuddy(self.output_dir)
         self.output_preview = QLineEdit()
         self.output_preview.setReadOnly(True)
+        self.output_preview.setProperty("outputPath", True)
         self.output_preview_label = QLabel()
         self.output_preview_label.setBuddy(self.output_preview)
         self.overwrite_warning = QLabel()
@@ -119,21 +125,24 @@ class Base64Page(QWidget):
 
         self.input_scroll, layout = scroll_page()
         self.outer = outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(12)
+        outer.setContentsMargins(32, 24, 32, 24)
+        outer.setSpacing(20)
         outer.addWidget(self.input_scroll, 1)
-        choices = QHBoxLayout()
+        self.header = PageHeader()
+        layout.addWidget(self.header)
+        input_kind = QWidget()
+        choices = QHBoxLayout(input_kind)
+        choices.setContentsMargins(0, 0, 0, 0)
+        choices.addStretch(1)
         choices.addWidget(self.kind_label)
         choices.addWidget(self.kind)
-        choices.addSpacing(12)
-        choices.addWidget(self.mode_label)
-        choices.addWidget(self.mode)
-        choices.addStretch(1)
-        layout.addLayout(choices)
+        layout.addWidget(AdaptiveRow(self.mode, input_kind))
         self.note = QLabel()
+        self.note.setProperty("muted", True)
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
         self.input_group = input_group(self.text_input)
+        self.input_group.title.setBuddy(self.input)
         self.file_group = input_group(self.picker)
         layout.addWidget(self.input_group, 1)
         layout.addWidget(self.file_group)
@@ -142,11 +151,7 @@ class Base64Page(QWidget):
         self.output_form.addRow(self.output_preview_label, self.output_preview)
         self.output_form.addRow(self.overwrite_warning)
         layout.addWidget(self.output_group)
-        actions = QHBoxLayout()
-        actions.addWidget(self.clear_button)
-        actions.addStretch(1)
-        actions.addWidget(self.run_button)
-        outer.addLayout(actions)
+        outer.addLayout(action_row(self.run_button, self.clear_button))
         outer.addWidget(self.progress)
         outer.addWidget(self.alert)
         self.result_scroll = result_area(self.output, self.result)
@@ -180,6 +185,7 @@ class Base64Page(QWidget):
             self._render_file_result(self._last_result)
 
     def retranslate_ui(self) -> None:
+        self.header.set_texts(self.i18n.t("base64.title"), self.i18n.t("base64.description"))
         self.kind.set_labels(
             [(self.i18n.t("base64.kind.text"), "text"), (self.i18n.t("base64.kind.file"), "file")],
             self.i18n.t("access.input_kind"),
@@ -190,8 +196,8 @@ class Base64Page(QWidget):
         )
         self.note.setText(self.i18n.t("base64.warning_short"))
         self.input_group.setTitle(self.i18n.t("flow.input"))
-        self.file_group.setTitle(self.i18n.t("flow.input"))
-        self.output_group.setTitle(self.i18n.t("field.output"))
+        self.file_group.setTitle("")
+        self.output_group.setTitle("")
         self.output.setTitle(self.i18n.t("flow.result"))
         self.result.setTitle(self.i18n.t("flow.result"))
         self.output_dir_label.setText(self.i18n.t("field.output_dir"))
@@ -200,7 +206,6 @@ class Base64Page(QWidget):
         self.output_preview.setAccessibleName(self.output_preview_label.text())
         self.overwrite_warning.setText(self.i18n.t("warning.overwrite_enabled"))
         self.kind_label.setText(self.i18n.t("base64.input_kind"))
-        self.mode_label.setText(self.i18n.t("base64.operation"))
         self.input.setPlaceholderText(self.i18n.t("base64.input.placeholder"))
         self.input.setAccessibleName(self.i18n.t("access.base64_text_input"))
         self.relaxed_decode.setText(self.i18n.t("base64.relaxed_decode"))
@@ -411,22 +416,24 @@ class Base64Page(QWidget):
         self.output_group.setVisible(not is_text)
         self.text_input.setVisible(is_text)
         self.picker.setVisible(not is_text)
-        self.file_spacer.setVisible(not is_text)
+        self.file_spacer.setVisible(True)
         self.output.setVisible(is_text and bool(self.output.text()))
         self.result.setVisible(not is_text and bool(self.result.label.text()))
         self._sync_result_area()
-        self.outer.setStretchFactor(self.input_scroll, 1 if is_text else 0)
-        self.outer.setStretchFactor(self.result_scroll, 1 if is_text else 0)
+        self.outer.setStretchFactor(self.input_scroll, 0)
+        self.outer.setStretchFactor(self.result_scroll, 0)
         self.relaxed_decode.setVisible(is_text and self.mode.current == "decode")
         self._on_mode_changed(self.mode.current)
 
     def _sync_result_area(self) -> None:
         is_text = self.kind.current == "text"
         self.result_scroll.setVisible(bool(self.output.text()) if is_text else bool(self.result.label.text()))
+        self.update_editor_height()
 
     def _on_mode_changed(self, value: str) -> None:
         is_encode = value == "encode"
         is_file = self.kind.current == "file"
+        self.input_group.setTitle(self.i18n.t("modern.input.base64" if not is_encode else "modern.input.encode"))
         key = (
             "action.encode_file"
             if is_file and is_encode

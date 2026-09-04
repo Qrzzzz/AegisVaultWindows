@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QTabWidget
+from PySide6.QtWidgets import QApplication, QStackedWidget
 
 from aegisvault.i18n.translator import Translator
 from aegisvault.settings.models import AppSettings
@@ -26,10 +26,10 @@ def test_main_window_has_only_three_primary_workspaces(tmp_path: Path) -> None:
     app, window, _settings = _window(tmp_path)
     window.show()
     app.processEvents()
-    assert isinstance(window.centralWidget(), QTabWidget)
+    assert isinstance(window.tabs, QStackedWidget)
     assert window.tabs.count() == 3
     for index in range(3):
-        QTest.mouseClick(window.tabs.tabBar(), Qt.MouseButton.LeftButton, pos=window.tabs.tabBar().tabRect(index).center())
+        QTest.mouseClick(window.nav_buttons[index], Qt.MouseButton.LeftButton)
         app.processEvents()
         assert window.tabs.currentIndex() == index
 
@@ -58,7 +58,7 @@ def test_settings_apply_in_place_without_losing_workspace_state(tmp_path: Path) 
     assert window.text_page.input.toPlainText() == "keep this input"
     assert window.text_page.output.text() == "keep this result"
     assert window.tabs.currentIndex() == 1
-    assert window.tabs.tabText(0) == "Text"
+    assert window.nav_buttons[0].text() == "Text"
     assert not window.styleSheet()
     window.close()
     app.processEvents()
