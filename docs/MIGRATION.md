@@ -1,40 +1,22 @@
-# Migration Notes
+# Format Support In 1.0.0
 
-AegisVault 1.0.0 can recover supported data from the legacy AES Encryption System v2.0 script. The legacy script is archived at `docs/legacy/legacy_aes_v2.py` for reference only.
+AegisVault 1.0.0 supports AGV1 encryption and decryption only. All legacy decryption and recovery functionality has been removed.
 
-## Legacy Format Detection
+## Supported
 
-AegisVault can recover:
+- Text tokens beginning with `AGV1.` and containing a valid authenticated AGV1 envelope.
+- File containers beginning with the binary `AGVFILE\x01` magic, normally named with the `.agv` suffix.
 
-- Legacy text: `Base64(nonce + ciphertext)`.
-- Legacy files: raw `nonce + ciphertext`.
-- AK wrappers: `AK#key#ciphertext`, only when AK compatibility is enabled in Settings.
+Existing data in these AGV1 formats remains supported. The encryption format has not been changed by the UI simplification.
 
-Modern text starts with `AGV1.`. Modern files start with the binary `AGVFILE` magic and usually use the `.agv` suffix.
+## Not Supported
 
-## How To Migrate
+- Legacy AES text stored as `Base64(nonce + ciphertext)`.
+- Legacy AES files stored as raw `nonce + ciphertext`.
+- `AK#key#ciphertext` wrappers.
 
-1. Open the legacy ciphertext or file in AegisVault.
-2. Enter the original password.
-3. If the data uses `AK#key#ciphertext`, enable AK compatibility in Settings only for this migration.
-4. Decrypt the data. For a legacy file, ordinary decryption stops first and
-   displays a migration-only recovery confirmation; review the file path and
-   risk notice, then explicitly choose **Recover legacy file** to continue.
-5. Re-encrypt the recovered plaintext/file with the modern AGV1 workflow.
-6. Turn AK compatibility off again.
+There is no compatibility switch, recovery dialog, hidden fallback or supported recovery API. Settings saved by an older application cannot restore the removed feature. Unsupported ciphertext is rejected without writing a decrypted file.
 
-Declining the legacy-file confirmation does not invoke the compatibility
-decryptor and does not write an output file. Modern `AGVFILE` containers never
-use the legacy recovery path.
+Changing an extension or adding an `AGV1.` prefix does not convert old data into AGV1. Keep original files and backups intact; this version does not offer in-app migration. The archived legacy application is no longer present in the current source tree. Git history and already-published historical releases remain unchanged.
 
-## Why Re-Encrypt
-
-Legacy encryption used `sha256(password)` directly as the AES key and did not store KDF parameters. Modern AegisVault uses per-message salt, scrypt and a documented authenticated envelope.
-
-## Why AK Is Dangerous
-
-AK wrappers store the key next to the ciphertext. Anyone who receives the wrapper has everything needed to decrypt it. AK mode is not secure encryption; it only exists to avoid stranding old data.
-
-## Large Legacy Files
-
-Legacy file recovery is guarded by a size threshold. The old raw format cannot be safely authenticated in true streaming mode with the high-level legacy API, so very large files need a staged recovery plan.
+Base64 tools still encode and decode text or bytes. Base64 is not encryption and never triggers legacy decryption.

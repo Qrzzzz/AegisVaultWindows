@@ -1,6 +1,6 @@
 # AegisVault
 
-AegisVault 1.0.0 is a local Windows desktop utility for encrypting text and files. It also includes Base64 encode/decode workflows and recovery-only support for selected legacy encrypted data.
+AegisVault 1.0.0 is a local Windows desktop utility for encrypting text and files in the AGV1 format. It also includes Base64 encode/decode workflows. Old AES and AK formats are not supported.
 
 The app is offline and local-first. It does not add accounts, cloud sync, telemetry, network features or enterprise key management.
 
@@ -26,9 +26,8 @@ The repository's `release/` directory contains historical binaries and is not th
 - File encryption and decryption with chunked `.agv` containers.
 - AES-256-GCM encryption with scrypt password-based key derivation for new data.
 - Base64 text and file encode/decode. Base64 is encoding, not encryption.
-- Fixed basic light Qt UI, with settings for language, output directory, overwrite behavior, recent files and migration-only compatibility.
-- Legacy text/file recovery for supported old data.
-- AK wrapper parsing disabled by default because AK wrappers embed key material.
+- Fixed basic light Qt UI, with settings for language, output directory, overwrite behavior and recent files.
+- AGV1-only decryption; no legacy recovery, AK parsing or compatibility switch.
 - Atomic output writes for file workflows.
 
 ## Security Model
@@ -106,13 +105,13 @@ $env:AEGISVAULT_HEADLESS_SMOKE="1"; .\.venv\Scripts\python.exe -m aegisvault
 
 ```text
 src/aegisvault/
-  core/       cryptography, KDF, protocol, legacy compatibility, low-level file primitives
+  core/       AGV1 cryptography, KDF, protocol, low-level file primitives
   services/   workflow facade, output naming, recent files
   settings/   persistent settings
   ui/         PySide6 pages, dialogs, components and task controller
   resources/  icon and legacy packaged QSS (not loaded by the UI)
 scripts/      build and release verification scripts
-docs/         security, protocol, migration, QA and release notes
+docs/         security, protocol, format support, QA and release notes
 tests/        unit, integration, source-health and release-consistency tests
 ```
 

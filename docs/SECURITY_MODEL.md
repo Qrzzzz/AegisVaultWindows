@@ -22,9 +22,9 @@ Encrypted file contents are protected. Filenames, output paths, timestamps, file
 
 AegisVault is a local utility, not an endpoint security product. If the machine is already compromised, attackers may capture plaintext, passwords, screenshots or clipboard data before encryption or after decryption.
 
-## Legacy Formats
+## Unsupported Formats
 
-Legacy formats are migration-only. They use weaker key derivation and should be re-encrypted into the modern AGV1 format immediately after recovery. AK wrappers are disabled by default because they place key material next to ciphertext.
+Legacy AES text/files and AK wrappers are not supported. Version 1.0.0 removes their key derivation, decryption code, recovery interface and compatibility settings. Non-AGV1 data cannot be decrypted by this application; changing a filename extension does not convert its format. Base64 tools do not perform decryption.
 
 ## Temporary Files
 

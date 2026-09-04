@@ -24,11 +24,11 @@ AegisVault does not protect against:
 - weak, reused or leaked passwords,
 - users losing the password.
 
-## Legacy Risk
+## Supported Encryption Formats
 
-Legacy formats are recovery-only. The old app derived AES keys with `sha256(password)` directly, which is weaker than the current scrypt KDF.
+AegisVault 1.0.0 decrypts only AGV1 text and file containers. Legacy AES text/files and `AK#key#ciphertext` wrappers are rejected. There is no recovery API, weak legacy password derivation, or setting that enables old-format decryption.
 
-The `AK#key#ciphertext` wrapper is especially risky because the decryption key is embedded in the ciphertext. AegisVault keeps AK parsing disabled by default and labels it as migration-only compatibility.
+An old settings file cannot re-enable removed functionality. Base64 decoding remains an encoding operation and never invokes a decryptor. Historical releases are not covered by this format-support statement.
 
 ## Automated Security Evidence
 
