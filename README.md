@@ -55,20 +55,20 @@ python -m venv .venv
 ## Run
 
 ```powershell
-python -m aegisvault
+.\.venv\Scripts\python.exe -m aegisvault
 ```
 
 The package also installs the console script:
 
 ```powershell
-aegisvault
+.\.venv\Scripts\aegisvault.exe
 ```
 
 For CI/headless smoke tests:
 
 ```powershell
 $env:AEGISVAULT_HEADLESS_SMOKE="1"
-python -m aegisvault
+.\.venv\Scripts\python.exe -m aegisvault
 ```
 
 ## Build A Windows Release
@@ -88,11 +88,11 @@ The ZIP contains `AegisVault.exe`.
 ## Quality Checks
 
 ```powershell
-python -m compileall src tests
-ruff check .
-mypy src
-pytest -vv --cov=aegisvault --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
-$env:AEGISVAULT_HEADLESS_SMOKE="1"; python -m aegisvault
+.\.venv\Scripts\python.exe -m compileall src tests
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m pytest -vv --cov=aegisvault --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
+$env:AEGISVAULT_HEADLESS_SMOKE="1"; .\.venv\Scripts\python.exe -m aegisvault
 .\scripts\verify_release.ps1 -Build -Zip
 ```
 
