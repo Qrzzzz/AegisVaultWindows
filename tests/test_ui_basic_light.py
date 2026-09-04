@@ -180,7 +180,7 @@ def test_idle_running_result_error_and_cancel_visibility(tmp_path: Path) -> None
 
 
 @pytest.mark.parametrize("language", ["zh-CN", "en-US"])
-@pytest.mark.parametrize("size", [(900, 680), (640, 480)])
+@pytest.mark.parametrize("size", [(900, 680), (640, 480), (600, 440)])
 def test_key_controls_reachable_at_normal_and_small_sizes(tmp_path: Path, language: str, size: tuple[int, int]) -> None:
     app, window = _window(tmp_path, language)
     window.resize(*size)
