@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ctypes
 import importlib.util
+import json
 import os
 import sys
 import time
@@ -88,3 +89,34 @@ def test_stderr_flood_and_early_exit_report_failure_without_pipe_deadlock(smoke,
     with pytest.raises(RuntimeError, match="closed stdout during hello"):
         smoke(command, str(tmp_path), "2.1", request_timeout=5, shutdown_timeout=1)
     assert "synthetic stderr" in capsys.readouterr().err
+
+
+def test_smoke_waits_for_exit_and_starts_each_operation_in_a_fresh_process(smoke, tmp_path: Path) -> None:
+    # Keep the real backend worker alive briefly after emitting its terminal
+    # event. Reusing that process must deterministically receive ipc.busy.
+    launcher = tmp_path / "slow_terminal_backend.py"
+    launcher.write_text(
+        "import json, os, sys, time\n"
+        f"sys.path.insert(0, {str(SCRIPTS.parent / 'src')!r})\n"
+        "from aegisvault.backend.server import BackendServer\n"
+        "class SlowTerminalBackend(BackendServer):\n"
+        "    def dispatch(self, op, args, progress):\n"
+        "        with open('operations.jsonl', 'a') as trace:\n"
+        "            trace.write(json.dumps({'pid': os.getpid(), 'op': op}) + '\\n')\n"
+        "        return super().dispatch(op, args, progress)\n"
+        "    def emit(self, request_id, kind, **payload):\n"
+        "        super().emit(request_id, kind, **payload)\n"
+        "        if kind == 'result':\n"
+        "            time.sleep(0.2)\n"
+        "raise SystemExit(SlowTerminalBackend(sys.stdin.buffer, sys.stdout.buffer).run())\n",
+        encoding="utf-8",
+    )
+    from aegisvault.version import DISPLAY_VERSION
+
+    smoke([sys.executable, "-I", str(launcher)], str(tmp_path), DISPLAY_VERSION,
+          request_timeout=5, shutdown_timeout=3)
+    operations = [json.loads(line) for line in (tmp_path / "operations.jsonl").read_text().splitlines()]
+    assert [entry["op"] for entry in operations] == [
+        "hello", "text.encrypt", "text.decrypt", "file.encrypt", "file.decrypt", "base64.decode_text"
+    ]
+    assert len({entry["pid"] for entry in operations}) == 6

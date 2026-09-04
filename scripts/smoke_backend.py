@@ -43,8 +43,8 @@ def _stop_backend(process: subprocess.Popen, reader: threading.Thread, timeout: 
         process.stdout.close()
 
 
-def smoke_backend(command: list[str], directory: str, expected_version: str, *,
-                  request_timeout: float = 30, shutdown_timeout: float = 15) -> None:
+def _call_backend(command: list[str], directory: str, op: str, data: dict | None, *,
+                  request_timeout: float, shutdown_timeout: float) -> dict:
     environment = os.environ | {"LOCALAPPDATA": directory, "APPDATA": directory,
                                     "PATH": os.path.join(os.environ["SYSTEMROOT"], "System32"), "PYTHONUTF8": "1"}
     environment.pop("PYTHONPATH", None)
@@ -66,7 +66,7 @@ def smoke_backend(command: list[str], directory: str, expected_version: str, *,
         reader = threading.Thread(target=read_output, daemon=True)
         reader.start()
 
-        def call(op: str, data: dict | None = None) -> dict:
+        def request_result() -> dict:
             assert process.stdin
             print(f"Packaged backend smoke: {op}", flush=True)
             process.stdin.write((json.dumps({"v": 1, "id": "smoke", "op": op, "args": data or {}}) + "\n").encode())
@@ -90,18 +90,10 @@ def smoke_backend(command: list[str], directory: str, expected_version: str, *,
                 return result["result"]
 
         try:
-            assert call("hello")["version"] == expected_version
-            encrypted = call("text.encrypt", {"text": "WinUI 验收 🔐", "password": "smoke-password"})
-            decrypted = call("text.decrypt", {"text": encrypted["ciphertext"], "password": "smoke-password"})
-            assert decrypted["plaintext"] == "WinUI 验收 🔐"
-            source = Path(directory) / "input.bin"
-            source.write_bytes(bytes(range(256)) * 1024)
-            result = call("file.encrypt", {"input_path": str(source), "password": "smoke-password"})
-            output = call("file.decrypt", {"input_path": result["output_path"], "password": "smoke-password"})
-            assert Path(output["output_path"]).read_bytes() == source.read_bytes()
-            assert call("base64.decode_text", {"text": "aGVsbG8="})["text"] == "hello"
+            result = request_result()
             process.stdin.close()
             assert process.wait(timeout=shutdown_timeout) == 0
+            return result
         except BaseException as exc:
             print(f"Packaged backend smoke failed: {exc}", file=sys.stderr, flush=True)
             errors.seek(0)
@@ -111,6 +103,26 @@ def smoke_backend(command: list[str], directory: str, expected_version: str, *,
             raise
         finally:
             _stop_backend(process, reader, shutdown_timeout)
+
+
+def smoke_backend(command: list[str], directory: str, expected_version: str, *,
+                  request_timeout: float = 30, shutdown_timeout: float = 15) -> None:
+    # Match BackendClient: one operation per process, and await shutdown before
+    # the next call. A terminal event can precede the worker thread's exit.
+    def call(op: str, data: dict | None = None) -> dict:
+        return _call_backend(command, directory, op, data,
+                             request_timeout=request_timeout, shutdown_timeout=shutdown_timeout)
+
+    assert call("hello")["version"] == expected_version
+    encrypted = call("text.encrypt", {"text": "WinUI 验收 🔐", "password": "smoke-password"})
+    decrypted = call("text.decrypt", {"text": encrypted["ciphertext"], "password": "smoke-password"})
+    assert decrypted["plaintext"] == "WinUI 验收 🔐"
+    source = Path(directory) / "input.bin"
+    source.write_bytes(bytes(range(256)) * 1024)
+    result = call("file.encrypt", {"input_path": str(source), "password": "smoke-password"})
+    output = call("file.decrypt", {"input_path": result["output_path"], "password": "smoke-password"})
+    assert Path(output["output_path"]).read_bytes() == source.read_bytes()
+    assert call("base64.decode_text", {"text": "aGVsbG8="})["text"] == "hello"
 
 
 def main() -> int:

@@ -40,6 +40,12 @@ failed writes, cancelled waits, exceptions and killed owners.
 - Remote CI, clean commit/tag binding, signing and attestations are separate release gates; local test results do not establish their outcomes.
 - Final process check: no test Python/backend/frontend/harness processes associated with this worktree remain. Test filesystem: Windows NTFS.
 
+The first PR package run exposed a smoke-harness mismatch: it sent a second request in the same process
+immediately after a terminal event, while the real client uses a new process per operation. A deterministic
+regression held the real backend worker briefly after its terminal event and reproduced `ipc.busy`.
+The smoke now starts one process per call and awaits its exit, retaining deadlines and process-tree
+cleanup. This release-tooling correction does not change the backend IPC lifecycle reserved for 2.3.
+
 The measured commands below all exited 0. Set `VIRTUAL_ENV` to the existing Python 3.13.14 environment
 or an equivalent hash-locked environment; paths below are normalized for reproduction from this checkout.
 
