@@ -144,6 +144,33 @@ internal static class Program
             Set("SettingsOutputFolder", profile);
             var settingsPath = Path.Combine(profile, "AegisVault", "settings.json");
             var oldSettings = File.ReadAllBytes(settingsPath);
+            var transactionLockPath = Path.Combine(profile, "AegisVault", ".settings.json.lock");
+            using (var transactionLock = File.Open(transactionLockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
+            {
+                transactionLock.Lock(0, 1);
+                try
+                {
+                    var wait = Stopwatch.StartNew();
+                    Invoke("SaveSettings");
+                    WaitMessage("SettingsStatus", labels["error.settings.lock_timeout"]);
+                    if (wait.Elapsed < TimeSpan.FromSeconds(4.5) || wait.Elapsed > TimeSpan.FromSeconds(12))
+                        throw new Exception("Settings transaction timeout was not bounded");
+                    if (!File.ReadAllBytes(settingsPath).SequenceEqual(oldSettings)) throw new Exception("Timed-out save changed settings");
+                    WaitText("SettingsOutputFolder", value => value == profile);
+                    if (Find("NavText")!.Current.Name != labels["text"]) throw new Exception("Timed-out save applied language");
+                    Capture($"settings-lock-timeout-{theme}-{language}.png");
+                }
+                finally { transactionLock.Unlock(0, 1); }
+            }
+            using (var unavailableLock = File.Open(transactionLockPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                Invoke("SaveSettings");
+                WaitMessage("SettingsStatus", labels["error.settings.lock_failed"]);
+                if (!File.ReadAllBytes(settingsPath).SequenceEqual(oldSettings)) throw new Exception("Lock failure changed settings");
+                WaitText("SettingsOutputFolder", value => value == profile);
+                Capture($"settings-lock-failure-{theme}-{language}.png");
+            }
+            Console.WriteLine("PASS: localized transaction timeout and lock-open failure, unchanged persistence and retained draft");
             using (var lockedSettings = File.Open(settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 Invoke("SaveSettings");

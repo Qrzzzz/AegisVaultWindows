@@ -48,3 +48,32 @@ Base64 semantics are the existing Core semantics: strict decoding rejects whites
 may ignore ASCII whitespace when requested. Invalid alphabet, padding and non-UTF-8 decoded text still fail.
 Configuration persists independently of the UI. The compatibility-only `show_advanced_options` field is
 preserved in settings even though WinUI uses a native Expander for advanced options.
+
+## Settings transactions in 2.2
+
+`settings.update`, `recent.add` and `recent.clear` acquire one process-shared OS file lock before loading
+the settings used for the change, then validate and atomically save before releasing it. Read-only loads
+and text/file/Base64 work do not acquire this lock. The lock acquisition retry loop has a five-second
+deadline and observes the operation's cancellation token. Expiry returns `settings.lock_timeout`;
+failure to open or acquire a usable lock returns `settings.lock_failed`. No settings are saved in either
+case. Cancellation before saving returns `operation.cancelled`; an already committed change can succeed.
+
+The lock uses the persistent empty `.settings.json.lock` sibling, separately from the atomically replaced
+JSON file. Ownership resides in an open OS handle; closing the handle or exiting the process releases it.
+The sidecar must not be deleted while instances may be running. Only cooperating writers are serialized;
+older versions and external editors can still overwrite settings. Low-level `SettingsStore.save` replaces
+an explicit snapshot atomically; product read-modify-write callers must use `SettingsStore.update`.
+
+The backend applies supplied `settings.update` fields to the latest persisted snapshot. The current
+WinUI `SettingsService.SaveAsync` sends `language`, `theme`, `default_output_dir`, `overwrite_outputs`,
+`remember_recent_files` and `show_advanced_options` on every save. Two windows explicitly submitting old
+drafts therefore still use last-writer-wins for those fields. Server transaction isolation does not
+constitute client draft conflict detection.
+
+Malformed configuration falls back to defaults, including JSON integers rejected by Python's digit
+limit. Subsequent `settings.update` can persist a valid replacement; loading alone does not rewrite the
+damaged file. Model conversion is outside the JSON parser's exception-recovery boundary.
+
+Base64 file reads bind size and metadata to the opened source handle. Actual bytes read and final handle
+metadata are checked before publication; detectable changes return `file.input_changed` and discard
+temporary output. Metadata checks are not a strict snapshot against every concurrent edit.

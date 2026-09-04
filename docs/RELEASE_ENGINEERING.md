@@ -1,4 +1,8 @@
-# Release engineering — 2.1
+# Release engineering — 2.2
+
+Version 2.2 local evidence and unrun manual checks are recorded in [ACCEPTANCE_2.2.md](ACCEPTANCE_2.2.md).
+The maintainer authorized publication after reviewing this local candidate; remote quality/security
+checks and the tag-bound build, attestation and publication gates remain required.
 
 The authoritative product version is `src/aegisvault/version.py`. Metadata validation checks two-component
 `X.Y` / `vX.Y`, Python packaging, WinUI project/assembly versions and matching release notes. Windows binary

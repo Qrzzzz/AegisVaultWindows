@@ -36,6 +36,8 @@
   "error.settings.invalid_type": "一项或多项设置的数据类型无效。",
   "error.settings.invalid_value": "一项或多项设置包含不受支持的值。",
   "error.settings.too_large": "设置数据超过安全存储上限。",
+  "error.settings.lock_timeout": "另一项操作正在更新设置，请稍后重试。",
+  "error.settings.lock_failed": "无法锁定设置以进行保存，请检查设置目录的访问权限。",
   "text": "文本",
   "file": "文件",
   "settings": "设置",

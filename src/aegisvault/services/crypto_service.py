@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from aegisvault.core import base64_tools
@@ -11,6 +12,7 @@ from aegisvault.core.exceptions import (
     OperationCancelled,
     ValidationError,
 )
+from aegisvault.core.file_io import ensure_input_unchanged
 from aegisvault.core.models import (
     CancelToken,
     FileProcessResult,
@@ -26,7 +28,6 @@ from aegisvault.services.file_io import (
     decrypted_output_path,
     encrypted_output_path,
     ensure_input_file,
-    file_size,
 )
 from aegisvault.settings.models import AppSettings
 
@@ -109,10 +110,11 @@ class CryptoService:
         input_path = ensure_input_file(input_path)
         out_dir = self._output_dir(output_dir)
         output_path = base64_encoded_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
-        original_size = file_size(input_path)
         processed = 0
-        self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
         with input_path.open("rb") as source, atomic_binary_writer(output_path, overwrite=self.settings.overwrite_outputs) as target:
+            initial = os.fstat(source.fileno())
+            original_size = initial.st_size
+            self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
             remainder = b""
             while True:
                 self._check_cancel(cancel_token)
@@ -133,12 +135,14 @@ class CryptoService:
                     processed_bytes=processed,
                     total_bytes=original_size,
                 )
+            ensure_input_unchanged(source, initial, processed)
             if remainder:
                 target.write(base64_tools.encode_bytes(remainder))
             self._check_cancel(cancel_token)
             self._emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
             self._check_cancel(cancel_token)
             output_size = target.tell()
+            ensure_input_unchanged(source, initial, processed)
         return FileProcessResult(input_path, output_path, original_size, output_size, "base64")
 
     def base64_decode_file(
@@ -152,10 +156,11 @@ class CryptoService:
         input_path = ensure_input_file(input_path)
         out_dir = self._output_dir(output_dir)
         output_path = base64_decoded_output_path(input_path, out_dir, overwrite=self.settings.overwrite_outputs)
-        original_size = file_size(input_path)
         processed = 0
-        self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
         with input_path.open("rb") as source, atomic_binary_writer(output_path, overwrite=self.settings.overwrite_outputs) as target:
+            initial = os.fstat(source.fileno())
+            original_size = initial.st_size
+            self._emit(progress, 0.02, "preparing", input_path.name, processed_bytes=0, total_bytes=original_size)
             decoder = base64_tools.Base64StreamDecoder(strict=False, ignore_ascii_whitespace=True)
             while True:
                 self._check_cancel(cancel_token)
@@ -174,6 +179,7 @@ class CryptoService:
                     processed_bytes=processed,
                     total_bytes=original_size,
                 )
+            ensure_input_unchanged(source, initial, processed)
             final = decoder.finalize()
             if final:
                 target.write(final)
@@ -181,6 +187,7 @@ class CryptoService:
             self._emit(progress, 1.0, "done", output_path.name, processed_bytes=original_size, total_bytes=original_size)
             self._check_cancel(cancel_token)
             output_size = target.tell()
+            ensure_input_unchanged(source, initial, processed)
         return FileProcessResult(input_path, output_path, original_size, output_size, "base64")
 
     def _output_dir(self, override: Path | None = None) -> Path | None:

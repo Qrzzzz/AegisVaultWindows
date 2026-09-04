@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2 - 2026-09-05
+
+- Reject detectable Base64 input changes using opened-handle metadata and actual bytes read; roll back incomplete encoding and decoding output (#9).
+- Recover settings containing overlong JSON integers at the parsing boundary without relaxing Python's integer safety limit (#10).
+- Serialize settings updates and recent-history changes across cooperating processes for the complete read-modify-save transaction; bound lock waits to five seconds, support cancellation and release locks on process exit (#11).
+- Add Chinese/English lock error messages and deterministic file, backend-process and settings-transaction regressions. Preserve AGV1, configuration fields and existing WinUI draft behavior.
+- Local validation and its remaining manual-test limits are recorded in `docs/ACCEPTANCE_2.2.md`; release artifacts are rebuilt and verified by the tag-bound Release workflow.
+
 ## 2.1 - 2026-09-04
 
 - Keep workflow actions and feedback visible while input and results scroll; align native page headings and forms.

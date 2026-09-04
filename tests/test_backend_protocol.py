@@ -21,7 +21,9 @@ class Client:
     def __init__(self, root: Path) -> None:
         environment = os.environ | {"LOCALAPPDATA": str(root), "APPDATA": str(root), "PYTHONUTF8": "1",
                                     "PYTHONPATH": str(Path("src").resolve())}
-        self.process = subprocess.Popen([sys.executable, "-m", "aegisvault.backend"], stdin=subprocess.PIPE,
+        source = Path(__file__).resolve().parents[1] / "src"
+        bootstrap = f"import sys; sys.path.insert(0, {str(source)!r}); from aegisvault.backend.server import main; raise SystemExit(main())"
+        self.process = subprocess.Popen([sys.executable, "-I", "-c", bootstrap], stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
         self.lines: queue.Queue[bytes] = queue.Queue()
         self.reader = threading.Thread(target=self._read, daemon=True)
