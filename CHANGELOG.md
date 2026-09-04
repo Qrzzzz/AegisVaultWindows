@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-09-04
+
+- Rebuilt the three workspaces as native Windows forms with aligned input, options and result groups.
+- Kept the operation between parameters and results, with scrolling content and reachable actions at 600 x 440.
+- Preserved the Windows platform light palette instead of replacing it with the generic QStyle palette.
+- Added selectable output paths, explicit Tab order and a Base64 file overwrite warning.
+- Preserved AGV1, KDF, atomic output protection, cancellation, bilingual settings and previous results.
+- Retained PySide6 6.9.3 and the existing dependency locks.
+
 ## 1.0.0 - 2026-09-04
 
 - Promoted AegisVault to a stable public `1.0.0` release line with matching package, runtime, display, documentation, script and artifact versions.

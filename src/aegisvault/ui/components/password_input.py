@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QWidget
 
 
 class PasswordInput(QWidget):
@@ -19,11 +19,16 @@ class PasswordInput(QWidget):
         self.toggle.clicked.connect(self._toggle)
         self.label = QLabel(label)
         self.label.setBuddy(self.edit)
-        layout = QHBoxLayout(self)
+        self.row = layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.label)
         layout.addWidget(self.edit, 1)
         layout.addWidget(self.toggle)
+
+    def add_to_form(self, form: QFormLayout) -> None:
+        """Let the shared form align labels without imposing a fixed width."""
+        self.row.removeWidget(self.label)
+        form.addRow(self.label, self)
 
     def text(self) -> str:
         return self.edit.text()

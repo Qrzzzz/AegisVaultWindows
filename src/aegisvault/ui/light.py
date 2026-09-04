@@ -13,9 +13,11 @@ def ensure_light_appearance() -> None:
         return
     # Qt 6.9 supports explicitly overriding the platform's requested scheme.
     app.styleHints().setColorScheme(Qt.ColorScheme.Light)
-    palette = app.style().standardPalette()
-    # Some platform/offscreen styles keep a dark standard palette. Override
-    # only semantic colours; keep native metrics, focus rings and system fonts.
+    # The Windows platform supplies the light palette after the scheme request.
+    # QStyle.standardPalette() is a generic fallback (Qt 6.9 windows11 returns
+    # the classic #d4d0c8 background), not the current Windows system palette.
+    palette = app.palette()
+    # Only a platform that did not honour Light needs the semantic fallback.
     if palette.color(QPalette.ColorRole.Window).lightness() < 128:
         for role, color in (
             (QPalette.ColorRole.Window, "#f0f0f0"),
@@ -34,5 +36,4 @@ def ensure_light_appearance() -> None:
             palette.setColor(role, QColor(color))
         for role in (QPalette.ColorRole.Text, QPalette.ColorRole.WindowText, QPalette.ColorRole.ButtonText):
             palette.setColor(QPalette.ColorGroup.Disabled, role, QColor("#777777"))
-    if app.palette() != palette:
         app.setPalette(palette)

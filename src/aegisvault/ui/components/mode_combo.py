@@ -11,6 +11,9 @@ class ModeCombo(QComboBox):
 
     def __init__(self, options: list[tuple[str, str]], current: str, accessible_name: str) -> None:
         super().__init__()
+        # Recompute after an in-place language change; the default caches the
+        # first (often shorter Chinese) labels and clips English mode names.
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         for label, value in options:
             self.addItem(label, value)

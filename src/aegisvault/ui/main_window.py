@@ -24,6 +24,7 @@ from aegisvault.ui.pages.file_page import FilePage
 from aegisvault.ui.pages.settings_page import SettingsDialog
 from aegisvault.ui.pages.text_page import TextPage
 from aegisvault.utils.paths import resource_path
+from aegisvault.version import DISPLAY_VERSION
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
         self.file_page = FilePage(self.i18n, self.settings, self.service)
         self.base64_page = Base64Page(self.i18n, self.settings, self.service)
         for page in (self.text_page, self.file_page, self.base64_page):
+            page.setAutoFillBackground(True)
             page.error.connect(self._log_error)
             page.status_message.connect(self.statusBar().showMessage)
             self.tabs.addTab(page, "")
@@ -115,7 +117,7 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, page.focus_initial)
 
     def retranslate_ui(self) -> None:
-        self.setWindowTitle(self.i18n.t("app.title"))
+        self.setWindowTitle(f"{self.i18n.t('app.title')} {DISPLAY_VERSION}")
         for index, key in enumerate(("nav.text", "nav.file", "nav.base64")):
             self.tabs.setTabText(index, self.i18n.t(key))
         self.tabs.setAccessibleName(self.i18n.t("access.workspaces"))

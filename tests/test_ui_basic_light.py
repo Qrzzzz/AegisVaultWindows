@@ -205,6 +205,8 @@ def test_key_controls_reachable_at_normal_and_small_sizes(tmp_path: Path, langua
     scroll = window.text_page.findChild(QScrollArea)
     if size == (900, 680):
         assert scroll.verticalScrollBar().maximum() == 0
+    scroll = window.text_page.result_scroll
+    assert scroll.horizontalScrollBar().maximum() == 0
     for button in (
         window.text_page.output.copy_button,
         window.text_page.output.clear_button,

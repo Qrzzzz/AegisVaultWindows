@@ -21,6 +21,7 @@ class TaskProgress(QFrame):
         self.detail.setObjectName("Muted")
         self.detail.setWordWrap(True)
         self.bar = QProgressBar()
+        self.bar.setAccessibleName(self.i18n.t("access.task_progress"))
         self.bar.setRange(0, 100)
         self.cancel_button = QPushButton()
         self.cancel_button.setObjectName("Danger")
@@ -36,6 +37,7 @@ class TaskProgress(QFrame):
         self.reset()
 
     def retranslate_ui(self) -> None:
+        self.bar.setAccessibleName(self.i18n.t("access.task_progress"))
         self.cancel_button.setText(self.i18n.t("action.cancel"))
         self.cancel_button.setAccessibleName(self.i18n.t("action.cancel"))
         if self._event is not None:
