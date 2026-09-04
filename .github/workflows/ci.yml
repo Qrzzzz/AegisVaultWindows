@@ -45,6 +45,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Initialize isolated Python environment
+        run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked dependencies
         run: .\scripts\install_locked_dependencies.ps1
       - name: Compile, lint, type check, test, coverage and Qt smoke
@@ -76,6 +78,8 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Initialize isolated Python environment
+        run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked dependencies
         run: .\scripts\install_locked_dependencies.ps1
       - name: Resolve validated artifact names

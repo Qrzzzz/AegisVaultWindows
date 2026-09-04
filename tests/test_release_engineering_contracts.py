@@ -194,6 +194,45 @@ def test_locked_installer_checks_the_real_installed_environment() -> None:
     assert '"-m", "pip", "check"' in text
 
 
+def test_all_five_windows_jobs_initialize_and_route_their_environment() -> None:
+    expected = {
+        ("ci.yml", "source-quality"),
+        ("ci.yml", "windows-package"),
+        ("security.yml", "pip-audit"),
+        ("release.yml", "build-and-attest"),
+        ("release.yml", "publish"),
+    }
+    found = set()
+    for name in ("ci.yml", "security.yml", "release.yml"):
+        for job_name, job in _workflow(name)["jobs"].items():
+            if job["runs-on"] != "windows-latest":
+                continue
+            found.add((name, job_name))
+            steps = job["steps"]
+            setup = next(index for index, step in enumerate(steps) if step.get("uses", "").startswith("actions/setup-python@"))
+            bootstraps = [index for index, step in enumerate(steps) if "initialize_ci_environment.ps1" in step.get("run", "")]
+            assert bootstraps == [setup + 1]
+            bootstrap = bootstraps[0]
+            assert "-ExportGitHubEnvironment" in steps[bootstrap]["run"]
+            assert all("run" not in step for step in steps[:bootstrap])
+            install = next(index for index, step in enumerate(steps) if "install_locked_dependencies.ps1" in step.get("run", ""))
+            assert bootstrap < install
+    assert found == expected
+
+    helper = (ROOT / "scripts" / "initialize_ci_environment.ps1").read_text(encoding="utf-8")
+    for contract in (
+        '-m venv $EnvironmentRoot',
+        '$env:VIRTUAL_ENV = $EnvironmentRoot',
+        '$env:PATH = $ScriptsDirectory',
+        'AppendAllText($env:GITHUB_ENV',
+        'AppendAllText($env:GITHUB_PATH',
+        'Refusing to reuse or replace an existing environment',
+        'The python command did not resolve to the new isolated environment',
+    ):
+        assert contract in helper
+    assert "Remove-Item" not in helper
+
+
 def test_published_release_is_verified_without_remote_mutation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.syspath_prepend(str(ROOT / "scripts"))
     publisher = importlib.import_module("publish_github_release")
@@ -211,6 +250,7 @@ def test_published_release_is_verified_without_remote_mutation(tmp_path: Path, m
         "public_assets": names,
     }
     release = {
+        "id": 42,
         "tag_name": metadata["tag"],
         "name": metadata["release_title"],
         "prerelease": False,

@@ -51,6 +51,8 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Initialize isolated Python environment
+        run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Validate source version and derive artifact names
         id: metadata
         run: python scripts/release_metadata.py --expected-tag "${{ github.ref_name }}" --github-output $env:GITHUB_OUTPUT
@@ -121,6 +123,8 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Initialize isolated Python environment
+        run: .\scripts\initialize_ci_environment.ps1 -ExportGitHubEnvironment
       - name: Install hash-locked audit dependencies
         run: .\scripts\install_locked_dependencies.ps1
       - name: Download the exact build job output
