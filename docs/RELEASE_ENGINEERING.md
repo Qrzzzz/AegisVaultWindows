@@ -1,6 +1,6 @@
-# Release engineering — 2.4
+# Release engineering — 2.5
 
-Version 2.4 local evidence and remaining manual checks are recorded in [ACCEPTANCE_2.4.md](ACCEPTANCE_2.4.md).
+Version 2.5 local evidence and remaining manual checks are recorded in [ACCEPTANCE_2.5.md](ACCEPTANCE_2.5.md).
 Remote quality/security checks, commit/PR review and the tag-bound build, attestation and publication gates
 remain independently required; local candidate evidence cannot substitute for them.
 

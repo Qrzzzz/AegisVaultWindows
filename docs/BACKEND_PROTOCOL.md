@@ -46,6 +46,10 @@ surrogate code points are rejected before dispatch, while valid non-BMP characte
 Clients must not send a second operation before the first process has terminated. An oversized response produces
 `ipc.response_too_large`; the client terminates and reaps only the backend process tree owned by that request.
 
+Starting in 2.5, invalid UTF-8 response bytes, including an incomplete sequence at EOF, produce
+`ipc.invalid_response` at the client reader boundary. Valid multi-byte sequences may span reads;
+LF and CRLF line endings remain supported. These are fault-backend defenses, not expected Python output.
+
 ## Text resource contract in 2.4
 
 `src/aegisvault/text_limits.json` is packaged into both runtimes. `hello.text_limits` exposes the same values and
