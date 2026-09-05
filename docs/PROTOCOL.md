@@ -1,6 +1,6 @@
 # AegisVault Protocol
 
-This document describes the AGV1 formats produced and accepted by AegisVault 1.0.0. Old AES and AK decryption has been removed; see `docs/MIGRATION.md` for the format-support boundary.
+This document describes the AGV1 formats produced and accepted through AegisVault 2.4. Old AES and AK decryption has been removed; see `docs/MIGRATION.md` for the format-support boundary.
 
 ## Text Token
 
@@ -92,4 +92,4 @@ This detects header tampering, chunk tampering, missing final chunks, truncated 
 
 ## Versioning
 
-New incompatible formats must use a new magic/version combination. AegisVault 1.0.0 only reads and writes version 1. Legacy formats are neither encrypted nor decrypted.
+New incompatible formats must use a new magic/version combination. AegisVault 2.4 still reads and writes version 1. Legacy formats are neither encrypted nor decrypted.

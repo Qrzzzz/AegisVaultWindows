@@ -133,12 +133,17 @@ public sealed partial class WorkflowControl : UserControl
             picker.FileTypeFilter.Add("*");
             var result = await picker.PickSingleFileAsync();
             if (result is null) return;
-            if (new FileInfo(result.Path).Length > 2 * 1024 * 1024) { vm.Fail("resource.limit_exceeded"); return; }
+            var limit = vm.InputUtf8ByteLimit;
+            if (new FileInfo(result.Path).Length > limit + 3L) { vm.Fail("resource.limit_exceeded"); return; }
             using var stream = File.OpenRead(result.Path);
-            var bytes = new byte[2 * 1024 * 1024 + 1];
+            var bytes = new byte[limit + 4];
             var count = await stream.ReadAtLeastAsync(bytes, bytes.Length, throwOnEndOfStream: false);
             if (count == bytes.Length) { vm.Fail("resource.limit_exceeded"); return; }
-            if (!vm.IsBusy) vm.Input = new System.Text.UTF8Encoding(false, true).GetString(bytes, 0, count).TrimStart('\uFEFF');
+            if (!vm.IsBusy)
+            {
+                var value = new System.Text.UTF8Encoding(false, true).GetString(bytes, 0, count).TrimStart('\uFEFF');
+                vm.TrySetExternalInput(value);
+            }
         }
         catch (Exception) { vm.Fail("file.read_failed"); }
     }
@@ -200,8 +205,7 @@ public sealed partial class WorkflowControl : UserControl
             else if (e.DataView.Contains(StandardDataFormats.Text))
             {
                 var text = await e.DataView.GetTextAsync();
-                if (text.Length > 2097152) vm.Fail("resource.limit_exceeded");
-                else if (!vm.IsBusy) vm.Input = text;
+                if (!vm.IsBusy) vm.TrySetExternalInput(text);
             }
         }
         catch (Exception) { vm.Fail("file.read_failed"); }

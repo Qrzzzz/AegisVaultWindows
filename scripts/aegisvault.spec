@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(SPECPATH).parent
 a = Analysis(
     [str(ROOT / "src/aegisvault/main.py")], pathex=[str(ROOT / "src")],
-    binaries=[], datas=[], hiddenimports=[], hookspath=[], hooksconfig={}, runtime_hooks=[],
+    binaries=[], datas=[(str(ROOT / "src/aegisvault/text_limits.json"), "aegisvault")], hiddenimports=[], hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=["tests", "PySide6", "PyQt6", "PyQt5", "shiboken6", "tkinter"], noarchive=False, optimize=0,
 )
 pyz = PYZ(a.pure)

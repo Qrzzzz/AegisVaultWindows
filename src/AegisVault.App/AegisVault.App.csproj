@@ -19,10 +19,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <Version>2.3</Version>
-    <AssemblyVersion>2.3.0.0</AssemblyVersion>
-    <FileVersion>2.3.0.0</FileVersion>
-    <InformationalVersion>2.3</InformationalVersion>
+    <Version>2.4</Version>
+    <AssemblyVersion>2.4.0.0</AssemblyVersion>
+    <FileVersion>2.4.0.0</FileVersion>
+    <InformationalVersion>2.4</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
@@ -30,5 +30,6 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
     <Content Include="Assets/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\aegisvault\text_limits.json" Link="Assets\text_limits.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

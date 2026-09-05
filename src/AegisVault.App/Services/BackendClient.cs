@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Text;
@@ -116,7 +117,7 @@ public sealed class BackendClient
         {
             throw new BackendException("ipc.invalid_request");
         }
-        if (Encoding.UTF8.GetByteCount(request) + 1 > 16 * 1024 * 1024)
+        if (Encoding.UTF8.GetByteCount(request) + 1 > TextLimits.Contract.MaxJsonLineBytes)
             throw new BackendException("ipc.request_too_large");
 
         using var process = new Process { StartInfo = StartInfo() };
@@ -191,10 +192,11 @@ public sealed class BackendClient
             throw;
         }
         var id = RequestId(request);
+        var reader = new BoundedUtf8LineReader(process.StandardOutput.BaseStream);
         while (true)
         {
             string? line;
-            try { line = await process.StandardOutput.ReadLineAsync(lifetime); }
+            try { line = await reader.ReadLineAsync(lifetime); }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw new BackendException("ipc.backend_exited"); }
             if (line is null) throw new BackendException("ipc.backend_exited");
             try
@@ -230,7 +232,7 @@ public sealed class BackendClient
                 }
             }
             catch (BackendException) { throw; }
-            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or DecoderFallbackException)
             {
                 throw BackendResponse.Invalid();
             }
@@ -356,6 +358,44 @@ public sealed class BackendClient
         {
             var key = operation == "text.encrypt" ? "ciphertext" : operation == "text.decrypt" ? "plaintext" : "text";
             _ = BackendResponse.String(result, key);
+        }
+    }
+
+    private sealed class BoundedUtf8LineReader(Stream stream)
+    {
+        private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+        private readonly byte[] buffer = new byte[8192];
+        private int offset, available;
+
+        public async Task<string?> ReadLineAsync(CancellationToken token)
+        {
+            var line = new ArrayBufferWriter<byte>();
+            long wireBytes = 0;
+            while (true)
+            {
+                if (offset == available)
+                {
+                    available = await stream.ReadAsync(buffer.AsMemory(), token);
+                    offset = 0;
+                    if (available == 0) return line.WrittenCount == 0 ? null : Decode(line.WrittenSpan);
+                }
+                var remaining = buffer.AsSpan(offset, available - offset);
+                var newline = remaining.IndexOf((byte)'\n');
+                var consumed = newline >= 0 ? newline + 1 : remaining.Length;
+                wireBytes += consumed;
+                if (wireBytes > TextLimits.Contract.MaxJsonLineBytes)
+                    throw new BackendException("ipc.response_too_large");
+                var payload = newline >= 0 ? newline : consumed;
+                line.Write(remaining[..payload]);
+                offset += consumed;
+                if (newline >= 0) return Decode(line.WrittenSpan);
+            }
+        }
+
+        private static string Decode(ReadOnlySpan<byte> value)
+        {
+            if (!value.IsEmpty && value[^1] == (byte)'\r') value = value[..^1];
+            return StrictUtf8.GetString(value);
         }
     }
 

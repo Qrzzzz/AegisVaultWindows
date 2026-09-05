@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import os
-import tempfile
+import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO
 
 from aegisvault.core.exceptions import FileIOError
+
+TEMP_NAME_PREFIX = ".aegisvault-"
+TEMP_NAME_SUFFIX = ".tmp"
+TEMP_RANDOM_BYTES = 12
+TEMP_CREATE_ATTEMPTS = 128
 
 
 def file_size(path: Path) -> int:
@@ -69,6 +74,22 @@ def _publish_no_overwrite(temp_name: str, final_path: Path) -> bool:
     return True
 
 
+def _create_sibling_temp(parent: Path) -> tuple[int, str]:
+    """Securely create a fixed-length sibling without disclosing the target name."""
+
+    flags = os.O_RDWR | os.O_CREAT | os.O_EXCL
+    flags |= getattr(os, "O_BINARY", 0) | getattr(os, "O_NOINHERIT", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    for _attempt in range(TEMP_CREATE_ATTEMPTS):
+        name = f"{TEMP_NAME_PREFIX}{secrets.token_hex(TEMP_RANDOM_BYTES)}{TEMP_NAME_SUFFIX}"
+        path = os.path.join(parent, name)
+        try:
+            return os.open(path, flags, 0o600), path
+        except FileExistsError:
+            continue
+    raise FileIOError("Could not create a unique temporary file.", code="file.write_failed")
+
+
 @contextmanager
 def atomic_binary_writer(final_path: Path, *, overwrite: bool = False) -> Iterator[BinaryIO]:
     """Write to a temporary sibling and publish atomically only after success.
@@ -85,7 +106,7 @@ def atomic_binary_writer(final_path: Path, *, overwrite: bool = False) -> Iterat
     fd = -1
     temp_name = ""
     try:
-        fd, temp_name = tempfile.mkstemp(prefix=f".{final_path.name}.", suffix=".tmp", dir=str(final_path.parent))
+        fd, temp_name = _create_sibling_temp(final_path.parent)
         with os.fdopen(fd, "wb") as handle:
             fd = -1
             yield handle

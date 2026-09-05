@@ -21,6 +21,11 @@ from aegisvault.core.models import (
     TextDecryptResult,
     TextEncryptResult,
 )
+from aegisvault.resource_limits import (
+    require_base64_plaintext_budget,
+    require_encoded_text,
+    require_plaintext,
+)
 from aegisvault.services.file_io import (
     atomic_binary_writer,
     base64_decoded_output_path,
@@ -41,11 +46,15 @@ class CryptoService:
 
     def encrypt_text(self, plaintext: str, password: str) -> TextEncryptResult:
         self._require_password(password)
-        return encrypt_text(plaintext, password)
+        require_plaintext(plaintext)
+        result = encrypt_text(plaintext, password)
+        require_encoded_text(result.ciphertext)
+        return result
 
     def decrypt_text(self, ciphertext: str, password: str | None = None) -> TextDecryptResult:
         """Decrypt AGV1 only; a missing password never selects another format."""
 
+        require_encoded_text(ciphertext)
         return decrypt_text(ciphertext, password if password is not None else "")
 
     def encrypt_file(
@@ -94,10 +103,17 @@ class CryptoService:
         )
 
     def base64_encode_text(self, text: str) -> str:
-        return base64_tools.encode_text(text)
+        require_plaintext(text)
+        result = base64_tools.encode_text(text)
+        require_encoded_text(result)
+        return result
 
     def base64_decode_text(self, text: str, *, strict: bool = True, ignore_ascii_whitespace: bool = False) -> str:
-        return base64_tools.decode_text(text, strict=strict, ignore_ascii_whitespace=ignore_ascii_whitespace)
+        require_encoded_text(text)
+        require_base64_plaintext_budget(text, ignore_ascii_whitespace=ignore_ascii_whitespace)
+        result = base64_tools.decode_text(text, strict=strict, ignore_ascii_whitespace=ignore_ascii_whitespace)
+        require_plaintext(result)
+        return result
 
     def base64_encode_file(
         self,

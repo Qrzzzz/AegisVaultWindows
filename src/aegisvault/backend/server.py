@@ -16,13 +16,14 @@ from typing import Any, BinaryIO
 
 from aegisvault.core.exceptions import AppError, OperationCancelled, ValidationError
 from aegisvault.core.models import CancelToken, ProgressCallback
+from aegisvault.resource_limits import MAX_JSON_LINE_BYTES, TEXT_LIMITS
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
 from aegisvault.version import PACKAGE_VERSION
 
 PROTOCOL_VERSION = 1
-MAX_LINE_BYTES = 16 * 1024 * 1024
+MAX_LINE_BYTES = MAX_JSON_LINE_BYTES
 OPERATIONS = (
     "hello", "settings.get", "settings.update", "recent.add", "recent.clear",
     "text.encrypt", "text.decrypt", "file.encrypt", "file.decrypt",
@@ -75,6 +76,8 @@ class BackendServer:
     def emit(self, request_id: str | None, kind: str, **payload: Any) -> None:
         message = {"v": PROTOCOL_VERSION, "id": request_id, "type": kind, **payload}
         raw = (json.dumps(message, ensure_ascii=False, allow_nan=False, default=str) + "\n").encode("utf-8")
+        if len(raw) > MAX_LINE_BYTES:
+            raise ValidationError("Response exceeds the JSON Line limit.", code="resource.limit_exceeded")
         with self._write_lock:
             self.target.write(raw)
             self.target.flush()
@@ -145,7 +148,7 @@ class BackendServer:
     def dispatch(self, op: str, args: dict[str, Any], progress: ProgressCallback) -> Any:
         if op == "hello":
             return {"protocol": PROTOCOL_VERSION, "version": PACKAGE_VERSION, "operations": OPERATIONS,
-                    "max_line_bytes": MAX_LINE_BYTES}
+                    "max_line_bytes": MAX_LINE_BYTES, "text_limits": TEXT_LIMITS.to_dict()}
         if op in {"settings.update", "recent.add", "recent.clear"}:
             return self.store.update(
                 lambda settings: self._change_settings(settings, op, args), cancel_token=self._token

@@ -88,6 +88,7 @@ public sealed partial class MainWindow : Window
             var hello = await Backend.CallAsync("hello", cancellationToken: windowLifetime.Token);
             if (BackendResponse.Int32(hello, "protocol") != 1 || BackendResponse.String(hello, "version") != ProductInfo.Version)
                 throw new BackendException("ipc.version_mismatch");
+            TextLimits.EnsureBackendMatch(hello);
             await Settings.LoadAsync(windowLifetime.Token);
         }
         catch (BackendException ex) { StartupError.Message = L.Error(ex.Code); StartupError.IsOpen = true; }

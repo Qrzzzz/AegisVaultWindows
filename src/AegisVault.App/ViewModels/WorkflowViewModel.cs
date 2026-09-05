@@ -6,7 +6,7 @@ namespace AegisVault.App.ViewModels;
 
 public sealed class WorkflowViewModel : ObservableObject
 {
-    public const int MaxTextLength = 2097152;
+    public static int MaxTextLength => TextLimits.Contract.MaxEncodedTextUtf16CodeUnits;
     private readonly BackendClient backend;
     private readonly SettingsService settings;
     private CancellationTokenSource? cancellation;
@@ -42,6 +42,8 @@ public sealed class WorkflowViewModel : ObservableObject
             Raise(nameof(NeedsConfirmation));
             Raise(nameof(DecodeOptionsVisibility));
             Raise(nameof(ActionLabel));
+            Raise(nameof(InputCodeUnitLimit));
+            Raise(nameof(InputUtf8ByteLimit));
         }
     }
     public string Input { get => input; set { if (!IsBusy && Set(ref input, value)) ClearResult(); } }
@@ -95,6 +97,8 @@ public sealed class WorkflowViewModel : ObservableObject
     public Visibility FileResultVisibility => HasResult && IsFile ? Visibility.Visible : Visibility.Collapsed;
     public string OutputFolderPlaceholder => string.IsNullOrWhiteSpace(settings.Current.DefaultOutputDir) ? L["same_folder"] : settings.Current.DefaultOutputDir;
     public string ActionLabel => L[IsCrypto ? (Mode == 0 ? "encrypt" : "decrypt") : (Mode == 0 ? "encode" : "decode")];
+    public int InputCodeUnitLimit => TextLimits.Utf16CodeUnitLimit(Kind, Mode);
+    public int InputUtf8ByteLimit => TextLimits.Utf8ByteLimit(Kind, Mode);
     public ActionCommand CancelCommand { get; }
     public ActionCommand ClearCommand { get; }
 
@@ -119,6 +123,8 @@ public sealed class WorkflowViewModel : ObservableObject
         if (IsFile && string.IsNullOrWhiteSpace(InputPath)) { Fail("validation.file_required"); return; }
         if (IsCrypto && password.Length == 0) { Fail("validation.password_required"); return; }
         if (IsCrypto && Mode == 0 && password != confirmation) { Fail("validation.password_mismatch"); return; }
+        if (!IsFile && !TextLimits.HasValidUnicode(Input)) { Fail("ipc.invalid_request"); return; }
+        if (!IsFile && !TextLimits.Fits(Kind, Mode, Input)) { Fail("resource.limit_exceeded"); return; }
         using var token = new CancellationTokenSource();
         cancellation = token; cancelling = false; IsBusy = true;
         Progress = 0; ProgressText = L["working"];
@@ -183,9 +189,19 @@ public sealed class WorkflowViewModel : ObservableObject
     public bool UseResult()
     {
         if (IsBusy || IsFile || !HasResult) return false;
-        if (Output.Length > MaxTextLength) { Fail("resource.limit_exceeded"); return false; }
         var value = Output;
-        Mode = 1 - Mode;
+        var nextMode = 1 - Mode;
+        if (!TextLimits.HasValidUnicode(value)) { Fail("ipc.invalid_response"); return false; }
+        if (!TextLimits.Fits(Kind, nextMode, value)) { Fail("resource.limit_exceeded"); return false; }
+        Mode = nextMode;
+        Input = value;
+        return true;
+    }
+    public bool TrySetExternalInput(string value)
+    {
+        if (IsBusy) return false;
+        if (!TextLimits.HasValidUnicode(value)) { Fail("ipc.invalid_request"); return false; }
+        if (!TextLimits.Fits(Kind, Mode, value)) { Fail("resource.limit_exceeded"); return false; }
         Input = value;
         return true;
     }

@@ -10,8 +10,10 @@
     <Compile Include="../../src/AegisVault.App/Services/BackendClient.cs" Link="BackendClient.cs" />
     <Compile Include="../../src/AegisVault.App/Services/SettingsService.cs" Link="SettingsService.cs" />
     <Compile Include="../../src/AegisVault.App/Services/Localization.cs" Link="Localization.cs" />
+    <Compile Include="../../src/AegisVault.App/Services/TextLimits.cs" Link="TextLimits.cs" />
     <Compile Include="../../src/AegisVault.App/ViewModels/WorkflowViewModel.cs" Link="WorkflowViewModel.cs" />
     <Compile Include="../../src/AegisVault.App/ViewModels/ObservableObject.cs" Link="ObservableObject.cs" />
     <Content Include="../../src/AegisVault.App/Assets/*.json" Link="Assets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../src/aegisvault/text_limits.json" Link="Assets/text_limits.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
