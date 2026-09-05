@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from aegisvault.backend.server import MAX_LINE_BYTES, BackendServer
+from aegisvault.resource_limits import TEXT_LIMITS
 from aegisvault.settings.store import SettingsStore
 from aegisvault.version import DISPLAY_VERSION
 from test_protocol_fixtures import FIXED_PASSWORD, FIXED_PLAINTEXT, FIXED_TEXT_TOKEN
@@ -81,6 +82,8 @@ def test_hello_reports_version_and_no_ui_dependencies(client: Client) -> None:
     assert event["result"]["protocol"] == 1
     assert event["result"]["version"] == DISPLAY_VERSION
     assert "file.decrypt" in event["result"]["operations"]
+    assert event["result"]["max_line_bytes"] == TEXT_LIMITS.max_json_line_bytes
+    assert event["result"]["text_limits"] == TEXT_LIMITS.to_dict()
 
 
 def test_ipc_decrypts_1x_fixed_token(client: Client) -> None:
@@ -99,6 +102,21 @@ def test_ipc_text_roundtrip_and_redacted_error(client: Client) -> None:
     client.send("text.decrypt", {"text": ciphertext, "password": "wrong-secret"})
     event, _ = client.terminal()
     assert event == {"v": 1, "id": "test", "type": "error", "code": "crypto.authentication_failed"}
+
+
+def test_ipc_base64_text_budget_is_closed_at_exact_boundary(client: Client) -> None:
+    plaintext = "a" * TEXT_LIMITS.max_plaintext_utf8_bytes
+    client.send("base64.encode_text", {"text": plaintext})
+    encoded_event, _ = client.terminal()
+    encoded = encoded_event["result"]["text"]
+    assert len(encoded.encode("utf-8")) <= TEXT_LIMITS.max_encoded_text_utf8_bytes
+    client.send("base64.decode_text", {"text": encoded})
+    decoded_event, _ = client.terminal()
+    assert decoded_event["result"]["text"] == plaintext
+
+    client.send("base64.encode_text", {"text": plaintext + "a"})
+    rejected, _ = client.terminal()
+    assert rejected == {"v": 1, "id": "test", "type": "error", "code": "resource.limit_exceeded"}
 
 
 @pytest.mark.parametrize("op, code", [("file.invalid", "ipc.unknown_operation"), ("text.encrypt", "ipc.invalid_request")])

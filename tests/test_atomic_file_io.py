@@ -150,3 +150,66 @@ def test_input_change_before_streaming_prevents_encrypted_output(tmp_path: Path)
     assert caught.value.code == "file.input_changed"
     assert not output.exists()
     assert not list(tmp_path.glob(".*.tmp"))
+
+
+def test_fixed_temporary_name_allows_legal_boundary_target(tmp_path: Path) -> None:
+    output = tmp_path / ("a" * 251 + ".bin")
+    output.write_bytes(b"writable-final-name")
+    output.unlink()
+
+    with atomic_binary_writer(output) as target:
+        target.write(b"payload")
+
+    assert output.read_bytes() == b"payload"
+    assert not list(tmp_path.glob(".aegisvault-*.tmp"))
+
+
+def test_temporary_name_is_bounded_and_does_not_disclose_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "sensitive-customer-report.txt"
+    observed: list[str] = []
+    real_publish = file_io_module._publish_no_overwrite
+
+    def inspect_publish(source: str, target: Path) -> bool:
+        observed.append(Path(source).name)
+        return real_publish(source, target)
+
+    monkeypatch.setattr(file_io_module, "_publish_no_overwrite", inspect_publish)
+    with atomic_binary_writer(output) as target:
+        target.write(b"payload")
+
+    assert len(observed) == 1
+    assert len(observed[0]) == 40
+    assert observed[0].startswith(".aegisvault-") and observed[0].endswith(".tmp")
+    assert "sensitive" not in observed[0]
+
+
+def test_secure_temporary_name_collision_retries_exclusive_create(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first = "11" * file_io_module.TEMP_RANDOM_BYTES
+    second = "22" * file_io_module.TEMP_RANDOM_BYTES
+    occupied = tmp_path / f"{file_io_module.TEMP_NAME_PREFIX}{first}{file_io_module.TEMP_NAME_SUFFIX}"
+    occupied.write_bytes(b"competitor")
+    names = iter([first, second])
+    monkeypatch.setattr(file_io_module.secrets, "token_hex", lambda _size: next(names))
+
+    output = tmp_path / "result.bin"
+    with atomic_binary_writer(output) as target:
+        target.write(b"ours")
+
+    assert output.read_bytes() == b"ours"
+    assert occupied.read_bytes() == b"competitor"
+    assert not (tmp_path / f"{file_io_module.TEMP_NAME_PREFIX}{second}{file_io_module.TEMP_NAME_SUFFIX}").exists()
+
+
+def test_illegal_final_component_fails_and_cleans_bounded_temporary(tmp_path: Path) -> None:
+    output = tmp_path / ("a" * 252 + ".bin")
+
+    with pytest.raises(FileIOError) as caught, atomic_binary_writer(output) as target:
+        target.write(b"payload")
+
+    assert caught.value.code == "file.write_failed"
+    assert not output.exists()
+    assert not list(tmp_path.glob(".aegisvault-*.tmp"))

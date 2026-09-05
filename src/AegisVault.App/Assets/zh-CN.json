@@ -103,6 +103,7 @@
   "error.ipc.invalid_request": "请求无效，操作未执行。",
   "error.ipc.invalid_response": "后端返回了无效响应。",
   "error.ipc.request_too_large": "文本过大，请使用文件工作流。",
+  "error.ipc.response_too_large": "后端响应超过安全文本限制。",
   "error.ipc.unsupported_version": "前后端协议版本不兼容。",
   "error.ipc.version_mismatch": "前后端版本不一致，请重新解压完整程序包。",
   "error.ipc.unknown_operation": "后端不支持此操作。",

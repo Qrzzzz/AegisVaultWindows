@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Windows.Automation;
 
@@ -73,6 +74,34 @@ internal static class Program
             WaitMessage("Status", labels["saved"]);
             if (File.ReadAllText(savedText) != "WinUI AGV1 roundtrip") throw new Exception("Saved text differs");
             Console.WriteLine("PASS: native Text correction, focus, reverse-input reuse, password clearing, clipboard and save picker");
+
+            const int plaintextBudget = 1_507_294;
+            const int encodedBudget = 2 * 1024 * 1024;
+            var boundaryText = string.Concat(Enumerable.Repeat("🔐", 376_823)) + "aa";
+            if (Encoding.UTF8.GetByteCount(boundaryText) != plaintextBudget) throw new Exception("Native boundary fixture drifted");
+            var boundaryFile = Path.Combine(profile, "text-boundary.txt");
+            var overBoundaryFile = Path.Combine(profile, "text-over-boundary.txt");
+            File.WriteAllText(boundaryFile, boundaryText, new UTF8Encoding(false));
+            File.WriteAllText(overBoundaryFile, boundaryText + "a", new UTF8Encoding(false));
+            ChooseMode(0);
+            Invoke("ImportText"); PickNativePath(boundaryFile);
+            WaitText("TextInput", value => value == boundaryText);
+            Set("Password", "native-budget-password"); Set("ConfirmPassword", "native-budget-password"); Invoke("Run");
+            var boundaryToken = WaitText("Result", value => value.StartsWith("AGV1.", StringComparison.Ordinal));
+            if (Encoding.UTF8.GetByteCount(boundaryToken) > encodedBudget) throw new Exception("Native AGV1 result exceeds reverse budget");
+            InvokeResult("UseResult"); WaitText("TextInput", value => value == boundaryToken);
+            Set("Password", "native-budget-password"); Invoke("Run");
+            WaitText("Result", value => value == boundaryText);
+            Capture($"text-boundary-{theme}-{language}.png");
+            Invoke("Clear");
+            ChooseMode(0);
+            Set("TextInput", "preserved-before-rejected-import");
+            Invoke("ImportText"); PickNativePath(overBoundaryFile);
+            WaitMessage("Status", labels["error.resource.limit_exceeded"]);
+            if (((ValuePattern)Find("TextInput")!.GetCurrentPattern(ValuePattern.Pattern)).Current.Value != "preserved-before-rejected-import")
+                throw new Exception("Rejected text import changed the prior input");
+            Console.WriteLine($"PASS: native UTF-8 import/AGV1/UseResult boundary ({plaintextBudget} bytes), localized over-limit rejection");
+
             SelectNav("NavFile"); Wait(() => Find("InputFile"), "File page");
             var input = Path.Combine(profile, "fixture.bin");
             File.WriteAllBytes(input, Enumerable.Range(0, 256).Select(i => (byte)i).ToArray());
@@ -95,9 +124,29 @@ internal static class Program
             var restoredPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
             if (!File.ReadAllBytes(input).SequenceEqual(File.ReadAllBytes(restoredPath))) throw new Exception("Native file roundtrip differs");
             Console.WriteLine("PASS: native File encrypt/decrypt");
+            if (language == "en-US")
+            {
+                var report = Path.Combine(profile, "report.txt");
+                File.WriteAllText(report, "extension-sensitive payload", new UTF8Encoding(false));
+                ChooseMode(0); Set("InputFile", report);
+                var wrappers = new List<string>();
+                for (var index = 0; index < 3; index++)
+                {
+                    Set("Password", "native-name-password"); Set("ConfirmPassword", "native-name-password"); Invoke("Run");
+                    wrappers.Add(WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim());
+                }
+                if (wrappers.Select(Path.GetFileName).ToArray() is not ["report.txt.agv", "report (1).txt.agv", "report (2).txt.agv"])
+                    throw new Exception("Native AGV wrapper collision names differ");
+                var restoredDir = Path.Combine(profile, "restored-agv"); Directory.CreateDirectory(restoredDir);
+                ChooseMode(1); Set("InputFile", wrappers[1]); Set("OutputFolder", restoredDir); Set("Password", "native-name-password"); Invoke("Run");
+                var numberedRestore = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
+                if (Path.GetFileName(numberedRestore) != "report (1).txt" || !File.ReadAllBytes(report).SequenceEqual(File.ReadAllBytes(numberedRestore)))
+                    throw new Exception("Native AGV numbered restore lost extension or bytes");
+                Console.WriteLine("PASS: native AGV consecutive wrapper collisions preserve restore extension and bytes");
+            }
             var large = Path.Combine(profile, "cancel.bin");
             using (var stream = File.Create(large)) stream.SetLength(512L * 1024 * 1024);
-            ChooseMode(0); Set("InputFile", large); Set("Password", "cancel-password"); Set("ConfirmPassword", "cancel-password");
+            ChooseMode(0); Set("OutputFolder", ""); Set("InputFile", large); Set("Password", "cancel-password"); Set("ConfirmPassword", "cancel-password");
             transform.Resize(680, 640);
             Invoke("Run"); WaitVisible("Cancel");
             if (Find("InputFile")!.Current.IsEnabled || Find("NavText") is { } navText && navText.Current.IsEnabled)
@@ -126,6 +175,31 @@ internal static class Program
             var decodedPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
             if (!File.ReadAllBytes(input).SequenceEqual(File.ReadAllBytes(decodedPath))) throw new Exception("Native Base64 file roundtrip differs");
             Console.WriteLine("PASS: native Base64 file encode/decode");
+            var base64Report = Path.Combine(profile, "base64-report.txt");
+            File.WriteAllText(base64Report, "base64 extension payload", new UTF8Encoding(false));
+            ChooseMode(0); Set("InputFile", base64Report);
+            var base64Wrappers = new List<string>();
+            for (var index = 0; index < 3; index++)
+            {
+                Invoke("Run");
+                base64Wrappers.Add(WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim());
+            }
+            if (base64Wrappers.Select(Path.GetFileName).ToArray() is not ["base64-report.txt.b64", "base64-report (1).txt.b64", "base64-report (2).txt.b64"])
+                throw new Exception("Native Base64 wrapper collision names differ");
+            var restoredBase64Dir = Path.Combine(profile, "restored-base64"); Directory.CreateDirectory(restoredBase64Dir);
+            ChooseMode(1); Set("InputFile", base64Wrappers[2]); Set("OutputFolder", restoredBase64Dir); Invoke("Run");
+            var numberedBase64Restore = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
+            if (Path.GetFileName(numberedBase64Restore) != "base64-report (2).txt"
+                || !File.ReadAllBytes(base64Report).SequenceEqual(File.ReadAllBytes(numberedBase64Restore)))
+                throw new Exception("Native Base64 numbered restore lost extension or bytes");
+            var longName = new string('a', 234) + ".txt";
+            var longInput = Path.Combine(profile, longName);
+            File.WriteAllBytes(longInput, [0, 1, 2, 3]);
+            ChooseMode(0); Set("OutputFolder", ""); Set("InputFile", longInput); Invoke("Run");
+            var longResult = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
+            if (Path.GetFileName(longResult).Length != 242 || !File.Exists(longResult))
+                throw new Exception("Native bounded temporary-name boundary failed");
+            Console.WriteLine("PASS: native Base64 consecutive collisions, numbered restore and legal 242-character target");
             SelectNav("NavSettings"); Wait(() => Find("SaveSettings"), "Settings page");
             if (Find("SaveSettings")!.Current.IsEnabled) throw new Exception("Unchanged settings can be saved");
             var alternateLanguage = language == "en-US" ? "zh-CN" : "en-US";

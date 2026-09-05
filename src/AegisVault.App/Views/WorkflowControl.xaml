@@ -12,7 +12,7 @@
               MinWidth="180" AutomationProperties.AutomationId="OperationMode" />
           <StackPanel x:Name="TextInputs" Spacing="8">
             <TextBox x:Name="TextInput" Header="{Binding L[input]}" Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="132" MaxHeight="260" MaxLength="2097152"
+                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="132" MaxHeight="260" MaxLength="{Binding InputCodeUnitLimit}"
                 ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="TextInput" />
             <Button x:Name="ImportButton" Content="{Binding L[import_text]}" Click="ImportText" AutomationProperties.AutomationId="ImportText" />
           </StackPanel>

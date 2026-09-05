@@ -15,7 +15,7 @@ exception text. One operation is active per process; the frontend uses one subpr
 
 | Operation | Request members | Result |
 | --- | --- | --- |
-| `hello` | none | protocol, product version, supported operations, input limit |
+| `hello` | none | protocol, product version, supported operations, JSON Line and text-limit contract |
 | `text.encrypt`, `text.decrypt` | `text`, `password` | ciphertext/plaintext, format_name |
 | `file.encrypt`, `file.decrypt` | `input_path`, `password`, optional `output_dir` | input_path, output_path, original_size, output_size, format_name |
 | `base64.encode_text` | `text` | text |
@@ -38,13 +38,28 @@ waits for process exit after a terminal event; normal window close asks before c
 waits for it to stop. A forcibly terminated process or OS crash cannot promise cleanup of temporary files.
 KDF work is bounded by the existing Core and does not support interruption within a single derivation.
 
-Maximum request line size is 16 MiB including LF. Oversized input produces `ipc.request_too_large` and closes
+Maximum request or response line size is 16 MiB including LF. Oversized input produces `ipc.request_too_large` and closes
 the service. Duplicate JSON members, non-finite numbers, invalid UTF-8, invalid IDs, Boolean version aliases
 and incorrectly typed arguments are rejected. Unsupported protocol versions and unknown operations have
 separate error codes. IDs are 1–64 Unicode characters and must be encodable as strict UTF-8; isolated
 surrogate code points are rejected before dispatch, while valid non-BMP characters remain supported.
-Clients must not send a second operation before the first process has terminated. Text UI input is additionally
-limited to 2,097,152 characters.
+Clients must not send a second operation before the first process has terminated. An oversized response produces
+`ipc.response_too_large`; the client terminates and reaps only the backend process tree owned by that request.
+
+## Text resource contract in 2.4
+
+`src/aegisvault/text_limits.json` is packaged into both runtimes. `hello.text_limits` exposes the same values and
+the WinUI startup handshake rejects a mismatch. Plaintext accepts at most 1,507,294 UTF-8 bytes and the same
+number of .NET UTF-16 code units. Encoded Base64/AGV1 text accepts at most 2,097,152 UTF-8 bytes/code units.
+The plaintext value is derived conservatively from the 2 MiB encoded limit, the `AGV1.` prefix, Base64 expansion,
+the 64 KiB maximum header, envelope framing and the AES-GCM tag. It also leaves the worst .NET JSON escaping case,
+password and request metadata below the 16 MiB line limit.
+
+WinUI `MaxLength`, run preflight, UTF-8 file import, drag/drop and Use Result use the operation-specific values.
+The backend repeats the UTF-8 validation and rejects a Base64 or AGV1 input whose decoded plaintext cannot fit the
+forward budget. These size checks occur before scrypt when the token shape makes the result size knowable. Valid
+non-BMP text remains supported; isolated surrogates remain invalid. The contract changes accepted resource size,
+not AGV1 bytes or Base64 semantics.
 
 The client validates numeric response members before conversion. `v` is an Int32 JSON integer;
 `processed_bytes`, `total_bytes`, `original_size` and `output_size` are nonnegative Int64 JSON integers.

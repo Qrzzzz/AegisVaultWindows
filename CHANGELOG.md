@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4 - 2026-09-05
+
+- Close the text workflow budget in both directions with a shared UTF-8/UTF-16/JSON Line contract. Plaintext is capped at 1,507,294 UTF-8 bytes so worst-case AGV1 output remains within the 2 MiB encoded-text budget; UI input, UTF-8 import, result reuse, client transport and backend validation use the same packaged limits (#12).
+- Bound backend response lines to 16 MiB, reject oversized forward or reverse results before expensive work where their decoded size is knowable, and retain complete ASCII, multibyte BMP and non-BMP Unicode roundtrips inside the contract (#12).
+- Insert collision numbers before the logical extension chain when creating `.agv` and `.b64` wrappers, so repeated outputs restore as `report (1).txt` instead of `report.txt (1)` without changing non-conflicting names or AGV1 contents (#13).
+- Replace target-derived temporary components with fixed 40-character CSPRNG names created through exclusive OS primitives in the destination directory. Atomic flush, overwrite/no-overwrite publication, cancellation/failure cleanup and platform-specific publish behavior remain intact (#14).
+- Add boundary, real-backend, linked-client, native workflow, race, long-component and cleanup regressions; pre-release local evidence is recorded in `docs/ACCEPTANCE_2.4.md`.
+
 ## 2.3 - 2026-09-05
 
 - Bound backend request lifecycle from the first pipe write through process reaping. Cancellation supervision now starts before potentially blocking I/O, never writes synchronously from a UI cancellation callback, and forcibly reaps only the process tree created for that request (#7).

@@ -22,10 +22,27 @@ def unique_path(path: Path) -> Path:
     if not path.exists():
         return path
     parent = path.parent
-    stem = path.stem
-    suffix = path.suffix
     for index in range(1, 10_000):
-        candidate = parent / f"{stem} ({index}){suffix}"
+        candidate = parent / _numbered_name(path.name, index)
+        if not candidate.exists():
+            return candidate
+    raise FileIOError("Could not find a free output path.", code="file.no_unique_path")
+
+
+def _numbered_name(name: str, index: int) -> str:
+    """Insert a collision number before every logical suffix in ``name``."""
+
+    suffix = "".join(Path(name).suffixes)
+    stem = name[:-len(suffix)] if suffix else name
+    return f"{stem} ({index}){suffix}"
+
+
+def _wrapped_output_path(base_dir: Path, logical_name: str, wrapper_suffix: str, *, overwrite: bool) -> Path:
+    candidate = base_dir / f"{logical_name}{wrapper_suffix}"
+    if overwrite or not candidate.exists():
+        return candidate
+    for index in range(1, 10_000):
+        candidate = base_dir / f"{_numbered_name(logical_name, index)}{wrapper_suffix}"
         if not candidate.exists():
             return candidate
     raise FileIOError("Could not find a free output path.", code="file.no_unique_path")
@@ -33,14 +50,12 @@ def unique_path(path: Path) -> Path:
 
 def encrypted_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
     base_dir = output_dir or input_path.parent
-    candidate = base_dir / f"{input_path.name}.agv"
-    return candidate if overwrite else unique_path(candidate)
+    return _wrapped_output_path(base_dir, input_path.name, ".agv", overwrite=overwrite)
 
 
 def base64_encoded_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
     base_dir = output_dir or input_path.parent
-    candidate = base_dir / f"{input_path.name}.b64"
-    return candidate if overwrite else unique_path(candidate)
+    return _wrapped_output_path(base_dir, input_path.name, ".b64", overwrite=overwrite)
 
 
 def base64_decoded_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:

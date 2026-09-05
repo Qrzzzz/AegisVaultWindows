@@ -35,7 +35,7 @@ if (mode == "no-response")
 if (mode == "terminal-no-exit")
 {
     Mark(mode);
-    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.3\"}}}}");
+    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.4\"}}}}");
     await Task.Delay(Timeout.InfiniteTimeSpan);
     return;
 }
@@ -55,7 +55,7 @@ if (mode == "stderr-flood")
         try { while (!stop.IsCancellationRequested) await Console.Error.WriteLineAsync(block); }
         catch (IOException) { }
     });
-    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.3\"}}}}");
+    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.4\"}}}}");
     while (await Console.In.ReadLineAsync() is not null) { }
     stop.Cancel();
     await flood;
@@ -66,6 +66,14 @@ if (mode == "numeric")
     Mark(mode);
     var response = Environment.GetEnvironmentVariable("AEGISVAULT_TEST_RESPONSE")!.Replace("__ID__", id);
     Console.WriteLine(response);
+    while (await Console.In.ReadLineAsync() is not null) { }
+    return;
+}
+if (mode == "oversized-response")
+{
+    Mark(mode);
+    await Console.Out.WriteAsync(new string('x', 16 * 1024 * 1024));
+    await Console.Out.WriteLineAsync("x");
     while (await Console.In.ReadLineAsync() is not null) { }
     return;
 }

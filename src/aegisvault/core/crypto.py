@@ -16,6 +16,7 @@ from aegisvault.core.exceptions import (
     FileIOError,
     OperationCancelled,
     ProtocolError,
+    ResourceLimitError,
     ValidationError,
 )
 from aegisvault.core.file_io import atomic_binary_writer, ensure_distinct_paths, ensure_input_unchanged, file_size
@@ -49,6 +50,7 @@ from aegisvault.core.protocol import (
     validate_text_header,
     write_file_header,
 )
+from aegisvault.resource_limits import TEXT_LIMITS
 
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
@@ -111,6 +113,8 @@ def decrypt_text(token: str, password: str) -> TextDecryptResult:
     package = decode_token(token.strip())
     _require_password(password)
     header, header_bytes, ciphertext = unpack_envelope(TEXT_MAGIC, package)
+    if len(ciphertext) >= 16 and len(ciphertext) - 16 > TEXT_LIMITS.max_plaintext_utf8_bytes:
+        raise ResourceLimitError("AGV1 plaintext exceeds the text-workflow budget.")
     validate_text_header(header)
     nonce = _unb64(header.get("nonce"), field="nonce")
     if len(nonce) != 12:

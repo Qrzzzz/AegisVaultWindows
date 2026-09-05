@@ -5,7 +5,7 @@ using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using Microsoft.UI.Xaml.Controls;
 
-var root = Path.Combine(Path.GetTempPath(), "aegisvault-2.3-ipc-" + Guid.NewGuid().ToString("N"));
+var root = Path.Combine(Path.GetTempPath(), "aegisvault-2.4-ipc-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 Environment.SetEnvironmentVariable("LOCALAPPDATA", root);
 Environment.SetEnvironmentVariable("APPDATA", root);
@@ -208,6 +208,45 @@ try
         var result = await new BackendClient(new BackendTimeouts(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250),
             TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(2))).CallAsync("base64.encode_file", new { input_path = "synthetic" });
         Check(BackendResponse.Int64(result, "output_size") == 4, "long file operation inherited short RPC deadline");
+    });
+
+    await Run("bounded-response-line", async () =>
+    {
+        Mode("oversized-response");
+        var call = new BackendClient(fast).CallAsync("hello");
+        var owned = await WaitMarker("oversized-response");
+        var code = await ErrorCode(call);
+        Check(code == "ipc.response_too_large" && !Alive(owned.pid), "oversized response was not bounded/reaped");
+    });
+
+    await Run("text-budget-contract-and-use-result", async () =>
+    {
+        Mode("healthy");
+        var limits = TextLimits.Contract;
+        Check(limits.MaxJsonLineBytes == 16 * 1024 * 1024, "JSON Line limit");
+        Check(limits.MaxPlaintextUtf8Bytes == 1_507_294 && limits.MaxEncodedTextUtf8Bytes == 2 * 1024 * 1024,
+            "text budget values");
+        foreach (var kind in new[] { "base64_text", "text" })
+        {
+            var settings = new SettingsService(new BackendClient(fast));
+            var workflow = new WorkflowViewModel(kind, new BackendClient(fast), settings);
+            Check(workflow.InputCodeUnitLimit == limits.MaxPlaintextUtf16CodeUnits, "forward UTF-16 limit");
+            Check(workflow.TrySetExternalInput(new string('a', limits.MaxPlaintextUtf8Bytes)), "forward boundary input");
+            await workflow.RunAsync("budget-password", "budget-password");
+            Check(workflow.HasResult && workflow.Output.Length <= limits.MaxEncodedTextUtf16CodeUnits,
+                $"{kind} bounded result");
+            var generated = workflow.Output;
+            Check(workflow.UseResult() && workflow.Mode == 1 && workflow.Input == generated,
+                $"{kind} UseResult closure");
+            await workflow.RunAsync("budget-password");
+            Check(workflow.HasResult && workflow.Output == new string('a', limits.MaxPlaintextUtf8Bytes),
+                $"{kind} full reverse roundtrip");
+            Check(!workflow.TrySetExternalInput(new string('a', limits.MaxEncodedTextUtf16CodeUnits + 1))
+                && workflow.LastErrorCode == "resource.limit_exceeded", "encoded boundary rejection");
+        }
+        var invalid = new WorkflowViewModel("base64_text", new BackendClient(fast), new SettingsService(new BackendClient(fast)));
+        Check(!invalid.TrySetExternalInput("\ud800") && invalid.LastErrorCode == "ipc.invalid_request",
+            "isolated surrogate input classification");
     });
 
     foreach (var pidFile in Directory.GetFiles(root, "owned-process.json.*.pid"))

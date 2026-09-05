@@ -103,6 +103,7 @@
   "error.ipc.invalid_request": "Invalid request. The operation was not performed.",
   "error.ipc.invalid_response": "The backend returned an invalid response.",
   "error.ipc.request_too_large": "The text is too large. Use the file workflow.",
+  "error.ipc.response_too_large": "The backend response exceeds the safe text limit.",
   "error.ipc.unsupported_version": "The frontend and backend protocol versions are incompatible.",
   "error.ipc.version_mismatch": "Frontend and backend versions differ. Extract the complete package again.",
   "error.ipc.unknown_operation": "The backend does not support this operation.",
