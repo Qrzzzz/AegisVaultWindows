@@ -1,7 +1,8 @@
 # AegisVault 2.5 — acceptance evidence
 
 Status: source, linked IPC and package checks passed; a complete native retry passed, but an earlier
-native close crash remains unexplained. Automatic publication is held pending that stability assessment.
+native close crash remains unexplained. Release proceeds with that disclosed limitation; this record
+does not claim the intermittent close anomaly was fixed.
 No 2.5 publication is established by this document.
 
 Baseline: v2.4 / `afac428887c07c5445d1720b73d8815f84f35474`.
