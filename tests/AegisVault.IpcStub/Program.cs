@@ -35,7 +35,7 @@ if (mode == "no-response")
 if (mode == "terminal-no-exit")
 {
     Mark(mode);
-    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.4\"}}}}");
+    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.5\"}}}}");
     await Task.Delay(Timeout.InfiniteTimeSpan);
     return;
 }
@@ -55,7 +55,7 @@ if (mode == "stderr-flood")
         try { while (!stop.IsCancellationRequested) await Console.Error.WriteLineAsync(block); }
         catch (IOException) { }
     });
-    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.4\"}}}}");
+    Console.WriteLine($"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"protocol\":1,\"version\":\"2.5\"}}}}");
     while (await Console.In.ReadLineAsync() is not null) { }
     stop.Cancel();
     await flood;
@@ -67,6 +67,34 @@ if (mode == "numeric")
     var response = Environment.GetEnvironmentVariable("AEGISVAULT_TEST_RESPONSE")!.Replace("__ID__", id);
     Console.WriteLine(response);
     while (await Console.In.ReadLineAsync() is not null) { }
+    return;
+}
+if (mode.StartsWith("invalid-utf8-", StringComparison.Ordinal))
+{
+    Mark(mode);
+    using var wireOutput = Console.OpenStandardOutput();
+    var bytes = mode switch
+    {
+        "invalid-utf8-line" => new byte[] { 0xff, 0x0a },
+        "invalid-utf8-eof" => new byte[] { 0xf0, 0x9f },
+        _ => new byte[] { 0xe2, 0x28, 0xa1, 0x0a }
+    };
+    await wireOutput.WriteAsync(bytes);
+    await wireOutput.FlushAsync();
+    return;
+}
+if (mode == "valid-utf8-split")
+{
+    Mark(mode);
+    using var wireOutput = Console.OpenStandardOutput();
+    var prefix = $"{{\"v\":1,\"id\":\"{id}\",\"type\":\"result\",\"result\":{{\"text\":\"";
+    var text = new string(' ', 8191 - Encoding.UTF8.GetByteCount(prefix)) + prefix + "🔐\"}}\r\n";
+    var bytes = Encoding.UTF8.GetBytes(text);
+    await wireOutput.WriteAsync(bytes.AsMemory(0, 8192));
+    await wireOutput.FlushAsync();
+    await Task.Delay(50);
+    await wireOutput.WriteAsync(bytes.AsMemory(8192));
+    await wireOutput.FlushAsync();
     return;
 }
 if (mode == "oversized-response")

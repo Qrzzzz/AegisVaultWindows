@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5 - 2026-09-05
+
+- Map malformed UTF-8 backend response lines and truncated UTF-8 at EOF to `ipc.invalid_response` at the reader boundary, retaining cancellation, response limits and process cleanup (#20).
+- Add executable IPC regressions for invalid bytes, invalid continuation sequences, truncated EOF and a valid non-BMP response split across the reader buffer with CRLF.
+- Revalidate the existing 2.2 repairs for changing Base64 input, malformed settings recovery and process-shared settings transactions (#9, #10, #11); no duplicate replacement of those working implementations.
+- Preserve 2.4 text budgets, output naming, AGV1 compatibility, settings schema and privacy preferences. Evidence and remaining gates are recorded in `docs/ACCEPTANCE_2.5.md`.
+
 ## 2.4 - 2026-09-05
 
 - Close the text workflow budget in both directions with a shared UTF-8/UTF-16/JSON Line contract. Plaintext is capped at 1,507,294 UTF-8 bytes so worst-case AGV1 output remains within the 2 MiB encoded-text budget; UI input, UTF-8 import, result reuse, client transport and backend validation use the same packaged limits (#12).

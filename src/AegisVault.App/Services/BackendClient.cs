@@ -198,6 +198,7 @@ public sealed class BackendClient
             string? line;
             try { line = await reader.ReadLineAsync(lifetime); }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw new BackendException("ipc.backend_exited"); }
+            catch (DecoderFallbackException) { throw BackendResponse.Invalid(); }
             if (line is null) throw new BackendException("ipc.backend_exited");
             try
             {
@@ -232,7 +233,7 @@ public sealed class BackendClient
                 }
             }
             catch (BackendException) { throw; }
-            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or DecoderFallbackException)
+            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
             {
                 throw BackendResponse.Invalid();
             }

@@ -1,14 +1,15 @@
-# Format support through 2.4
+# Format support through 2.5
 
-AegisVault 2.4 preserves the AGV1-only format contract established in 1.x. All legacy decryption and recovery functionality remains removed.
+AegisVault 2.5 preserves the AGV1-only format contract established in 1.x. All legacy decryption and recovery functionality remains removed.
 
 Existing settings remain readable, including `show_advanced_options`. Version 2.2 added a persistent empty
 `.settings.json.lock` beside the JSON file for cooperating settings writers. Its existence does not mean
 a lock is held. Keep it in place while instances are running. Older application versions and manual
-editors do not participate in this lock; 2.4 does not add conflict detection for explicitly saved UI drafts.
+editors do not participate in this lock; 2.5 does not add conflict detection for explicitly saved UI drafts.
 
 Version 2.4 changes text resource budgets and external output naming, but does not alter AGV1 bytes, encryption,
 streaming file contents or the settings schema. Existing 2.3 lifecycle, cancellation and error contracts remain.
+Version 2.5 adds consistent invalid-UTF-8 response error mapping without changing those budgets or formats.
 
 ## Supported
 

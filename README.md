@@ -1,20 +1,20 @@
-# AegisVault Windows 2.4
+# AegisVault Windows 2.5
 
 A local Windows utility for password-based text and file encryption, with separate Base64 workflows.
-The current source is AegisVault 2.4. It closes bounded text roundtrips and repairs collision
-naming and atomic temporary names while retaining the 2.3 backend lifecycle hardening.
+The current source is AegisVault 2.5. It maps malformed UTF-8 backend responses to a consistent error
+and retains the verified file-input consistency, settings recovery and process-shared transaction repairs.
 It retains the **WinUI 3** interface, AGV1 format, scrypt and AES-256-GCM.
 All production windows use C# and Windows App SDK. There is no legacy desktop frontend.
 
 ## Use the application
 
-Download [AegisVault v2.4](https://github.com/Qrzzzz/AegisVaultWindows/releases/tag/v2.4), then extract the entire
-`AegisVault-v2.4-win64.zip` and run `AegisVault.exe`.
+Download the [latest stable release](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest), then extract the entire
+Windows ZIP and run `AegisVault.exe`.
 Keep all runtime files and the `backend` directory together. The package includes Python, .NET and the
 Windows App SDK runtime. Windows 10 2004 or newer, x64, is required; Mica is provided on supported Windows 11 systems.
 
-Local 2.4 builds appear under `dist/AegisVault/`; the archive is `AegisVault-v2.4-win64.zip`.
-See [2.4 release notes](docs/releases/v2.4.md) and [local acceptance](docs/ACCEPTANCE_2.4.md).
+Local 2.5 builds appear under `dist/AegisVault/`; the archive is `AegisVault-v2.5-win64.zip`.
+See [2.5 release notes](docs/releases/v2.5.md) and [local acceptance](docs/ACCEPTANCE_2.5.md).
 Earlier UI evidence remains in [2.1 UI acceptance](docs/UI_ACCEPTANCE.md).
 
 ## Workflows
@@ -79,7 +79,7 @@ scripts/                 validation, self-contained packaging, audits and releas
 docs/                    protocol, security model, migration and measured acceptance
 ```
 
-Product versions use `2.0 → 2.1 → 2.2 → 2.3 → 2.4`; PE/assembly metadata uses four components such as `2.4.0.0`.
+Product versions use `2.0 → 2.1 → 2.2 → 2.3 → 2.4 → 2.5`; PE/assembly metadata uses four components such as `2.5.0.0`.
 Python and NuGet dependencies are locked, and the release SBOM covers both runtimes. A local unsigned build
 is not evidence of a signed or published release.
 

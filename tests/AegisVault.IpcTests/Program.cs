@@ -5,7 +5,7 @@ using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using Microsoft.UI.Xaml.Controls;
 
-var root = Path.Combine(Path.GetTempPath(), "aegisvault-2.4-ipc-" + Guid.NewGuid().ToString("N"));
+var root = Path.Combine(Path.GetTempPath(), "aegisvault-2.5-ipc-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 Environment.SetEnvironmentVariable("LOCALAPPDATA", root);
 Environment.SetEnvironmentVariable("APPDATA", root);
@@ -208,6 +208,25 @@ try
         var result = await new BackendClient(new BackendTimeouts(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250),
             TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(2))).CallAsync("base64.encode_file", new { input_path = "synthetic" });
         Check(BackendResponse.Int64(result, "output_size") == 4, "long file operation inherited short RPC deadline");
+    });
+
+    foreach (var mode in new[] { "invalid-utf8-line", "invalid-utf8-eof", "invalid-utf8-continuation" })
+    {
+        await Run(mode, async () =>
+        {
+            Mode(mode);
+            var call = new BackendClient(fast).CallAsync("hello");
+            var owned = await WaitMarker(mode);
+            Check(await ErrorCode(call) == "ipc.invalid_response", "UTF-8 fault escaped unified mapping");
+            Check(!Alive(owned.pid), "invalid UTF-8 process leaked");
+        });
+    }
+    await Run("valid-utf8-split", async () =>
+    {
+        Mode("valid-utf8-split");
+        var result = await new BackendClient(fast).CallAsync("base64.encode_text", new { text = "synthetic" });
+        var owned = await WaitMarker("valid-utf8-split");
+        Check(BackendResponse.String(result, "text") == "🔐" && !Alive(owned.pid), "split UTF-8/CRLF control failed");
     });
 
     await Run("bounded-response-line", async () =>
