@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -22,14 +23,10 @@ from aegisvault.core.protocol import (
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
 
-FIXED_PASSWORD = "pässwörd-密钥"
-FIXED_PLAINTEXT = "AegisVault 固定样本 🔐"
-FIXED_TEXT_TOKEN = (
-    "AGV1.QUdWVEVYVAEAAADdeyJhbGdvcml0aG0iOiJBRVMtMjU2LUdDTSIsImNyZWF0ZWRfYXQiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIs"
-    "ImZvcm1hdCI6ImFlZ2lzdmF1bHQudGV4dCIsImtkZiI6eyJsZW5ndGgiOjMyLCJuIjoxNjM4NCwicCI6MSwiciI6OCwic2FsdCI6IkFBRUNB"
-    "d1FGQmdjSUNRb0xEQTBPRHc9PSIsInR5cGUiOiJzY3J5cHQifSwibm9uY2UiOiJBQUVDQXdRRkJnY0lDUW9MIiwidmVyc2lvbiI6MX2Rd050"
-    "x4GMXm_fKdfMEEoReZ9_d7p2j-w_0owvc_G-cOe5SLUWGD6HgmBEPA"
-)
+TEXT_FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "agv1-text.json").read_text(encoding="utf-8"))
+FIXED_PASSWORD = TEXT_FIXTURE["password"]
+FIXED_PLAINTEXT = TEXT_FIXTURE["plaintext"]
+FIXED_TEXT_TOKEN = TEXT_FIXTURE["token"]
 FIXED_FILE_BASE64 = (
     "QUdWRklMRQEAAAE9eyJhbGdvcml0aG0iOiJBRVMtMjU2LUdDTSIsImNodW5rX3NpemUiOjY1NTM2LCJjcmVhdGVkX2F0IjoiMjAyNi0wMS0w"
     "MlQwMzowNDowNVoiLCJmb3JtYXQiOiJhZWdpc3ZhdWx0LmZpbGUiLCJrZGYiOnsibGVuZ3RoIjozMiwibiI6MTYzODQsInAiOjEsInIiOjgs"
@@ -40,7 +37,13 @@ FIXED_FILE_BASE64 = (
 
 
 def fixed_params() -> ScryptParams:
-    return ScryptParams(salt=bytes(range(16)), n=2**14, r=8, p=1, length=32)
+    return ScryptParams(
+        salt=bytes(TEXT_FIXTURE["salt"]),
+        n=TEXT_FIXTURE["n"],
+        r=TEXT_FIXTURE["r"],
+        p=TEXT_FIXTURE["p"],
+        length=TEXT_FIXTURE["length"],
+    )
 
 
 def test_fixed_agv1_text_fixture_decrypts() -> None:

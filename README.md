@@ -42,6 +42,63 @@ beyond Python's digit limit, falls back to defaults and can be repaired by savin
 WinUI still submits all six preferences when saving a draft, so a later explicit save from another
 window can replace those fields; this is separate from server transaction protection.
 
+## AegisVault Web
+
+`web/` is a separate, purely static Vite + TypeScript application with native HTML/CSS.
+Its first version supports **AGV1 text encryption/decryption** and **strict UTF-8 Base64** only.
+It does not change the Windows application or introduce another encrypted format.
+Copy a Windows `AGV1.` text result into Web to decrypt it, or copy a Web result into Windows.
+Empty text, Unicode and UTF-8 BOMs are preserved by the codec; passwords are never normalized or trimmed.
+Base64 is encoding, **not encryption**. Strict decoding rejects whitespace, invalid characters,
+missing/excess padding and non-UTF-8 output; there is no relaxed mode in this first Web version.
+
+All computation happens locally in the browser. Native Web Crypto provides AES-256-GCM;
+the pinned, locally bundled `@noble/hashes` scrypt implementation runs in a disposable Web Worker.
+Encryption uses fresh random 16-byte salts and 12-byte nonces, the desktop's default scrypt
+parameters, canonical JSON, the original header bytes as AAD, big-endian header lengths and
+unpadded Base64URL tokens. Decryption validates the desktop KDF memory/work limits before derivation.
+Text budgets are imported directly from `src/aegisvault/text_limits.json`.
+
+There are no runtime CDNs, analytics, remote APIs, external fonts or content uploads.
+Passwords, plaintext and ciphertext are never written to localStorage, sessionStorage or an application database.
+Switching workspaces or clearing the form discards the current fields; canceling terminates the Worker.
+Copy is explicit and writes to the system clipboard. JavaScript cannot guarantee erasure of all memory copies.
+Use a modern browser with Web Crypto and Workers over HTTPS or localhost; opening `index.html` via `file://` is unsupported.
+
+**The Web supply-chain trust model differs from the installed Windows application.** Each page load
+trusts the site operator, GitHub Pages delivery, the browser and the JavaScript build/dependency chain.
+Local computation alone cannot protect against a compromised page or browser extension.
+**Prefer the desktop application for highly sensitive data.**
+
+With Node.js 24 and the repository's Python development environment installed:
+
+```powershell
+cd web
+npm ci
+npm test
+npm run build
+npx playwright install chromium
+npm run test:browser
+npm run preview
+```
+
+Open the local preview at `http://localhost:4173/AegisVaultWindows/`.
+`npm test` reads the existing fixed token from `tests/fixtures/agv1-text.json`, checks byte-identical
+Web output, and runs live Python ↔ Web interoperability checks. It uses the repository `.venv`
+when present; set `AEGISVAULT_PYTHON` to select another Python interpreter with `cryptography` installed.
+Python's `tests/test_protocol_fixtures.py` reads the same JSON. Tests also cover malformed tokens,
+authentication failures, Unicode, duplicate JSON keys, header/KDF limits and strict Base64.
+Browser tests exercise the built site, Worker, cancellation, copy, mobile/dark layout and absence of external requests/storage.
+
+The independent [Web Pages workflow](.github/workflows/web-pages.yml) tests and builds on relevant PRs
+and pushes, then deploys only the default branch's `web/dist` to GitHub Pages.
+In the repository's **Settings → Pages → Build and deployment**, select **GitHub Actions** once.
+After merging/pushing this change, run **AegisVault Web Pages** on the default branch if needed.
+Vite's base is `/AegisVaultWindows/`; the expected URL after a successful deployment is
+[AegisVault Web](https://qrzzzz.github.io/AegisVaultWindows/).
+The workflow is prepared in source; a local build does not mean the site has been published.
+See the [Vite GitHub Pages deployment guide](https://vite.dev/guide/static-deploy#github-pages).
+
 ## Develop and validate
 
 Install the .NET SDK specified by `global.json` and Python 3.11–3.13, then:
@@ -74,6 +131,7 @@ src/aegisvault/core/      AGV1, cryptography, KDF and atomic file operations
 src/aegisvault/services/  file naming and workflow facade
 src/aegisvault/settings/  validated configuration persistence
 src/aegisvault/backend/   versioned JSON Lines service
+web/                     Static browser text encryption and strict Base64 (Vite + TypeScript)
 tests/                   Core fixtures, protocol, release contracts and native UI automation
 scripts/                 validation, self-contained packaging, audits and release tooling
 docs/                    protocol, security model, migration and measured acceptance
