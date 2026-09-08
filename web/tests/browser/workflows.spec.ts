@@ -57,9 +57,30 @@ test('strict Base64, keyboard access, dark mobile layout', async ({ page }) => {
   await page.getByRole('button', { name: '解码', exact: true }).click();
   await expect(page.locator('#status')).toContainText('Base64 格式无效');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '../output/playwright/web-mobile-dark.png', fullPage: true });
+  await page.screenshot({ path: '../output/playwright/web-mobile-dark.png', fullPage: true, animations: 'disabled' });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.getByRole('button', { name: '加密 / 解密', exact: true }).click();
-  await page.screenshot({ path: '../output/playwright/web-desktop-light.png', fullPage: true });
+  await page.screenshot({ path: '../output/playwright/web-desktop-light.png', fullPage: true, animations: 'disabled' });
+});
+
+test('appearance follows system or explicit choice without changing drafts or using storage', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  await page.goto('./');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.locator('#input').fill('主题切换保留文本 🔐');
+  await page.locator('#password').fill('synthetic-test-password');
+  await page.getByLabel('外观', { exact: true }).selectOption('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.getByLabel('外观', { exact: true }).selectOption('auto');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('#input')).toHaveValue('主题切换保留文本 🔐');
+  await expect(page.locator('#password')).toHaveValue('synthetic-test-password');
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 });

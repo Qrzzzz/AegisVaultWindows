@@ -9,28 +9,34 @@
     <title>AegisVault Web</title>
   </head>
   <body>
-    <main>
-      <header><span class="eyebrow">AEGISVAULT · LOCAL FIRST</span><h1>AegisVault <span>Web</span></h1><p>让文字，只留给持有密码的人。</p></header>
-      <nav aria-label="工作区">
-        <button id="crypto-tab" type="button" aria-pressed="true">加密 / 解密</button>
-        <button id="base64-tab" type="button" aria-pressed="false">Base64</button>
+    <header class="site-header">
+      <h1 class="brand">AegisVault <span>Web</span></h1>
+      <div class="header-actions"><span class="settings-label">设置</span><label class="sr-only" for="appearance">外观</label><select id="appearance"><option value="auto">外观：自动</option><option value="light">外观：浅色</option><option value="dark">外观：深色</option></select></div>
+    </header>
+    <main class="page-main">
+      <nav class="workbench-tabs" aria-label="工作区">
+        <button id="crypto-tab" class="workbench-tab" type="button" aria-label="加密 / 解密" aria-pressed="true"><span class="tab-icon" aria-hidden="true">✦</span><span class="tab-copy"><strong>加密 / 解密</strong><small>密码保护文本</small></span></button>
+        <button id="base64-tab" class="workbench-tab" type="button" aria-label="Base64" aria-pressed="false"><span class="tab-icon mono" aria-hidden="true">↔</span><span class="tab-copy"><strong>Base64</strong><small>严格文本编码</small></span></button>
       </nav>
-      <section aria-label="文本工作区">
-        <p id="hint">兼容 Windows 版 AGV1 文本协议。请妥善保存密码，密码无法找回。</p>
-        <div id="password-row">
-          <label for="password">密码</label>
-          <div class="password-control"><input id="password" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" /><button id="show-password" type="button" aria-pressed="false">显示密码</button></div>
-        </div>
-        <div class="editors">
-          <div><label for="input">输入</label><textarea id="input" spellcheck="false" autocomplete="off" placeholder="输入任意 UTF-8 文本，或粘贴 AGV1. 密文"></textarea></div>
-          <div><label for="output">结果</label><textarea id="output" readonly spellcheck="false" autocomplete="off" placeholder="处理结果会显示在这里"></textarea></div>
-        </div>
-        <div class="actions"><button id="forward" class="primary" type="button">加密</button><button id="reverse" type="button">解密</button><button id="cancel" type="button" hidden>取消</button><span class="spacer"></span><button id="swap" type="button">交换输入输出</button><button id="copy" type="button">复制结果</button><button id="clear" type="button">清空</button></div>
+      <section class="result-card" aria-label="处理结果">
+        <div class="result-heading"><label class="result-label" for="output"><i aria-hidden="true"></i>结果</label><button id="copy" class="button button-primary" type="button">复制结果</button></div>
+        <textarea id="output" readonly spellcheck="false" autocomplete="off" placeholder="处理结果会显示在这里"></textarea>
         <p id="status" role="status" aria-live="polite" aria-atomic="true">就绪 · 所有计算在此浏览器本地完成</p>
       </section>
-      <footer><p>不上传内容，不保存密码或文本。Base64 不是加密。</p><p>网页代码的供应链信任模型与本地 Windows 应用不同。高敏感数据优先使用桌面版。</p><p class="limits">仅支持文本；明文上限 1,507,294 UTF-8 字节 / UTF-16 单元，密文输入上限 2 MiB。</p></footer>
+      <section class="text-controls" aria-label="文本工作区">
+        <div class="panel-heading"><div><p class="panel-kicker" id="workspace-kicker">TEXT ENCRYPTION</p><h2 id="workspace-title">为文字加一把锁</h2></div><p id="hint">兼容 Windows 版 AGV1 文本协议。请妥善保存密码，密码无法找回。</p></div>
+        <div class="input-heading"><label for="input">输入</label><div class="input-tools"><button id="swap" class="text-button" type="button">交换输入输出</button><button id="clear" class="text-button" type="button">清空</button></div></div>
+        <textarea id="input" spellcheck="false" autocomplete="off" placeholder="输入任意 UTF-8 文本，或粘贴 AGV1. 密文"></textarea>
+        <div id="password-row" class="password-row">
+          <label for="password">密码</label>
+          <div class="password-control"><input id="password" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" /><button id="show-password" class="text-button" type="button" aria-pressed="false">显示密码</button></div>
+        </div>
+        <div class="actions"><button id="forward" class="button button-primary" type="button">加密</button><button id="reverse" class="button button-secondary" type="button">解密</button><button id="cancel" class="button button-secondary" type="button" hidden>取消</button></div>
+      </section>
+      <aside class="privacy-note" aria-label="安全说明"><p>全部计算在浏览器本地完成 · 不上传 · 不保存</p><p>网页供应链信任模型与 Windows 应用不同，高敏感数据优先使用桌面版。</p><details><summary>文本限制与 Base64 说明</summary><p>Base64 不是加密。严格模式拒绝空白、非法字符及缺失或多余填充，解码结果必须为 UTF-8 文本。</p><p>明文上限 1,507,294 UTF-8 字节 / UTF-16 单元，密文输入上限 2 MiB。切换工作区会清空当前密码和文本。</p></details></aside>
       <noscript>请启用 JavaScript；加密与 Base64 转换均在浏览器本地执行。</noscript>
     </main>
+    <footer class="site-footer"><p>AegisVault Web · 本地文本工具</p><div class="footer-links"><a href="https://github.com/Qrzzzz/AegisVaultWindows/blob/master/SECURITY.md" target="_blank" rel="noopener noreferrer">安全与隐私说明</a><a href="https://github.com/Qrzzzz/AegisVaultWindows" target="_blank" rel="noopener noreferrer">MIT · GitHub</a></div></footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,5 +1,15 @@
 import './style.css';
 
+const appearance = document.getElementById('appearance') as HTMLSelectElement;
+const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+function applyAppearance() {
+  document.documentElement.dataset.theme = appearance.value === 'auto'
+    ? (systemTheme.matches ? 'dark' : 'light') : appearance.value;
+}
+appearance.addEventListener('change', applyAppearance);
+systemTheme.addEventListener('change', applyAppearance);
+applyAppearance();
+
 const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = get<HTMLTextAreaElement>('input');
 const output = get<HTMLTextAreaElement>('output');
@@ -25,6 +35,8 @@ function select(next: typeof mode) {
   button('base64-tab').setAttribute('aria-pressed', String(mode === 'base64'));
   button('forward').textContent = mode === 'crypto' ? '加密' : '编码';
   button('reverse').textContent = mode === 'crypto' ? '解密' : '解码';
+  get('workspace-kicker').textContent = mode === 'crypto' ? 'TEXT ENCRYPTION' : 'TEXT ENCODING';
+  get('workspace-title').textContent = mode === 'crypto' ? '为文字加一把锁' : '换一种方式表达文字';
   get('hint').textContent = mode === 'crypto' ? '兼容 Windows 版 AGV1 文本协议。请妥善保存密码，密码无法找回。' : 'Base64 不是加密。严格模式：不接受空白、非标准字符或缺失填充；解码结果必须为 UTF-8 文本。';
   input.placeholder = mode === 'crypto' ? '输入任意 UTF-8 文本，或粘贴 AGV1. 密文' : '输入 UTF-8 文本或严格 Base64 文本';
   message('已切换工作区并清空文本。');
