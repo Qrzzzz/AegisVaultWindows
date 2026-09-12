@@ -40,6 +40,13 @@ internal static class Program
             Console.WriteLine($"DPI: {GetDpiForWindow(new IntPtr(window.Current.NativeWindowHandle))}; High Contrast: {System.Windows.SystemParameters.HighContrast}");
             var originalBounds = window.Current.BoundingRectangle;
             var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
+            if (Environment.GetEnvironmentVariable("AEGISVAULT_QUEUE_ONLY") == "1")
+            {
+                CheckNativeBatch(profile, theme, language, labels);
+                ((WindowPattern)window.GetCurrentPattern(WindowPattern.Pattern)).Close();
+                if (!process.WaitForExit(15000) || process.ExitCode != 0) throw new Exception("Queue-only close failed");
+                return 0;
+            }
             Capture($"text-idle-{theme}-{language}.png");
             transform.Resize(680, 640);
             WaitVisible("Run");
@@ -111,7 +118,7 @@ internal static class Program
                 throw new Exception("Rejected text import changed the prior input");
             Console.WriteLine($"PASS: native UTF-8 import/AGV1/UseResult boundary ({plaintextBudget} bytes), localized over-limit rejection");
 
-            SelectNav("NavFile"); Wait(() => Find("InputFile"), "File page");
+            SelectNav("NavFile"); Wait(() => Find("PickFile"), "File page");
             var input = Path.Combine(profile, "fixture.bin");
             File.WriteAllBytes(input, Enumerable.Range(0, 256).Select(i => (byte)i).ToArray());
             Invoke("PickFile");
@@ -147,6 +154,7 @@ internal static class Program
                 var wrappers = new List<string>();
                 for (var index = 0; index < 3; index++)
                 {
+                    Set("InputFile", report);
                     Set("Password", "native-name-password"); Set("ConfirmPassword", "native-name-password"); Invoke("Run");
                     wrappers.Add(WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim());
                 }
@@ -164,14 +172,15 @@ internal static class Program
             ChooseMode(0); Set("OutputFolder", ""); Set("InputFile", large); Set("Password", "cancel-password"); Set("ConfirmPassword", "cancel-password");
             transform.Resize(680, 640);
             Invoke("Run"); WaitVisible("Cancel");
-            if (Find("InputFile")!.Current.IsEnabled || Find("NavText") is { } navText && navText.Current.IsEnabled)
-                throw new Exception("Task inputs or navigation stayed enabled");
+            if (!Find("PickFile")!.Current.IsEnabled || Find("OperationMode")!.Current.IsEnabled || Find("NavText") is { } navText && navText.Current.IsEnabled)
+                throw new Exception("Queue additions disabled or running options/navigation enabled");
             Invoke("Cancel");
             Wait(() => Find("Message") is { } message && (message.Current.Name.Contains("cancelled", StringComparison.OrdinalIgnoreCase) || message.Current.Name.Contains("已取消", StringComparison.Ordinal)) ? message : null, "Cancellation terminal");
             if (File.Exists(large + ".agv") || Directory.GetFiles(profile, ".*.tmp").Length != 0) throw new Exception("Cancellation left partial output");
             WaitVisible("Run"); Capture($"narrow-cancelled-{theme}-{language}.png");
             transform.Resize(originalBounds.Width, originalBounds.Height);
             Console.WriteLine("PASS: native cooperative cancellation and partial-output cleanup");
+            CheckNativeBatch(profile, theme, language, labels);
             SelectNav("NavBase64"); Wait(() => Find("TextInput"), "Base64 page");
             if (Find("IgnoreWhitespace") is not null) throw new Exception("Decode option is exposed while encoding");
             Set("TextInput", "hello"); Invoke("Run"); WaitText("Result", value => value == "aGVsbG8=");
@@ -187,7 +196,7 @@ internal static class Program
             WaitText("TextInput", value => value == "\ufeffabc");
             Invoke("Run"); WaitText("Result", value => value == "77u/YWJj");
             Console.WriteLine("PASS: native imported body U+FEFF Base64 bytes");
-            Choose("InputKind", 1); Wait(() => Find("InputFile"), "Base64 file page");
+            Choose("InputKind", 1); Wait(() => Find("PickFile"), "Base64 file page");
             Set("InputFile", input); Invoke("Run");
             var encodedPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
             ChooseMode(1); Set("InputFile", encodedPath); Invoke("Run");
@@ -196,7 +205,7 @@ internal static class Program
             Console.WriteLine("PASS: native Base64 file encode/decode");
             var invalidBase64 = Path.Combine(profile, "...b64");
             File.Copy(encodedPath, invalidBase64);
-            Invoke("PickFile"); PickNativePath(invalidBase64);
+            Invoke("ClearQueue"); Invoke("PickFile"); PickNativePath(invalidBase64);
             WaitText("InputFile", value => value == invalidBase64);
             Invoke("Run"); WaitMessage("Status", labels["error.file.output_name_invalid"]);
             if (Find("Result") is not null) throw new Exception("Invalid Base64 restore filename produced a result");
@@ -207,6 +216,7 @@ internal static class Program
             var base64Wrappers = new List<string>();
             for (var index = 0; index < 3; index++)
             {
+                Set("InputFile", base64Report);
                 Invoke("Run");
                 base64Wrappers.Add(WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim());
             }
@@ -233,7 +243,7 @@ internal static class Program
             Choose("Language", alternateLanguage == "zh-CN" ? 0 : 1);
             Choose("Theme", alternateTheme == "dark" ? 2 : 1);
             Set("SettingsOutputFolder", profile);
-            SelectNav("NavBase64"); Wait(() => Find("InputFile"), "Retained Base64 file mode");
+            SelectNav("NavBase64"); Wait(() => Find("PickFile"), "Retained Base64 file mode");
             SelectNav("NavSettings"); WaitText("SettingsOutputFolder", value => value == profile);
             if (!Find("SaveSettings")!.Current.IsEnabled) throw new Exception("Settings draft lost on navigation");
             Invoke("DiscardSettings");
@@ -323,7 +333,7 @@ internal static class Program
                     if (!secondProcess.HasExited) { secondProcess.Kill(true); secondProcess.WaitForExit(10000); }
                 }
             }
-            SelectNav("NavBase64"); Wait(() => Find("InputFile"), "Retained Base64 file mode after language change");
+            SelectNav("NavBase64"); Wait(() => Find("PickFile"), "Retained Base64 file mode after language change");
             WaitMessage("Status", alternateLabels["completed"]);
             SelectNav("NavSettings");
             Choose("Language", language == "zh-CN" ? 0 : 1);
@@ -347,10 +357,10 @@ internal static class Program
                 e.Current.ControlType is var type && type != ControlType.Pane && type != ControlType.Window).Select(e => e.Current.ControlType.ProgrammaticName).ToArray();
             if (unnamed.Length != 0) throw new Exception("Unnamed focusable controls: " + string.Join(", ", unnamed));
             Console.WriteLine($"PASS: {controls.Count} focusable settings elements have accessible names");
-            SelectNav("NavFile"); Wait(() => Find("InputFile"), "File page for close");
+            SelectNav("NavFile"); Wait(() => Find("PickFile"), "File page for close");
             ChooseMode(0); Set("InputFile", large); Set("Password", "close-password"); Set("ConfirmPassword", "close-password");
             Invoke("Run");
-            Wait(() => Find("Cancel") is { } cancel && cancel.Current.IsEnabled ? cancel : null, "Busy before close");
+            Wait(() => Find("OperationMode") is { } mode && !mode.Current.IsEnabled ? mode : null, "Busy before close");
             ((WindowPattern)window.GetCurrentPattern(WindowPattern.Pattern)).Close();
             var confirm = Wait(() => window.FindAll(TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button)).Cast<AutomationElement>()
@@ -434,6 +444,59 @@ internal static class Program
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button)));
         ((InvokePattern)confirm.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
     }
+    private static void CheckNativeBatch(string profile, string theme, string language, Dictionary<string, string> labels)
+    {
+        var originalBounds = window.Current.BoundingRectangle;
+        var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
+        SelectNav("NavFile"); Wait(() => Find("PickFile"), "File queue");
+        Invoke("ClearQueue");
+        var batchInputs = Enumerable.Range(1, 3).Select(index => Path.Combine(profile, $"drop-{index}.txt")).ToArray();
+        foreach (var path in batchInputs) File.WriteAllText(path, "Native drag payload: " + Path.GetFileName(path), new UTF8Encoding(false));
+        PickNativeFiles(batchInputs);
+        WaitQueueCount(3);
+        PickNativeFiles([batchInputs[0]]); WaitQueueCount(3);
+        RemoveQueuePath(batchInputs[1]); WaitQueueCount(2);
+        var queueScroll = (ScrollPattern)Find("WorkflowScroll")!.GetCurrentPattern(ScrollPattern.Pattern);
+        if (queueScroll.Current.VerticallyScrollable) queueScroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+        Capture($"queue-pending-{theme}-{language}.png");
+        transform.Resize(680, 640);
+        Capture($"queue-narrow-{theme}-{language}.png");
+        transform.Resize(originalBounds.Width, originalBounds.Height);
+        Set("Password", "native-batch-password"); Set("ConfirmPassword", "native-batch-password"); Invoke("Run");
+        WaitMessage("Status", labels["completed"]);
+        WaitVisible("Result"); InvokeResult("CopyResult");
+        var batchOutputs = System.Windows.Forms.Clipboard.GetText().Split(Environment.NewLine);
+        if (batchOutputs.Length != 2 || batchOutputs.Any(path => !File.Exists(path)) || File.Exists(batchInputs[1] + ".agv"))
+            throw new Exception("Native queue batch outputs or removed entry differ");
+        Capture($"queue-completed-{theme}-{language}.png");
+        Invoke("ClearQueue"); ChooseMode(1);
+        PickNativeFiles(batchOutputs);
+        WaitQueueCount(2); Set("Password", "native-batch-password"); Invoke("Run"); WaitMessage("Status", labels["completed"]);
+        InvokeResult("CopyResult"); var batchRestored = System.Windows.Forms.Clipboard.GetText().Split(Environment.NewLine);
+        if (batchRestored.Length != 2 || !File.ReadAllBytes(batchRestored[0]).SequenceEqual(File.ReadAllBytes(batchInputs[0]))
+            || !File.ReadAllBytes(batchRestored[1]).SequenceEqual(File.ReadAllBytes(batchInputs[2])))
+            throw new Exception("Native multi-file AGV1 restore differs");
+        Console.WriteLine("PASS: native multi-file selection, duplicate suppression, per-item removal, batch AGV1 roundtrip and result paths");
+    }
+    private static void WaitQueueCount(int count) => Wait(() =>
+    {
+        var summary = Find("QueueSummary");
+        return summary is not null && summary.Current.Name.StartsWith(count + " ", StringComparison.Ordinal) ? summary : null;
+    }, $"Queue count {count}");
+    private static void RemoveQueuePath(string path)
+    {
+        var button = Wait(() => window.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "RemoveQueueItem"))
+            .Cast<AutomationElement>().FirstOrDefault(item => item.Current.IsEnabled && item.Current.Name.EndsWith(Path.GetFileName(path), StringComparison.Ordinal)), "Queue remove");
+        ((InvokePattern)button.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+    }
+    private static void PickNativeFiles(string[] paths)
+    {
+        Invoke("PickFile");
+        PickNativePath(Path.GetDirectoryName(paths[0])!);
+        Thread.Sleep(300); // The directory entry navigates the existing native picker.
+        PickNativePath(string.Join(" ", paths.Select(path => $"\"{Path.GetFileName(path)}\"")));
+    }
     private static T Wait<T>(Func<T?> action, string label) where T : class
     {
         var timer = Stopwatch.StartNew();
@@ -447,6 +510,11 @@ internal static class Program
     }
     private static void Set(string id, string value)
     {
+        if (id == "InputFile")
+        {
+            Invoke("ClearQueue"); PickNativeFiles([value]);
+            WaitText("InputFile", path => path == value); return;
+        }
         var element = Wait(() => Find(id), id);
         ((ValuePattern)element.GetCurrentPattern(ValuePattern.Pattern)).SetValue(value);
     }
@@ -464,9 +532,9 @@ internal static class Program
     }
     private static string WaitText(string id, Func<string, bool> match) => Wait(() =>
     {
-        var element = Find(id);
+        var element = Find(id == "InputFile" ? "QueuePath" : id);
         if (element is null) return null;
-        var text = ((ValuePattern)element.GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
+        var text = id == "InputFile" ? element.Current.Name : ((ValuePattern)element.GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
         return match(text) ? text : null;
     }, $"Result of {id}");
     private static void ChooseMode(int index) => Choose("OperationMode", index);

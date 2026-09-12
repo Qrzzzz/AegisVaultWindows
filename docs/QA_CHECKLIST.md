@@ -1,8 +1,17 @@
-# AegisVault 2.6 acceptance checklist
+# AegisVault 2.7 acceptance checklist
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.6.md](ACCEPTANCE_2.6.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.7.md](ACCEPTANCE_2.7.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
+
+- Add several files with the native multi-select picker; verify duplicate suppression, per-item removal,
+  independent result paths and byte-exact AGV1/Base64 batch round trips. Cover both UI languages and a narrow window.
+- During a batch, append files, remove a waiting item, retain the running item and freeze operation/output
+  options, including a saved default-folder change from another settings writer. Failed files must not skip
+  later entries; retries and cancellation/resume must not repeat completed work. Keep Cancel visible as results accumulate.
+- Manually drop real files from Explorer onto the File page, Text page and Base64 text/file modes. Verify
+  automatic routing, multi-file acceptance, folder rejection and live additions during a running file batch.
+  An injected drag source that never receives a mouse press is not evidence that this gate passed.
 
 - Link the lifecycle harness directly to this worktree's C# sources. Cover a backend that does not read stdin,
   a read hang, a blocked cancellation notification, a terminal event without process exit, exit/cancel races,

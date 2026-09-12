@@ -1,4 +1,4 @@
-# WinUI 3 desktop contract — 2.1
+# WinUI 3 desktop contract — 2.7
 
 `Microsoft.UI.Xaml.Window` owns the only production top-level application window. Its content uses native
 `TitleBar`, `MicaBackdrop`, `NavigationView`, `Frame` and four Pages. No custom control template, palette,
@@ -13,18 +13,29 @@ Local validation preserves entries for correction and focuses the failing field.
 clear password controls. Secrets never appear in command-line arguments or application logs.
 
 `InfoBar` reports success and coded errors in place. `ContentDialog` confirms cancellation before closing
-a busy window; its default action keeps the task running. While processing, operation/input changes and
-navigation are disabled at both the control and view-model boundary. Cancel is visible only during processing,
+a busy window; its default action keeps the task running. While processing, operation, text input, password,
+destination changes and navigation are disabled at both the control and view-model boundary. File queues
+still accept additions and removal of waiting entries. The active file cannot be removed. Cancel is visible only during processing,
 remains in the footer and becomes disabled after a cancellation request. Late progress callbacks cannot modify a later task.
 
 Completed results receive focus after layout and scroll into view. Native `CommandBar` overflow keeps copy,
-save and result reuse available at narrow widths. File copy puts only the exact output path on the clipboard.
+save and result reuse available at narrow widths. Result actions in that bar are hidden while processing so
+they cannot displace Cancel as a batch accumulates successful outputs. File copy puts each retained successful
+output path on its own clipboard line; individual queue entries also expose their output folder.
 Text reuse switches to the reverse operation and clears the old result. Editing input, destination or decoding
 options invalidates old feedback. Base64 retains the input type and the separate text/file workflow state across navigation.
 
 FileOpenPicker, FileSavePicker and FolderPicker come from `Microsoft.Windows.Storage.Pickers` and receive
-the actual AppWindow ID. Empty output override delegates to the saved output directory or source folder.
-The Core controls automatic naming, collision avoidance and atomic overwrite behavior.
+the actual AppWindow ID. The file picker supports multiple selection. File drops anywhere in the content
+window route to the File queue, or the Base64 file queue when Base64 is selected. Text drops retain their
+existing text workflow behavior. The window does not redirect a running text operation.
+
+Queues hold up to 256 normalized, unique Windows file paths, retain item status across navigation and support
+explicit failure retries. Cancel keeps committed outputs and leaves unfinished work for the next run. The
+queue and passwords are not saved across application restarts. Empty output override snapshots the saved
+output directory or uses each source folder, including for files appended later. Batch processing always
+numbers conflicting output names rather than overwriting existing files. Each file keeps the existing Core
+atomic publication and cancellation cleanup. The single-file backend API retains its overwrite preference.
 
 Themes use `RequestedTheme` and `ThemeResource`, including the system high contrast palette. All pages are
 vertically scrollable, have stretch layouts and a maximum readable width, and the NavigationView adapts its
@@ -39,5 +50,6 @@ Retained workflow status and file-size metadata retranslate when language change
 
 The control/API choices follow Microsoft's documentation for the
 [native TitleBar](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/title-bar),
+[drag and drop](https://learn.microsoft.com/en-us/windows/apps/develop/data/drag-and-drop),
 [Windows App SDK pickers](https://learn.microsoft.com/en-us/windows/apps/develop/files/pickers-save-file)
 and [self-contained unpackaged distribution](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/unpackage-winui-app).

@@ -8,6 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/AegisVault.App/Services/BackendClient.cs" Link="BackendClient.cs" />
+    <Compile Include="../../src/AegisVault.App/Services/BatchResponse.cs" Link="BatchResponse.cs" />
+    <Compile Include="../../src/AegisVault.App/ViewModels/FileQueueItem.cs" Link="FileQueueItem.cs" />
     <Compile Include="../../src/AegisVault.App/Services/SettingsService.cs" Link="SettingsService.cs" />
     <Compile Include="../../src/AegisVault.App/Services/ProductInfo.cs" Link="ProductInfo.cs" />
     <Compile Include="../../src/AegisVault.App/ViewModels/SettingsViewModel.cs" Link="SettingsViewModel.cs" />

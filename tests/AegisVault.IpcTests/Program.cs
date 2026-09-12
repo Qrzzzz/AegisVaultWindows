@@ -199,6 +199,8 @@ try
             var call = workflow.RunAsync();
             var owned = await WaitMarker("recent-hang");
             Check(workflow.HasResult && File.Exists(workflow.ResultPath), "file result not committed before history");
+            Check(workflow.ResultActionsVisibility == Microsoft.UI.Xaml.Visibility.Collapsed && workflow.CanCancel,
+                "result actions displaced cancellation while the workflow was still busy");
             if (mode.EndsWith("cancel", StringComparison.Ordinal)) await workflow.CancelAndWaitAsync();
             else await call;
             Check(workflow.HasResult && !workflow.IsBusy && !settings.IsBusy && !Alive(owned.pid), "history failure erased result or stayed busy");
@@ -334,6 +336,92 @@ try
         await a.SaveAsync();
         Check(first.Current.Theme == "system", "same-field edits must use last explicit save");
         await first.SaveAsync(first.Current with { DefaultOutputDir = "", RememberRecentFiles = true });
+    });
+
+    await Run("batch-queue-live-edits-and-real-backend", async () =>
+    {
+        Mode("healthy");
+        var settings = new SettingsService(new BackendClient(fast));
+        await settings.LoadAsync();
+        var folder = Path.Combine(root, "queue-live"); Directory.CreateDirectory(folder);
+        var changedDefault = Path.Combine(root, "queue-changed-default"); Directory.CreateDirectory(changedDefault);
+        var paths = Enumerable.Range(0, 3).Select(index => Path.Combine(folder, index + ".txt")).ToArray();
+        foreach (var path in paths) await File.WriteAllTextAsync(path, "payload " + path);
+        var workflow = new WorkflowViewModel("base64_file", new BackendClient(fast), settings);
+        workflow.AddFiles(paths.Take(2)); workflow.AddFiles([paths[0]]);
+        Check(workflow.Files.Count == 2, "duplicate queue input accepted");
+        var first = workflow.Files[0]; var removed = workflow.Files[1];
+        var edited = false;
+        workflow.PropertyChanged += (_, change) =>
+        {
+            if (change.PropertyName != "QueueSummary" || edited || first.State != "running") return;
+            edited = true;
+            workflow.RemoveFile(first); // The active file cannot be removed.
+            workflow.RemoveFile(removed); workflow.AddFiles([paths[2]]);
+            workflow.Mode = 1; workflow.OutputDir = "must-not-change";
+            // A different settings writer must not redirect this already-started batch.
+            settings.SaveAsync(settings.Current with { DefaultOutputDir = changedDefault }).GetAwaiter().GetResult();
+        };
+        await workflow.RunAsync();
+        Check(edited && workflow.Files.Count == 2 && workflow.Files[0] == first, "live edit or running guard failed");
+        Check(workflow.Mode == 0 && workflow.OutputDir == "", "running options changed");
+        Check(workflow.Files.All(file => file.State == "completed"), "live queue did not drain");
+        Check(!File.Exists(paths[1] + ".b64"), "removed pending file was processed");
+        foreach (var file in workflow.Files)
+        {
+            Check(Path.GetDirectoryName(file.ResultPath) == folder, "running batch followed a later default-directory change");
+            Check(await File.ReadAllTextAsync(file.ResultPath) == Convert.ToBase64String(await File.ReadAllBytesAsync(file.InputPath)), "batch output differs");
+        }
+        Check(workflow.CopyContent.Split(Environment.NewLine).Length == 2 && !workflow.CanRun && !workflow.IsBusy,
+            "batch copy content or terminal state invalid");
+        await settings.SaveAsync(settings.Current with { DefaultOutputDir = "" });
+    });
+
+    await Run("batch-partial-failure-retry-and-resume", async () =>
+    {
+        Mode("healthy");
+        var settings = new SettingsService(new BackendClient(fast)); await settings.LoadAsync();
+        var folder = Path.Combine(root, "queue-retry"); Directory.CreateDirectory(folder);
+        var bad = Path.Combine(folder, "bad.b64"); var good = Path.Combine(folder, "good.b64");
+        await File.WriteAllTextAsync(bad, "@@@@"); await File.WriteAllTextAsync(good, "aGVsbG8=");
+        var workflow = new WorkflowViewModel("base64_file", new BackendClient(fast), settings) { Mode = 1 };
+        workflow.AddFiles([bad, good]); await workflow.RunAsync();
+        Check(workflow.Files[0].State == "failed" && workflow.Files[1].State == "completed" && workflow.HasResult,
+            "partial failure erased or skipped successful output");
+        var preserved = workflow.Files[1].ResultPath;
+        await File.WriteAllTextAsync(bad, "cmV0cmllZA=="); workflow.RetryFile(workflow.Files[0]); await workflow.RunAsync();
+        Check(workflow.Files.All(file => file.State == "completed") && workflow.Files[1].ResultPath == preserved,
+            "retry reprocessed completed input");
+        Check(await File.ReadAllTextAsync(workflow.Files[0].ResultPath) == "retried", "retry output differs");
+        workflow.ClearQueue(); workflow.Mode = 0; workflow.AddFiles([bad, good]);
+        var cancelled = false;
+        workflow.PropertyChanged += (_, change) =>
+        {
+            if (change.PropertyName == "HasResult" && !cancelled && workflow.HasResult)
+            { cancelled = true; workflow.CancelCommand.Execute(null); }
+        };
+        await workflow.RunAsync();
+        Check(cancelled && workflow.Files[0].State == "completed" && workflow.Files[1].State == "pending" && workflow.CanEditQueue,
+            "cancel lost committed result, processed waiting input or locked queue");
+        var beforeResume = workflow.Files[0].ResultPath;
+        await workflow.RunAsync();
+        Check(workflow.Files.All(file => file.State == "completed") && workflow.Files[0].ResultPath == beforeResume,
+            "resume repeated committed work");
+    });
+
+    await Run("batch-response-boundary", () =>
+    {
+        var valid = """{"cancelled":false,"items":[{"input_path":"source","status":"completed","code":"","result":{"output_path":"output","original_size":1,"output_size":4}}]}""";
+        foreach (var malformed in new[] { valid.Replace("\"original_size\":1", "\"original_size\":1.5"),
+            valid.Replace("\"output_size\":4", "\"output_size\":-1"), valid.Replace("\"completed\"", "\"unknown\""),
+            valid.Replace("\"output_path\":\"output\"", "\"output_path\":null"),
+            """{"cancelled":false,"items":[]}""", """{"cancelled":"false","items":[]}""" })
+        {
+            using var document = JsonDocument.Parse(malformed);
+            try { BatchResponse.Read(document.RootElement); throw new Exception("malformed batch accepted"); }
+            catch (BackendException ex) { Check(ex.Code == "ipc.invalid_response", "batch response error not unified"); }
+        }
+        return Task.CompletedTask;
     });
 
     foreach (var pidFile in Directory.GetFiles(root, "owned-process.json.*.pid"))
