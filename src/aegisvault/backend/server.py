@@ -17,6 +17,7 @@ from typing import Any, BinaryIO
 from aegisvault.core.exceptions import AppError, OperationCancelled, ValidationError
 from aegisvault.core.models import CancelToken, ProgressCallback
 from aegisvault.resource_limits import MAX_JSON_LINE_BYTES, TEXT_LIMITS
+from aegisvault.services.batch_service import MAX_BATCH_FILES, process_files
 from aegisvault.services.crypto_service import CryptoService
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
@@ -28,6 +29,7 @@ OPERATIONS = (
     "hello", "settings.get", "settings.update", "recent.add", "recent.clear",
     "text.encrypt", "text.decrypt", "file.encrypt", "file.decrypt",
     "base64.encode_text", "base64.decode_text", "base64.encode_file", "base64.decode_file",
+    "file.batch",
 )
 
 
@@ -148,7 +150,8 @@ class BackendServer:
     def dispatch(self, op: str, args: dict[str, Any], progress: ProgressCallback) -> Any:
         if op == "hello":
             return {"protocol": PROTOCOL_VERSION, "version": PACKAGE_VERSION, "operations": OPERATIONS,
-                    "max_line_bytes": MAX_LINE_BYTES, "text_limits": TEXT_LIMITS.to_dict()}
+                    "max_line_bytes": MAX_LINE_BYTES, "text_limits": TEXT_LIMITS.to_dict(),
+                    "max_batch_files": MAX_BATCH_FILES}
         if op in {"settings.update", "recent.add", "recent.clear"}:
             return self.store.update(
                 lambda settings: self._change_settings(settings, op, args), cancel_token=self._token
@@ -159,6 +162,15 @@ class BackendServer:
         service = CryptoService(settings)
         if self._token.cancelled:
             raise OperationCancelled()
+        if op == "file.batch":
+            paths = args.get("input_paths")
+            if not isinstance(paths, list):
+                raise ValidationError(code="ipc.invalid_request")
+            destination = _string(args, "output_dir", "")
+            return process_files(settings, _string(args, "operation"), paths,
+                                 password=_string(args, "password", ""),
+                                 output_dir=Path(destination) if destination else None,
+                                 progress=progress, cancel_token=self._token)
         if op == "text.encrypt":
             return service.encrypt_text(_string(args, "text"), _string(args, "password"))
         if op == "text.decrypt":

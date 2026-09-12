@@ -15,7 +15,7 @@
 <p>
   <strong>导航</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">下载最新版</a> ·
-  <a href="./docs/releases/v2.6.md">发布说明</a> ·
+  <a href="./docs/releases/v2.7.md">发布说明</a> ·
   <a href="#主要功能">主要功能</a> ·
   <a href="./docs/SECURITY_MODEL.md">安全模型</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 协议</a> ·
@@ -42,17 +42,17 @@
 
 从 [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest) 下载最新稳定版本。
 
-当前稳定版为 **AegisVault 2.6**，主要发布文件包括：
+当前稳定版为 **AegisVault 2.7**，主要发布文件包括：
 
 | 文件                          | 用途                     |
 | --------------------------- | ---------------------- |
-| `AegisVault-v2.6-win64.zip` | Windows x64 应用程序       |
-| `AegisVault-v2.6.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
+| `AegisVault-v2.7-win64.zip` | Windows x64 应用程序       |
+| `AegisVault-v2.7.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
 | `SHA256SUMS`                | 发布文件 SHA-256 校验值       |
 
 使用方法：
 
-1. 下载并**完整解压** `AegisVault-v2.6-win64.zip`。
+1. 下载并**完整解压** `AegisVault-v2.7-win64.zip`。
 2. 保持 `AegisVault.exe`、`backend` 目录及其余运行时文件位于原有目录结构中。
 3. 运行 `AegisVault.exe`。
 
@@ -69,19 +69,13 @@
 > [!IMPORTANT]
 > 发布流程支持可选代码签名，但“支持签名”并不代表某个具体发布文件一定具有 Authenticode 签名。如需确认，请检查下载文件本身的数字签名及发布校验值。
 
-## ✨ v2.6 更新重点
+## ✨ v2.7 更新重点
 
-AegisVault 2.6 修复了 5 个设置与数据保真问题：
+文件页和 Base64 文件模式支持多文件拖放与多选、可滚动的文件堆栈、逐项处理状态、失败重试和取消后继续。处理期间仍可追加文件或移除尚未开始的项目；输出重名时自动编号，不覆盖已有文件。
 
-* 多窗口保存设置时，只提交实际修改的字段；修改主题不会重新开启另一窗口已关闭的历史记录。
-* 恢复损坏设置时过滤无效 Unicode 路径，保留有效历史和其他偏好。
-* Web 结果的复制与复用保留原始 CR/CRLF 换行及 Unicode 字符。
-* 文件恢复在生成输出路径前校验文件名，避免边界名称改变输出目录。
-* UTF-8 文本导入只消费一个 BOM，保留正文中的后续 U+FEFF 字符。
+后端新增 `file.batch`，支持一次提交最多 256 个文件，按顺序处理并返回独立结果与整体进度。既有单文件接口、AGV1、文本操作和设置存储保持兼容。
 
-AGV1、scrypt、AES-256-GCM、设置结构和既有界面保持兼容。
-
-完整变更见 [v2.6 发布说明](./docs/releases/v2.6.md) 与 [v2.6 验收记录](./docs/ACCEPTANCE_2.6.md)。
+详情见 [v2.7 发布说明](./docs/releases/v2.7.md) 和 [验收记录](./docs/ACCEPTANCE_2.7.md)，其中保留了尚待手工验证的拖放项目。早期更新见 [变更记录](./CHANGELOG.md)。
 
 <a id="主要功能"></a>
 
@@ -255,7 +249,7 @@ AegisVault **没有经过独立第三方安全审计**。请根据数据敏感�
 | [Migration Guide](./docs/MIGRATION.md)               | 旧版本与格式迁移边界               |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | 发布前质量检查                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | 构建与发布工程                  |
-| [v2.6 Acceptance](./docs/ACCEPTANCE_2.6.md)          | 当前版本执行过的验收项目             |
+| [v2.7 Acceptance](./docs/ACCEPTANCE_2.7.md)          | 当前版本执行过的验收项目             |
 
 ## AegisVault Web
 

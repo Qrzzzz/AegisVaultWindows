@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7 - 2026-09-12
+
+- Add multi-file drag and drop, a native stack of queued files, a multi-select picker, duplicate suppression and per-file removal in the File and Base64 file workflows.
+- Keep the queue editable during processing: append files and remove pending items, show individual results, retry failed items, cancel safely and resume unfinished files without repeating successful work.
+- Add a bounded `file.batch` backend API for sequential AGV1 and Base64 processing, independent per-file failures, aggregate progress and cancellation results. Batches choose unused output names even when single-file overwrite is enabled.
+- Preserve AGV1, text workflows, settings storage and bilingual Windows controls. Local validation is recorded in `docs/ACCEPTANCE_2.7.md`.
+
 ## 2.6 - 2026-09-12
 
 - Save only settings fields edited against the draft baseline, preserving other windows' changes, including disabled recent-file history. Same-field edits use the last explicit save (#23).

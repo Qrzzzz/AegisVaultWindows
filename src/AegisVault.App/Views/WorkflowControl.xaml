@@ -1,50 +1,92 @@
 <UserControl x:Class="AegisVault.App.Views.WorkflowControl" x:Name="WorkflowRoot"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Grid RowDefinitions="*,Auto" RowSpacing="16" HorizontalAlignment="Stretch"
+  <Grid RowDefinitions="*,Auto" RowSpacing="16" HorizontalAlignment="Stretch" Background="Transparent"
       AllowDrop="True" DragOver="DragOverInput" Drop="DropInput">
     <ScrollViewer x:Name="WorkflowScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
         AutomationProperties.AutomationId="WorkflowScroll">
       <StackPanel Spacing="20" Padding="0,0,12,4">
         <ContentPresenter Content="{Binding Header, ElementName=WorkflowRoot}" />
-        <UserControl IsEnabled="{Binding IsIdle}"><StackPanel x:Name="Inputs" Spacing="16">
+        <StackPanel x:Name="Inputs" Spacing="16">
           <ComboBox x:Name="ModePicker" Header="{Binding L[operation]}" SelectionChanged="ModeChanged"
-              MinWidth="180" AutomationProperties.AutomationId="OperationMode" />
-          <StackPanel x:Name="TextInputs" Spacing="8">
+              MinWidth="180" IsEnabled="{Binding IsIdle}" AutomationProperties.AutomationId="OperationMode" />
+          <StackPanel x:Name="TextInputs" Spacing="8" IsHitTestVisible="{Binding IsIdle}">
             <TextBox x:Name="TextInput" Header="{Binding L[input]}" Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="132" MaxHeight="260" MaxLength="{Binding InputCodeUnitLimit}"
-                ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="TextInput" />
-            <Button x:Name="ImportButton" Content="{Binding L[import_text]}" Click="ImportText" AutomationProperties.AutomationId="ImportText" />
+                IsEnabled="{Binding IsIdle}" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="TextInput" />
+            <Button x:Name="ImportButton" IsEnabled="{Binding IsIdle}" Content="{Binding L[import_text]}" Click="ImportText" AutomationProperties.AutomationId="ImportText" />
           </StackPanel>
           <StackPanel x:Name="FileInputs" Spacing="16">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-              <TextBox x:Name="FileInput" Header="{Binding L[input_file]}" Text="{Binding InputPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  AutomationProperties.AutomationId="InputFile" />
-              <Button Grid.Column="1" Content="{Binding L[choose_file]}" Click="PickFile" VerticalAlignment="Bottom"
-                  AutomationProperties.AutomationId="PickFile" />
-            </Grid>
+            <Border x:Name="FileDropZone" Padding="16" CornerRadius="8" BorderThickness="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{Binding L[drop_files]}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding L[queue_hint]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="PickFilesButton" Content="{Binding L[add_files]}" Click="PickFile" IsEnabled="{Binding CanEditQueue}"
+                      AutomationProperties.AutomationId="PickFile" />
+                  <Button Content="{Binding L[clear_queue]}" Click="ClearFileQueue" IsEnabled="{Binding IsIdle}"
+                      AutomationProperties.AutomationId="ClearQueue" />
+                </StackPanel>
+                <TextBlock Text="{Binding QueueSummary}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueSummary"
+                    AutomationProperties.LiveSetting="Polite" />
+                <ListView ItemsSource="{Binding Files}" SelectionMode="None" MaxHeight="248" Padding="0"
+                    HorizontalContentAlignment="Stretch" AutomationProperties.Name="{Binding L[file_queue]}"
+                    AutomationProperties.AutomationId="FileQueue">
+                  <ListView.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="0,8">
+                        <StackPanel Spacing="4">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding InputPath}" TextTrimming="CharacterEllipsis" FontSize="12"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{Binding InputPath}"
+                              AutomationProperties.AutomationId="QueuePath" />
+                          <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueStatus" />
+                          <TextBlock Text="{Binding ResultPath}" TextWrapping="Wrap" Visibility="{Binding ResultVisibility}"
+                              FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
+                          <Button Click="RevealQueueItem" Visibility="{Binding ResultVisibility}" ToolTipService.ToolTip="{Binding RevealLabel}"
+                              AutomationProperties.Name="{Binding RevealLabel}" AutomationProperties.AutomationId="RevealQueueItem">
+                            <SymbolIcon Symbol="Folder" />
+                          </Button>
+                          <Button Click="RetryQueueItem" Visibility="{Binding RetryVisibility}" ToolTipService.ToolTip="{Binding RetryLabel}"
+                              AutomationProperties.Name="{Binding RetryLabel}" AutomationProperties.AutomationId="RetryQueueItem">
+                            <SymbolIcon Symbol="Refresh" />
+                          </Button>
+                          <Button Click="RemoveQueueItem" IsEnabled="{Binding CanRemove}" ToolTipService.ToolTip="{Binding RemoveLabel}"
+                              AutomationProperties.Name="{Binding RemoveLabel}" AutomationProperties.AutomationId="RemoveQueueItem">
+                            <SymbolIcon Symbol="Cancel" />
+                          </Button>
+                        </StackPanel>
+                      </Grid>
+                    </DataTemplate>
+                  </ListView.ItemTemplate>
+                </ListView>
+              </StackPanel>
+            </Border>
             <ComboBox x:Name="RecentPicker" Header="{Binding L[recent_files]}" ItemsSource="{Binding RecentFiles}"
                 Visibility="{Binding RecentVisibility}" SelectionChanged="SelectRecent" HorizontalAlignment="Stretch"
-                AutomationProperties.AutomationId="RecentFiles" />
+                IsEnabled="{Binding CanEditQueue}" AutomationProperties.AutomationId="RecentFiles" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
               <TextBox Header="{Binding L[output_folder]}" Text="{Binding OutputDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  PlaceholderText="{Binding OutputFolderPlaceholder}" AutomationProperties.AutomationId="OutputFolder" />
+                  IsEnabled="{Binding IsIdle}" PlaceholderText="{Binding OutputFolderPlaceholder}" AutomationProperties.AutomationId="OutputFolder" />
               <Button Grid.Column="1" Click="PickFolder" VerticalAlignment="Bottom" ToolTipService.ToolTip="{Binding L[choose_folder]}"
-                  AutomationProperties.Name="{Binding L[choose_folder]}" AutomationProperties.AutomationId="PickOutputFolder">
+                  IsEnabled="{Binding IsIdle}" AutomationProperties.Name="{Binding L[choose_folder]}" AutomationProperties.AutomationId="PickOutputFolder">
                 <SymbolIcon Symbol="Folder" />
               </Button>
             </Grid>
-            <InfoBar IsOpen="True" IsClosable="False" Severity="Warning" Visibility="{Binding OverwriteWarning}" Message="{Binding L[overwrite_warning]}" />
+            <TextBlock Text="{Binding L[queue_output_note]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <StackPanel x:Name="Passwords" Spacing="12">
-            <PasswordBox x:Name="Password" Header="{Binding L[password]}" PasswordRevealMode="Peek" MaxLength="1024" AutomationProperties.AutomationId="Password" />
+            <PasswordBox x:Name="Password" IsEnabled="{Binding IsIdle}" Header="{Binding L[password]}" PasswordRevealMode="Peek" MaxLength="1024" AutomationProperties.AutomationId="Password" />
             <PasswordBox x:Name="Confirmation" Header="{Binding L[confirm_password]}" PasswordRevealMode="Peek" MaxLength="1024"
-                Visibility="{Binding NeedsConfirmation}" AutomationProperties.AutomationId="ConfirmPassword" />
+                IsEnabled="{Binding IsIdle}" Visibility="{Binding NeedsConfirmation}" AutomationProperties.AutomationId="ConfirmPassword" />
             <TextBlock Text="{Binding L[password_note]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <CheckBox Content="{Binding L[ignore_whitespace]}" IsChecked="{Binding IgnoreWhitespace, Mode=TwoWay}"
-              Visibility="{Binding DecodeOptionsVisibility}" AutomationProperties.AutomationId="IgnoreWhitespace" />
-        </StackPanel></UserControl>
+              IsEnabled="{Binding IsIdle}" Visibility="{Binding DecodeOptionsVisibility}" AutomationProperties.AutomationId="IgnoreWhitespace" />
+        </StackPanel>
         <StackPanel x:Name="ResultSection" Visibility="{Binding ResultVisibility}" Spacing="8">
           <TextBlock x:Name="ResultHeading" Text="{Binding L[result]}" AutomationProperties.HeadingLevel="Level2" />
           <TextBox x:Name="ResultOutput" Text="{Binding Output}" IsReadOnly="True" AutomationProperties.Name="{Binding L[result]}"
@@ -64,11 +106,11 @@
             AutomationProperties.Name="{Binding L[workflow_actions]}">
           <CommandBar.Content>
           <Button x:Name="RunButton" Content="{Binding ActionLabel}" Style="{StaticResource AccentButtonStyle}"
-              IsEnabled="{Binding IsIdle}" Click="Run" MinWidth="100" AutomationProperties.AutomationId="Run">
+              IsEnabled="{Binding CanRun}" Click="Run" MinWidth="100" AutomationProperties.AutomationId="Run">
             <Button.KeyboardAccelerators><KeyboardAccelerator Key="Enter" Modifiers="Control" /></Button.KeyboardAccelerators>
           </Button>
           </CommandBar.Content>
-          <AppBarButton Label="{Binding CopyLabel}" Icon="Copy" Click="Copy" IsEnabled="{Binding IsIdle}" Visibility="{Binding ResultVisibility}" AutomationProperties.AutomationId="CopyResult" />
+          <AppBarButton Label="{Binding CopyLabel}" Icon="Copy" Click="Copy" IsEnabled="{Binding IsIdle}" Visibility="{Binding ResultActionsVisibility}" AutomationProperties.AutomationId="CopyResult" />
           <AppBarButton Label="{Binding L[save_text]}" Icon="Save" Click="SaveText" IsEnabled="{Binding IsIdle}" Visibility="{Binding TextResultVisibility}" AutomationProperties.AutomationId="SaveText" />
           <AppBarButton Label="{Binding L[use_result]}" Icon="Switch" Click="UseResult" IsEnabled="{Binding IsIdle}" Visibility="{Binding TextResultVisibility}" AutomationProperties.AutomationId="UseResult" />
           <AppBarButton Label="{Binding L[open_folder]}" Icon="Folder" Click="Reveal" IsEnabled="{Binding IsIdle}" Visibility="{Binding FileResultVisibility}" AutomationProperties.AutomationId="RevealResult" />

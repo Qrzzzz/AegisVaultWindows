@@ -117,6 +117,7 @@ def test_smoke_waits_for_exit_and_starts_each_operation_in_a_fresh_process(smoke
           request_timeout=5, shutdown_timeout=3)
     operations = [json.loads(line) for line in (tmp_path / "operations.jsonl").read_text().splitlines()]
     assert [entry["op"] for entry in operations] == [
-        "hello", "text.encrypt", "text.decrypt", "file.encrypt", "file.decrypt", "base64.decode_text"
+        "hello", "text.encrypt", "text.decrypt", "file.encrypt", "file.decrypt", "base64.decode_text",
+        "file.batch", "file.batch", "file.batch",
     ]
-    assert len({entry["pid"] for entry in operations}) == 6
+    assert len({entry["pid"] for entry in operations}) == len(operations)

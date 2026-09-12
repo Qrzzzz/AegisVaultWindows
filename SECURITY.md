@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes target the default branch, `master`; the current source is 2.6. Use the [latest published stable release](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest). Historical releases remain available, but the retired desktop frontend is no longer maintained.
+Security fixes target the default branch, `master`; the current source is 2.7. Use the [latest published stable release](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest). Historical releases remain available, but the retired desktop frontend is no longer maintained.
 
 ## Reporting A Vulnerability
 

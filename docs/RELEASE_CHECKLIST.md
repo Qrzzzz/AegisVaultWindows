@@ -1,6 +1,6 @@
 # Release Checklist
 
-Target version: `2.6`.
+Target version: `2.7`.
 
 The authoritative release constants are in `src/aegisvault/version.py`. Artifact names are derived only after those constants and `pyproject.toml` pass `scripts/release_metadata.py`; workflows must not embed a versioned asset name.
 
@@ -27,19 +27,19 @@ CI installs `requirements-dev.lock` with `--require-hashes` and binary distribut
 
 ## Candidate Verification
 
-- Confirm `pyproject.toml`, `src/aegisvault/version.py`, README, SECURITY, CHANGELOG, QA checklist and release notes all reference `2.6` consistently.
+- Confirm `pyproject.toml`, `src/aegisvault/version.py`, README, SECURITY, CHANGELOG, QA checklist and release notes all reference `2.7` consistently.
 - Run `.\scripts\verify_release.ps1 -Build -Zip -InstallDependencies` in a clean Windows checkout.
 - Confirm `dist\AegisVault\AegisVault.exe` passes native interaction checks and its backend passes isolated smoke.
-- Confirm the PE is AMD64/PE32+ GUI and contains icon, group-icon, manifest and exact `2.6.0.0` version resources.
-- Confirm `dist\AegisVault-v2.6-win64.zip` contains the complete self-contained WinUI and backend folder with identical bytes.
-- Confirm `dist\AegisVault-v2.6.cdx.json` is CycloneDX JSON 1.6 and binds the source commit plus executable/ZIP digests.
+- Confirm the PE is AMD64/PE32+ GUI and contains icon, group-icon, manifest and exact `2.7.0.0` version resources.
+- Confirm `dist\AegisVault-v2.7-win64.zip` contains the complete self-contained WinUI and backend folder with identical bytes.
+- Confirm `dist\AegisVault-v2.7.cdx.json` is CycloneDX JSON 1.6 and binds the source commit plus executable/ZIP digests.
 - Confirm `SHA256SUMS` contains exactly the ZIP and SBOM.
 - Complete the manual UI and security checks in `docs/QA_CHECKLIST.md`; packaged headless smoke is not a substitute for manual Windows acceptance.
 
 ## Tag Binding
 
 - Merge the exact reviewed candidate into `master`.
-- Create an annotated two-component tag such as `git tag -a v2.6 <merge-sha> -m "AegisVault v2.6"`.
+- Create an annotated two-component tag such as `git tag -a v2.7 <merge-sha> -m "AegisVault v2.7"`.
 - The tagged commit must be contained in `origin/master`, the tag must resolve to the workflow event commit, and `RELEASE_TAG` must exactly match the tag.
 - Push only after reviewing the tag object and commit. A lightweight tag, prerelease suffix, dirty source or tag/source mismatch fails before packaging.
 
@@ -47,8 +47,8 @@ CI installs `requirements-dev.lock` with `--require-hashes` and binary distribut
 
 The public asset set is exactly:
 
-- `AegisVault-v2.6-win64.zip`
-- `AegisVault-v2.6.cdx.json`
+- `AegisVault-v2.7-win64.zip`
+- `AegisVault-v2.7.cdx.json`
 - `SHA256SUMS`
 
 The workflow attests all three files, uploads an internal immutable job artifact, and sends the publish job through the `release` Environment. The publisher creates or resumes a draft, refuses unexpected or byte-mismatched assets, downloads every asset again, verifies SHA-256 and provenance against the tag commit/workflow, and only then clears the draft flag.

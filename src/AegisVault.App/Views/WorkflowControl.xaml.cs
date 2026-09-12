@@ -78,7 +78,7 @@ public sealed partial class WorkflowControl : UserControl
             });
         else if (vm.LastErrorCode == "validation.password_mismatch") FocusInput(Confirmation);
         else if (vm.LastErrorCode == "validation.password_required") FocusInput(Password);
-        else if (vm.LastErrorCode == "validation.file_required") FocusInput(FileInput);
+        else if (vm.LastErrorCode == "validation.file_required") FocusInput(PickFilesButton);
     }
     private static void FocusInput(Control control)
     {
@@ -89,7 +89,7 @@ public sealed partial class WorkflowControl : UserControl
     {
         Password.Password = Confirmation.Password = "";
         RecentPicker.SelectedIndex = -1;
-        FocusInput(vm.IsFile ? FileInput : TextInput);
+        FocusInput(vm.IsFile ? PickFilesButton : TextInput);
     }
     private void UseResult(object sender, RoutedEventArgs e)
     {
@@ -104,8 +104,8 @@ public sealed partial class WorkflowControl : UserControl
         {
             var picker = new FileOpenPicker(App.Window.AppWindow.Id);
             picker.FileTypeFilter.Add("*");
-            var result = await picker.PickSingleFileAsync();
-            if (result is not null && !vm.IsBusy) vm.InputPath = result.Path;
+            var result = await picker.PickMultipleFilesAsync();
+            if (result is not null) vm.AddFiles(result.Select(file => file.Path));
         }
         catch (Exception) { vm.Fail("file.read_failed"); }
     }
@@ -120,9 +120,9 @@ public sealed partial class WorkflowControl : UserControl
     }
     private void SelectRecent(object sender, SelectionChangedEventArgs e)
     {
-        if (vm is not null && !vm.IsBusy && e.AddedItems.FirstOrDefault() is string path)
+        if (vm is not null && vm.CanEditQueue && e.AddedItems.FirstOrDefault() is string path)
         {
-            vm.InputPath = path;
+            vm.AddFiles([path]);
             RecentPicker.SelectedIndex = -1;
         }
     }
@@ -171,40 +171,52 @@ public sealed partial class WorkflowControl : UserControl
         catch (Exception) { vm.Fail("file.io_error"); }
     }
     private async void Reveal(object sender, RoutedEventArgs e)
+        => await RevealPathAsync(vm.ResultPath);
+    private async Task RevealPathAsync(string path)
     {
         try
         {
-            var folder = await StorageFolder.GetFolderFromPathAsync(Path.GetDirectoryName(vm.ResultPath));
+            var folder = await StorageFolder.GetFolderFromPathAsync(Path.GetDirectoryName(path));
             if (!await Launcher.LaunchFolderAsync(folder)) vm.Fail("file.reveal_failed");
         }
         catch (Exception) { vm.Fail("file.reveal_failed"); }
     }
+    private void ClearFileQueue(object sender, RoutedEventArgs e) => vm.ClearQueue();
+    private void RemoveQueueItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FileQueueItem item }) vm.RemoveFile(item);
+    }
+    private void RetryQueueItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FileQueueItem item }) vm.RetryFile(item);
+    }
+    private async void RevealQueueItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FileQueueItem item } && item.State == "completed")
+            await RevealPathAsync(item.ResultPath);
+    }
     private void DragOverInput(object sender, DragEventArgs e)
     {
+        if (e.DataView.Contains(StandardDataFormats.StorageItems)) return; // Window routes file drops from every page.
         var format = vm.IsFile ? StandardDataFormats.StorageItems : StandardDataFormats.Text;
-        e.AcceptedOperation = !vm.IsBusy && e.DataView.Contains(format) ? DataPackageOperation.Copy : DataPackageOperation.None;
+        e.AcceptedOperation = (vm.IsFile ? vm.CanEditQueue : !vm.IsBusy) && e.DataView.Contains(format)
+            ? DataPackageOperation.Copy : DataPackageOperation.None;
+        e.Handled = true;
     }
     private async void DropInput(object sender, DragEventArgs e)
     {
-        if (vm.IsBusy) return;
+        if (e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        if (vm.IsFile ? !vm.CanEditQueue : vm.IsBusy) return;
         var deferral = e.GetDeferral();
         try
         {
-            if (vm.Kind is "file" or "base64_file")
-            {
-                if (e.DataView.Contains(StandardDataFormats.StorageItems))
-                {
-                    var items = await e.DataView.GetStorageItemsAsync();
-                    if (!vm.IsBusy && items.Count == 1 && items[0] is StorageFile file) vm.InputPath = file.Path;
-                }
-            }
-            else if (e.DataView.Contains(StandardDataFormats.Text))
+            if (!vm.IsFile && e.DataView.Contains(StandardDataFormats.Text))
             {
                 var text = await e.DataView.GetTextAsync();
                 if (!vm.IsBusy) vm.TrySetExternalInput(text);
             }
         }
         catch (Exception) { vm.Fail("file.read_failed"); }
-        finally { deferral.Complete(); }
+        finally { e.Handled = true; deferral.Complete(); }
     }
 }

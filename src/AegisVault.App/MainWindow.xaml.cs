@@ -6,6 +6,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Graphics;
 using System.Runtime.InteropServices;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 
 namespace AegisVault.App;
 
@@ -117,6 +119,44 @@ public sealed partial class MainWindow : Window
         };
         ContentFrame.Navigate(type);
         if (Navigation.DisplayMode != NavigationViewDisplayMode.Expanded) Navigation.IsPaneOpen = false;
+    }
+
+    private WorkflowViewModel? FileDropTarget()
+    {
+        if (closing || !initialized || !initializationTask.IsCompleted) return null;
+        if (Workflows.FirstOrDefault(workflow => workflow.IsBusy) is { } active)
+            return active.IsFile && active.CanEditQueue ? active : null;
+        if (Settings.IsBusy) return null;
+        return (Navigation.SelectedItem as NavigationViewItem)?.Tag as string == "base64" ? Base64FileWorkflow : FileWorkflow;
+    }
+
+    private void DragFilesOver(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        e.AcceptedOperation = FileDropTarget() is not null ? DataPackageOperation.Copy : DataPackageOperation.None;
+        e.Handled = true;
+    }
+
+    private async void DropFiles(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems) || FileDropTarget() is not { } target) return;
+        var deferral = e.GetDeferral();
+        try
+        {
+            var items = await e.DataView.GetStorageItemsAsync();
+            if (!ReferenceEquals(target, FileDropTarget())) return;
+            target.AddFiles(items.OfType<StorageFile>().Select(file => file.Path));
+            if (items.Any(item => item is not StorageFile)) target.Show("queue_files_only", InfoBarSeverity.Warning);
+            if (target == Base64FileWorkflow && Base64InputKind != 1)
+            {
+                Base64InputKind = 1;
+                ContentFrame.Navigate(typeof(Base64Page));
+            }
+            else if (target == FileWorkflow && (Navigation.SelectedItem as NavigationViewItem)?.Tag as string != "file")
+                Navigation.SelectedItem = Navigation.MenuItems[1];
+        }
+        catch (Exception) { target.Fail("file.read_failed"); }
+        finally { e.Handled = true; deferral.Complete(); }
     }
 
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)

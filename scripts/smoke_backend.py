@@ -123,6 +123,14 @@ def smoke_backend(command: list[str], directory: str, expected_version: str, *,
     output = call("file.decrypt", {"input_path": result["output_path"], "password": "smoke-password"})
     assert Path(output["output_path"]).read_bytes() == source.read_bytes()
     assert call("base64.decode_text", {"text": "aGVsbG8="})["text"] == "hello"
+    extra = Path(directory) / "second.txt"
+    extra.write_bytes(b"batch smoke\r\n")
+    batch = call("file.batch", {"operation": "file.encrypt", "input_paths": [str(source), str(extra)], "password": "smoke-password"})
+    assert [item["status"] for item in batch["items"]] == ["completed", "completed"]
+    restored = call("file.batch", {"operation": "file.decrypt", "input_paths": [item["result"]["output_path"] for item in batch["items"]], "password": "smoke-password"})
+    assert [Path(item["result"]["output_path"]).read_bytes() for item in restored["items"]] == [source.read_bytes(), extra.read_bytes()]
+    partial = call("file.batch", {"operation": "base64.encode_file", "input_paths": [str(Path(directory) / "missing"), str(extra)]})
+    assert [item["status"] for item in partial["items"]] == ["failed", "completed"]
 
 
 def main() -> int:

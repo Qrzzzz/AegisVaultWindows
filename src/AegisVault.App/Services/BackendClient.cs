@@ -349,6 +349,7 @@ public sealed class BackendClient
             _ = BackendResponse.Int32(result, "protocol");
             _ = BackendResponse.String(result, "version");
         }
+        else if (operation == "file.batch") _ = BatchResponse.Read(result);
         else if (operation is "file.encrypt" or "file.decrypt" or "base64.encode_file" or "base64.decode_file")
         {
             _ = BackendResponse.String(result, "output_path");
