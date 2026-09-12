@@ -1,5 +1,3 @@
-> 当前源码正在开发 **2.8**：改进批量进度、失败项操作和逐项结果详情。已发布稳定版仍为 **2.7**。本地候选包名为 `AegisVault-v2.8-win64.zip`；参见 [2.8 验收记录](docs/ACCEPTANCE_2.8.md)。
-
 <div align="center">
 
 # 🛡️ AegisVault Windows
@@ -17,7 +15,7 @@
 <p>
   <strong>导航</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">下载最新版</a> ·
-  <a href="./docs/releases/v2.7.md">发布说明</a> ·
+  <a href="./docs/releases/v2.8.md">发布说明</a> ·
   <a href="#主要功能">主要功能</a> ·
   <a href="./docs/SECURITY_MODEL.md">安全模型</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 协议</a> ·
@@ -44,17 +42,17 @@
 
 从 [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest) 下载最新稳定版本。
 
-当前稳定版为 **AegisVault 2.7**，主要发布文件包括：
+当前稳定版为 **AegisVault 2.8**，主要发布文件包括：
 
 | 文件                          | 用途                     |
 | --------------------------- | ---------------------- |
-| `AegisVault-v2.7-win64.zip` | Windows x64 应用程序       |
-| `AegisVault-v2.7.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
+| `AegisVault-v2.8-win64.zip` | Windows x64 应用程序       |
+| `AegisVault-v2.8.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
 | `SHA256SUMS`                | 发布文件 SHA-256 校验值       |
 
 使用方法：
 
-1. 下载并**完整解压** `AegisVault-v2.7-win64.zip`。
+1. 下载并**完整解压** `AegisVault-v2.8-win64.zip`。
 2. 保持 `AegisVault.exe`、`backend` 目录及其余运行时文件位于原有目录结构中。
 3. 运行 `AegisVault.exe`。
 
@@ -71,13 +69,13 @@
 > [!IMPORTANT]
 > 发布流程支持可选代码签名，但“支持签名”并不代表某个具体发布文件一定具有 Authenticode 签名。如需确认，请检查下载文件本身的数字签名及发布校验值。
 
-## ✨ v2.7 更新重点
+## ✨ v2.8 更新重点
 
-文件页和 Base64 文件模式支持多文件拖放与多选、可滚动的文件堆栈、逐项处理状态、失败重试和取消后继续。处理期间仍可追加文件或移除尚未开始的项目；输出重名时自动编号，不覆盖已有文件。
+文件队列分别显示已处理／待处理数量，以及当前文件的百分比和字节进度。处理期间追加或移除待处理文件，会及时更新数量，不再让整体百分比的变化造成误解。
 
-后端新增 `file.batch`，支持一次提交最多 256 个文件，按顺序处理并返回独立结果与整体进度。既有单文件接口、AGV1、文本操作和设置存储保持兼容。
+新增仅看失败项、将全部失败项重新加入队列和清除已完成项。成功结果保留在队列中，展开即可查看输出详情；清除记录不会删除磁盘文件。真实 Explorer 多文件拖放、跨页路由、处理中追加和文件夹拒绝均已通过自动化验收。
 
-详情见 [v2.7 发布说明](./docs/releases/v2.7.md) 和 [验收记录](./docs/ACCEPTANCE_2.7.md)，其中保留了尚待手工验证的拖放项目。早期更新见 [变更记录](./CHANGELOG.md)。
+详情见 [v2.8 发布说明](./docs/releases/v2.8.md) 和 [验收记录](./docs/ACCEPTANCE_2.8.md)。AGV1、文本操作和设置存储保持兼容；早期更新见 [变更记录](./CHANGELOG.md)。
 
 <a id="主要功能"></a>
 
@@ -251,7 +249,7 @@ AegisVault **没有经过独立第三方安全审计**。请根据数据敏感�
 | [Migration Guide](./docs/MIGRATION.md)               | 旧版本与格式迁移边界               |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | 发布前质量检查                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | 构建与发布工程                  |
-| [v2.7 Acceptance](./docs/ACCEPTANCE_2.7.md)          | 当前版本执行过的验收项目             |
+| [v2.8 Acceptance](./docs/ACCEPTANCE_2.8.md)          | 当前版本执行过的验收项目             |
 
 ## AegisVault Web
 

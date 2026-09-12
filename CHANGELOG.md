@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8 - Unreleased
+## 2.8 - 2026-09-12
 
 - Show current-file percentage and byte progress with separate processed/waiting counts that update during live queue edits.
 - Filter failed entries, requeue all failures and clear completed entries without deleting output files.

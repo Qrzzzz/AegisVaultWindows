@@ -1,5 +1,3 @@
-> Source development targets **2.8**, improving batch progress, failure actions and per-file results. The published stable version remains **2.7**. The local candidate is `AegisVault-v2.8-win64.zip`; see [2.8 acceptance](docs/ACCEPTANCE_2.8.md).
-
 <div align="center">
 
 # 🛡️ AegisVault
@@ -17,7 +15,7 @@
 <p>
   <strong>Navigation</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">Download</a> ·
-  <a href="./docs/releases/v2.7.md">Release Notes</a> ·
+  <a href="./docs/releases/v2.8.md">Release Notes</a> ·
   <a href="#features">Features</a> ·
   <a href="./docs/SECURITY_MODEL.md">Security Model</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 Protocol</a> ·
@@ -44,17 +42,17 @@
 
 Download the latest stable build from [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest).
 
-The current stable release is **AegisVault 2.7**. Its primary release artifacts are:
+The current stable release is **AegisVault 2.8**. Its primary release artifacts are:
 
 | File                        | Purpose                                 |
 | --------------------------- | --------------------------------------- |
-| `AegisVault-v2.7-win64.zip` | Windows x64 application                 |
-| `AegisVault-v2.7.cdx.json`  | CycloneDX software bill of materials    |
+| `AegisVault-v2.8-win64.zip` | Windows x64 application                 |
+| `AegisVault-v2.8.cdx.json`  | CycloneDX software bill of materials    |
 | `SHA256SUMS`                | SHA-256 checksums for release artifacts |
 
 To run AegisVault:
 
-1. Download and **fully extract** `AegisVault-v2.7-win64.zip`.
+1. Download and **fully extract** `AegisVault-v2.8-win64.zip`.
 2. Keep `AegisVault.exe`, the `backend` directory, and the bundled runtime files in their original directory structure.
 3. Run `AegisVault.exe`.
 
@@ -71,13 +69,13 @@ On supported Windows 11 systems, AegisVault uses native Windows effects such as 
 > [!IMPORTANT]
 > The release pipeline supports optional signing, but signing support does not mean that a particular artifact necessarily carries an Authenticode signature. Verify the downloaded binary itself and the published checksums when signature status matters.
 
-## ✨ What’s new in v2.7
+## ✨ What’s new in v2.8
 
-File and Base64 file workflows support multi-file drop and selection, a scrollable queue, per-file status, failure retries and cancellation/resume. Add files or remove waiting entries while processing; conflicting output names are numbered without overwriting existing files.
+File queues show processed/waiting counts separately from the current file's percentage and byte progress. Adding or removing waiting files updates the counts without making the current file's percentage jump backwards.
 
-The backend adds `file.batch` for sequential processing of up to 256 files, with independent results and aggregate progress. Existing single-file operations, AGV1, text workflows and settings storage remain compatible.
+Filter failed entries, requeue all failures and clear completed entries. Successful outputs stay in expandable queue rows; clearing records leaves files on disk. Automated acceptance now covers actual Explorer multi-file drops, page routing, appending during processing and folder rejection.
 
-See the [v2.7 release notes](./docs/releases/v2.7.md) and [acceptance record](./docs/ACCEPTANCE_2.7.md), including the remaining manual drag/drop checks. Earlier changes are in the [changelog](./CHANGELOG.md).
+See the [v2.8 release notes](./docs/releases/v2.8.md) and [acceptance record](./docs/ACCEPTANCE_2.8.md). AGV1, text workflows and settings storage remain compatible. Earlier changes are in the [changelog](./CHANGELOG.md).
 
 <a id="features"></a>
 
@@ -190,7 +188,7 @@ See the complete [AGV1 Protocol](./docs/PROTOCOL.md) for the wire-format specifi
 ## 🔁 Format compatibility
 
 * **AGV1** data created by AegisVault 1.x remains compatible.
-* AegisVault 2.7 continues to read and write AGV1 version 1.
+* AegisVault 2.8 continues to read and write AGV1 version 1.
 * Legacy AES text/file formats and AK wrappers have been removed.
 * Renaming a non-AGV1 file does not convert it to AGV1.
 * Base64 tools do not decrypt legacy encrypted formats.
@@ -252,7 +250,7 @@ See the complete [Security Model](./docs/SECURITY_MODEL.md). For vulnerability r
 | [Migration Guide](./docs/MIGRATION.md)               | Compatibility and migration boundaries      |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | Pre-release quality checks                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | Build and release engineering               |
-| [v2.7 Acceptance](./docs/ACCEPTANCE_2.7.md)          | Executed validation for the current release |
+| [v2.8 Acceptance](./docs/ACCEPTANCE_2.8.md)          | Executed validation for the current release |
 
 <a id="development"></a>
 
