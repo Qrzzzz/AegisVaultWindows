@@ -7,6 +7,7 @@ namespace AegisVault.App.ViewModels;
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService service;
+    private AppSettings baseline = new();
     private int languageIndex, themeIndex;
     private string outputFolder = "", statusKey = "";
     private bool rememberRecent, overwrite, busy, hasStatus;
@@ -36,9 +37,9 @@ public sealed class SettingsViewModel : ObservableObject
     public string[] RecentFiles => service.Current.RecentFiles;
     public bool HasRecentFiles => RecentFiles.Length > 0;
     public Visibility EmptyRecentVisibility => HasRecentFiles ? Visibility.Collapsed : Visibility.Visible;
-    public bool HasChanges => LanguageIndex != (service.Current.Language == "zh-CN" ? 0 : 1)
-        || ThemeIndex != ThemeToIndex(service.Current.Theme) || OutputFolder != service.Current.DefaultOutputDir
-        || RememberRecent != service.Current.RememberRecentFiles || Overwrite != service.Current.OverwriteOutputs;
+    public bool HasChanges => LanguageIndex != (baseline.Language == "zh-CN" ? 0 : 1)
+        || ThemeIndex != ThemeToIndex(baseline.Theme) || OutputFolder != baseline.DefaultOutputDir
+        || RememberRecent != baseline.RememberRecentFiles || Overwrite != baseline.OverwriteOutputs;
     public string DraftStatus => L[HasChanges ? "unsaved_settings" : "settings_current"];
     public string Status => statusKey.StartsWith("error.", StringComparison.Ordinal) ? L.Error(statusKey[6..])
         : string.IsNullOrEmpty(statusKey) ? "" : L[statusKey];
@@ -50,12 +51,12 @@ public sealed class SettingsViewModel : ObservableObject
         if (!HasChanges) return;
         await Perform(async () =>
         {
-            await service.SaveAsync(service.Current with
+            await service.SaveAsync(baseline with
             {
                 Language = LanguageIndex == 0 ? "zh-CN" : "en-US",
                 Theme = ThemeIndex switch { 0 => "system", 1 => "light", _ => "dark" },
                 DefaultOutputDir = OutputFolder, RememberRecentFiles = RememberRecent, OverwriteOutputs = Overwrite
-            });
+            }, baseline);
             ResetDraft();
         }, "settings_saved");
     }
@@ -68,6 +69,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
     private void ResetDraft()
     {
+        baseline = service.Current;
         languageIndex = service.Current.Language == "zh-CN" ? 0 : 1;
         themeIndex = ThemeToIndex(service.Current.Theme);
         outputFolder = service.Current.DefaultOutputDir;

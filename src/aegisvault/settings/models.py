@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, TypeGuard
 
 from aegisvault.core.exceptions import ValidationError
 
 SUPPORTED_THEMES = {"dark", "light", "system"}
 SUPPORTED_LANGUAGES = {"zh-CN", "en-US"}
 MAX_RECENT_FILES = 20
+
+
+def _valid_path_text(value: object) -> TypeGuard[str]:
+    if type(value) is not str or "\x00" in value:
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 @dataclass
@@ -37,7 +47,7 @@ class AppSettings:
             theme=theme if type(theme) is str and theme in SUPPORTED_THEMES else defaults.theme,
             default_output_dir=(
                 default_output_dir
-                if type(default_output_dir) is str and "\x00" not in default_output_dir
+                if _valid_path_text(default_output_dir)
                 else defaults.default_output_dir
             ),
             overwrite_outputs=cls._bool_or_default(data.get("overwrite_outputs"), defaults.overwrite_outputs),
@@ -48,7 +58,7 @@ class AppSettings:
                 data.get("show_advanced_options"), defaults.show_advanced_options
             ),
             recent_files=(
-                [item for item in recent_files if type(item) is str and "\x00" not in item][:MAX_RECENT_FILES]
+                [item for item in recent_files if _valid_path_text(item)][:MAX_RECENT_FILES]
                 if type(recent_files) is list
                 else []
             ),
@@ -67,6 +77,8 @@ class AppSettings:
             raise ValidationError("Invalid settings theme.", code="settings.invalid_value")
         if type(self.default_output_dir) is not str or "\x00" in self.default_output_dir:
             raise ValidationError("Invalid settings output directory.", code="settings.invalid_type")
+        if not _valid_path_text(self.default_output_dir):
+            raise ValidationError("Invalid Unicode in settings output directory.", code="settings.invalid_value")
         boolean_values = (
             self.overwrite_outputs,
             self.remember_recent_files,
@@ -78,6 +90,8 @@ class AppSettings:
             raise ValidationError("Invalid recent-files settings value.", code="settings.invalid_type")
         if any(type(item) is not str or "\x00" in item for item in self.recent_files):
             raise ValidationError("Invalid recent-files entry.", code="settings.invalid_type")
+        if any(not _valid_path_text(item) for item in self.recent_files):
+            raise ValidationError("Invalid Unicode in recent-files entry.", code="settings.invalid_value")
 
     @staticmethod
     def _bool_or_default(value: object, default: bool) -> bool:

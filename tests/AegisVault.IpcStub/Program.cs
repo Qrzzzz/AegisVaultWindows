@@ -6,7 +6,11 @@ Console.InputEncoding = new UTF8Encoding(false);
 Console.OutputEncoding = new UTF8Encoding(false);
 var mode = Environment.GetEnvironmentVariable("AEGISVAULT_TEST_MODE") ?? "healthy";
 var marker = Environment.GetEnvironmentVariable("AEGISVAULT_TEST_MARKER")!;
-void Record(int pid) => File.WriteAllText($"{marker}.{pid}.pid", "owned test process");
+void Record(int pid)
+{
+    using var owned = Process.GetProcessById(pid);
+    File.WriteAllText($"{marker}.{pid}.pid", owned.StartTime.ToUniversalTime().Ticks.ToString());
+}
 void Mark(string stage)
 {
     Record(Environment.ProcessId);

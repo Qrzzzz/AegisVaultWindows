@@ -58,6 +58,19 @@ def base64_encoded_output_path(input_path: Path, output_dir: Path | None = None,
     return _wrapped_output_path(base_dir, input_path.name, ".b64", overwrite=overwrite)
 
 
+def _restored_output_path(base_dir: Path, name: str, *, overwrite: bool) -> Path:
+    """Validate the leaf before joining or collision numbering can change its parent."""
+
+    if not name.rstrip(". ") or Path(name).name != name or any(c in name for c in ("/", "\\", "\x00")):
+        raise FileIOError("The restored filename is invalid.", code="file.output_name_invalid")
+    directory = base_dir.expanduser().resolve()
+    candidate = directory / name
+    candidate = candidate if overwrite else unique_path(candidate)
+    if candidate.resolve().parent != directory or candidate.is_dir():
+        raise FileIOError("The restored filename is not a file in the output directory.", code="file.output_name_invalid")
+    return candidate
+
+
 def base64_decoded_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
     base_dir = output_dir or input_path.parent
     name = input_path.name
@@ -65,8 +78,7 @@ def base64_decoded_output_path(input_path: Path, output_dir: Path | None = None,
         candidate_name = name.rsplit(".", 1)[0]
     else:
         candidate_name = f"{input_path.stem}.base64-decoded{input_path.suffix}"
-    candidate = base_dir / candidate_name
-    return candidate if overwrite else unique_path(candidate)
+    return _restored_output_path(base_dir, candidate_name, overwrite=overwrite)
 
 
 def decrypted_output_path(input_path: Path, output_dir: Path | None = None, *, overwrite: bool = False) -> Path:
@@ -77,8 +89,7 @@ def decrypted_output_path(input_path: Path, output_dir: Path | None = None, *, o
         candidate_name = name.rsplit(".", 1)[0]
     else:
         candidate_name = f"{input_path.stem}.decrypted{input_path.suffix}"
-    candidate = base_dir / candidate_name
-    return candidate if overwrite else unique_path(candidate)
+    return _restored_output_path(base_dir, candidate_name, overwrite=overwrite)
 
 
 def reveal_file(path: Path) -> None:

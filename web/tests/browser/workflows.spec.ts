@@ -1,7 +1,69 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 const fixture = JSON.parse(readFileSync('../tests/fixtures/agv1-text.json', 'utf8'));
+
+test('Python AGV1 to real Web Worker and back preserves mixed line endings', async ({ page }) => {
+  const original = '\ufeff中文\0🔐\r\ne\u0301\rx\ny';
+  const password = 'synthetic-interop-password';
+  const localPython = resolve('../.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  const pythonExecutable = process.env.AEGISVAULT_PYTHON ?? (existsSync(localPython) ? localPython : 'python');
+  const python = (action: string, value: string) => {
+    const result = spawnSync(pythonExecutable, ['-c',
+      'import sys,json; from aegisvault.core.crypto import encrypt_text,decrypt_text; d=json.load(sys.stdin); print(json.dumps(encrypt_text(d["value"],d["password"]).ciphertext if d["action"]=="encrypt" else decrypt_text(d["value"],d["password"]).plaintext,ensure_ascii=True))'],
+      { input: JSON.stringify({ action, value, password }), encoding: 'utf8', timeout: 15000,
+        env: { ...process.env, PYTHONPATH: resolve('../src'), PYTHONUTF8: '1' } });
+    expect(result.status, result.stderr).toBe(0);
+    return JSON.parse(result.stdout) as string;
+  };
+  const token = python('encrypt', original);
+  await page.addInitScript(() => Object.defineProperty(navigator.clipboard, 'writeText', {
+    value: async (text: string) => { (window as unknown as { copied: string }).copied = text; },
+  }));
+  await page.goto('./');
+  await page.locator('#input').fill(token);
+  await page.locator('#password').fill(password);
+  await page.locator('#reverse').click();
+  await expect(page.locator('#status')).toContainText('完成');
+  await page.locator('#copy').click();
+  expect(await page.evaluate(() => (window as unknown as { copied: string }).copied)).toBe(original);
+  await page.locator('#swap').click();
+  await page.locator('#forward').click();
+  await expect(page.locator('#output')).toHaveValue(/^AGV1\./);
+  expect(python('decrypt', await page.locator('#output').inputValue())).toBe(original);
+});
+
+for (const original of ['a\r\nb', 'a\rb', 'a\nb', '\ufeff中文\0🔐\r\ne\u0301\rx\ny', '', 'ascii']) {
+  test(`result copy and reuse preserve code points: ${JSON.stringify(original)}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator.clipboard, 'writeText', {
+        value: async (text: string) => { (window as unknown as { copied: string }).copied = text; },
+      });
+    });
+    await page.goto('./');
+    await page.locator('#base64-tab').click();
+    const encoded = Buffer.from(original).toString('base64');
+    await page.locator('#input').fill(encoded);
+    await page.locator('#reverse').click();
+    await expect(page.locator('#status')).toContainText('完成');
+    await page.locator('#copy').click();
+    expect(await page.evaluate(() => (window as unknown as { copied: string }).copied)).toBe(original);
+    await page.locator('#swap').click();
+    await page.locator('#forward').click();
+    await expect(page.locator('#status')).toContainText('完成');
+    await expect(page.locator('#output')).toHaveValue(encoded);
+    // Editing a reused result replaces the raw input; stale CR must not return.
+    await page.locator('#input').fill('edited\ntext');
+    await page.locator('#forward').click();
+    await expect(page.locator('#output')).toHaveValue(Buffer.from('edited\ntext').toString('base64'));
+    await page.locator('#clear').click();
+    await page.locator('#forward').click();
+    await expect(page.locator('#status')).toContainText('完成');
+    await expect(page.locator('#output')).toHaveValue('');
+  });
+}
 
 test('real Worker decrypts Windows fixture; roundtrip, copy, cancellation and no network/storage', async ({ page, context }) => {
   const requests: string[] = [];

@@ -1,4 +1,5 @@
 using AegisVault.App.ViewModels;
+using AegisVault.App.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
@@ -133,18 +134,13 @@ public sealed partial class WorkflowControl : UserControl
             picker.FileTypeFilter.Add("*");
             var result = await picker.PickSingleFileAsync();
             if (result is null) return;
-            var limit = vm.InputUtf8ByteLimit;
-            if (new FileInfo(result.Path).Length > limit + 3L) { vm.Fail("resource.limit_exceeded"); return; }
-            using var stream = File.OpenRead(result.Path);
-            var bytes = new byte[limit + 4];
-            var count = await stream.ReadAtLeastAsync(bytes, bytes.Length, throwOnEndOfStream: false);
-            if (count == bytes.Length) { vm.Fail("resource.limit_exceeded"); return; }
+            var value = await TextImport.ReadAsync(result.Path, vm.InputUtf8ByteLimit);
             if (!vm.IsBusy)
             {
-                var value = new System.Text.UTF8Encoding(false, true).GetString(bytes, 0, count).TrimStart('\uFEFF');
                 vm.TrySetExternalInput(value);
             }
         }
+        catch (BackendException ex) { vm.Fail(ex.Code); }
         catch (Exception) { vm.Fail("file.read_failed"); }
     }
     private void Copy(object sender, RoutedEventArgs e)

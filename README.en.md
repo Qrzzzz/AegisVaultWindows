@@ -15,7 +15,7 @@
 <p>
   <strong>Navigation</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">Download</a> ·
-  <a href="./docs/releases/v2.5.md">Release Notes</a> ·
+  <a href="./docs/releases/v2.6.md">Release Notes</a> ·
   <a href="#features">Features</a> ·
   <a href="./docs/SECURITY_MODEL.md">Security Model</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 Protocol</a> ·
@@ -42,17 +42,17 @@
 
 Download the latest stable build from [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest).
 
-The current stable release is **AegisVault 2.5**. Its primary release artifacts are:
+The current stable release is **AegisVault 2.6**. Its primary release artifacts are:
 
 | File                        | Purpose                                 |
 | --------------------------- | --------------------------------------- |
-| `AegisVault-v2.5-win64.zip` | Windows x64 application                 |
-| `AegisVault-v2.5.cdx.json`  | CycloneDX software bill of materials    |
+| `AegisVault-v2.6-win64.zip` | Windows x64 application                 |
+| `AegisVault-v2.6.cdx.json`  | CycloneDX software bill of materials    |
 | `SHA256SUMS`                | SHA-256 checksums for release artifacts |
 
 To run AegisVault:
 
-1. Download and **fully extract** `AegisVault-v2.5-win64.zip`.
+1. Download and **fully extract** `AegisVault-v2.6-win64.zip`.
 2. Keep `AegisVault.exe`, the `backend` directory, and the bundled runtime files in their original directory structure.
 3. Run `AegisVault.exe`.
 
@@ -69,16 +69,19 @@ On supported Windows 11 systems, AegisVault uses native Windows effects such as 
 > [!IMPORTANT]
 > The release pipeline supports optional signing, but signing support does not mean that a particular artifact necessarily carries an Authenticode signature. Verify the downloaded binary itself and the published checksums when signature status matters.
 
-## ✨ What's new in v2.5
+## ✨ What's new in v2.6
 
-AegisVault 2.5 primarily tightens error handling between the native desktop client and its local backend:
+AegisVault 2.6 fixes five settings and data-preservation issues:
 
-* Malformed or truncated UTF-8 from a faulty backend is consistently mapped to `ipc.invalid_response` instead of exposing a raw `DecoderFallbackException`.
-* Valid non-BMP Unicode characters remain intact even when split across transport reads.
-* Existing repairs for Base64 source-mutation rollback, malformed settings recovery, and process-shared settings transactions are retained and revalidated.
-* AGV1, scrypt, AES-256-GCM, the settings schema, and the WinUI interface remain compatible. Legacy decryption formats have not been restored.
+* Settings saves submit only edited fields, so another window's theme change preserves disabled recent-file history.
+* Settings recovery filters invalid Unicode paths while retaining valid history and unrelated preferences.
+* Web result copying and reuse preserve original CR/CRLF line endings and Unicode characters.
+* File restoration validates output names before path construction, keeping outputs in the selected directory.
+* UTF-8 text import consumes one BOM and preserves subsequent body U+FEFF characters.
 
-See the full [v2.5 release notes](./docs/releases/v2.5.md) and [v2.5 acceptance record](./docs/ACCEPTANCE_2.5.md).
+AGV1, scrypt, AES-256-GCM, the settings schema, and the existing interface remain compatible.
+
+See the full [v2.6 release notes](./docs/releases/v2.6.md) and [v2.6 acceptance record](./docs/ACCEPTANCE_2.6.md).
 
 <a id="features"></a>
 
@@ -191,7 +194,7 @@ See the complete [AGV1 Protocol](./docs/PROTOCOL.md) for the wire-format specifi
 ## 🔁 Format compatibility
 
 * **AGV1** data created by AegisVault 1.x remains compatible.
-* AegisVault 2.5 continues to read and write AGV1 version 1.
+* AegisVault 2.6 continues to read and write AGV1 version 1.
 * Legacy AES text/file formats and AK wrappers have been removed.
 * Renaming a non-AGV1 file does not convert it to AGV1.
 * Base64 tools do not decrypt legacy encrypted formats.
@@ -253,7 +256,7 @@ See the complete [Security Model](./docs/SECURITY_MODEL.md). For vulnerability r
 | [Migration Guide](./docs/MIGRATION.md)               | Compatibility and migration boundaries      |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | Pre-release quality checks                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | Build and release engineering               |
-| [v2.5 Acceptance](./docs/ACCEPTANCE_2.5.md)          | Executed validation for the current release |
+| [v2.6 Acceptance](./docs/ACCEPTANCE_2.6.md)          | Executed validation for the current release |
 
 <a id="development"></a>
 
