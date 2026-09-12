@@ -28,6 +28,7 @@
   "error.file.reveal_failed": "The file manager could not be opened.",
   "error.file.input_changed": "The input file changed while it was being processed. No output was kept.",
   "error.file.read_failed": "The input file could not be read.",
+  "error.file.output_name_invalid": "The restored filename is invalid. Rename the input file and try again.",
   "error.file.same_input_output": "The input and output paths must be different.",
   "error.base64.invalid_text": "The input is not valid Base64 text.",
   "error.base64.invalid_data": "The file does not contain valid Base64 data.",

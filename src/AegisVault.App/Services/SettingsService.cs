@@ -23,11 +23,21 @@ public sealed class SettingsService(BackendClient backend)
     public bool IsBusy { get; private set; }
     public Task ActiveTask { get; private set; } = Task.CompletedTask;
     public Task LoadAsync(CancellationToken cancellationToken = default) => RunAsync("settings.get", cancellationToken: cancellationToken);
-    public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) => RunAsync("settings.update", new
+    public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) =>
+        SaveAsync(settings, Current, cancellationToken);
+    public Task SaveAsync(AppSettings settings, AppSettings baseline, CancellationToken cancellationToken = default)
     {
-        settings.Language, settings.Theme, settings.DefaultOutputDir, settings.OverwriteOutputs,
-        settings.RememberRecentFiles, settings.ShowAdvancedOptions
-    }, cancellationToken);
+        // Merge only the user's edits under the backend lock. For the same field,
+        // the last explicit save wins.
+        var changes = new Dictionary<string, object>();
+        if (settings.Language != baseline.Language) changes["language"] = settings.Language;
+        if (settings.Theme != baseline.Theme) changes["theme"] = settings.Theme;
+        if (settings.DefaultOutputDir != baseline.DefaultOutputDir) changes["default_output_dir"] = settings.DefaultOutputDir;
+        if (settings.OverwriteOutputs != baseline.OverwriteOutputs) changes["overwrite_outputs"] = settings.OverwriteOutputs;
+        if (settings.RememberRecentFiles != baseline.RememberRecentFiles) changes["remember_recent_files"] = settings.RememberRecentFiles;
+        if (settings.ShowAdvancedOptions != baseline.ShowAdvancedOptions) changes["show_advanced_options"] = settings.ShowAdvancedOptions;
+        return changes.Count == 0 ? LoadAsync(cancellationToken) : RunAsync("settings.update", changes, cancellationToken);
+    }
     public Task ClearRecentAsync(CancellationToken cancellationToken = default) =>
         RunAsync("recent.clear", cancellationToken: cancellationToken);
     public Task AddRecentAsync(string path, CancellationToken cancellationToken = default) =>

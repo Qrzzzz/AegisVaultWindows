@@ -15,7 +15,7 @@
 <p>
   <strong>导航</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">下载最新版</a> ·
-  <a href="./docs/releases/v2.5.md">发布说明</a> ·
+  <a href="./docs/releases/v2.6.md">发布说明</a> ·
   <a href="#主要功能">主要功能</a> ·
   <a href="./docs/SECURITY_MODEL.md">安全模型</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 协议</a> ·
@@ -42,17 +42,17 @@
 
 从 [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest) 下载最新稳定版本。
 
-当前稳定版为 **AegisVault 2.5**，主要发布文件包括：
+当前稳定版为 **AegisVault 2.6**，主要发布文件包括：
 
 | 文件                          | 用途                     |
 | --------------------------- | ---------------------- |
-| `AegisVault-v2.5-win64.zip` | Windows x64 应用程序       |
-| `AegisVault-v2.5.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
+| `AegisVault-v2.6-win64.zip` | Windows x64 应用程序       |
+| `AegisVault-v2.6.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
 | `SHA256SUMS`                | 发布文件 SHA-256 校验值       |
 
 使用方法：
 
-1. 下载并**完整解压** `AegisVault-v2.5-win64.zip`。
+1. 下载并**完整解压** `AegisVault-v2.6-win64.zip`。
 2. 保持 `AegisVault.exe`、`backend` 目录及其余运行时文件位于原有目录结构中。
 3. 运行 `AegisVault.exe`。
 
@@ -69,16 +69,19 @@
 > [!IMPORTANT]
 > 发布流程支持可选代码签名，但“支持签名”并不代表某个具体发布文件一定具有 Authenticode 签名。如需确认，请检查下载文件本身的数字签名及发布校验值。
 
-## ✨ v2.5 更新重点
+## ✨ v2.6 更新重点
 
-AegisVault 2.5 主要进一步收紧桌面端与本地后端之间的错误处理：
+AegisVault 2.6 修复了 5 个设置与数据保真问题：
 
-* 后端返回损坏或截断的 UTF-8 数据时，统一映射为 `ipc.invalid_response`，避免底层 `DecoderFallbackException` 直接泄漏到应用层。
-* 正确的非 BMP Unicode 字符即使跨越传输读取边界，仍能正常保留。
-* 继续保留并重新验证 Base64 文件输入变更回滚、损坏设置文件恢复以及跨进程设置事务等既有修复。
-* AGV1、scrypt、AES-256-GCM、设置结构和 WinUI 界面均保持兼容，没有重新引入旧格式解密。
+* 多窗口保存设置时，只提交实际修改的字段；修改主题不会重新开启另一窗口已关闭的历史记录。
+* 恢复损坏设置时过滤无效 Unicode 路径，保留有效历史和其他偏好。
+* Web 结果的复制与复用保留原始 CR/CRLF 换行及 Unicode 字符。
+* 文件恢复在生成输出路径前校验文件名，避免边界名称改变输出目录。
+* UTF-8 文本导入只消费一个 BOM，保留正文中的后续 U+FEFF 字符。
 
-完整变更见 [v2.5 发布说明](./docs/releases/v2.5.md) 与 [v2.5 验收记录](./docs/ACCEPTANCE_2.5.md)。
+AGV1、scrypt、AES-256-GCM、设置结构和既有界面保持兼容。
+
+完整变更见 [v2.6 发布说明](./docs/releases/v2.6.md) 与 [v2.6 验收记录](./docs/ACCEPTANCE_2.6.md)。
 
 <a id="主要功能"></a>
 
@@ -252,7 +255,7 @@ AegisVault **没有经过独立第三方安全审计**。请根据数据敏感�
 | [Migration Guide](./docs/MIGRATION.md)               | 旧版本与格式迁移边界               |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | 发布前质量检查                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | 构建与发布工程                  |
-| [v2.5 Acceptance](./docs/ACCEPTANCE_2.5.md)          | 当前版本执行过的验收项目             |
+| [v2.6 Acceptance](./docs/ACCEPTANCE_2.6.md)          | 当前版本执行过的验收项目             |
 
 ## AegisVault Web
 

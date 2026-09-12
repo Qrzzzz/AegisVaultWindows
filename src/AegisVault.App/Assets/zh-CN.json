@@ -28,6 +28,7 @@
   "error.file.reveal_failed": "无法打开文件管理器。",
   "error.file.input_changed": "处理期间输入文件发生了变化，未保留任何输出。",
   "error.file.read_failed": "无法读取输入文件。",
+  "error.file.output_name_invalid": "恢复后的文件名无效，请重命名输入文件后重试。",
   "error.file.same_input_output": "输入路径与输出路径不能相同。",
   "error.base64.invalid_text": "输入不是有效的 Base64 文本。",
   "error.base64.invalid_data": "文件不是有效的 Base64 数据。",

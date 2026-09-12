@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from aegisvault.core.exceptions import ValidationError
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
 from test_backend_protocol import Client
@@ -65,3 +66,41 @@ def test_model_errors_are_not_silently_treated_as_bad_json(tmp_path: Path, monke
     monkeypatch.setattr(AppSettings, "from_dict", broken_model)
     with pytest.raises(ValueError, match="model programming error"):
         SettingsStore(path).load()
+
+
+@pytest.mark.parametrize("invalid", ["\ud800", "\udfff"])
+def test_surrogate_settings_recover_and_persist_via_real_ipc(tmp_path: Path, invalid: str) -> None:
+    path = tmp_path / "AegisVault" / "settings.json"
+    path.parent.mkdir()
+    good = ["C:/synthetic/🔐.txt", "C:/synthetic/正常.txt"]
+    path.write_text(json.dumps({"language": "en-US", "default_output_dir": invalid,
+                               "recent_files": [good[0], invalid, good[1]]}), encoding="utf-8")
+    client = Client(tmp_path)
+    try:
+        client.send("settings.get")
+        event = client.receive()
+        assert event["type"] == "result", event
+        assert event["result"]["recent_files"] == good
+        assert event["result"]["default_output_dir"] == ""
+        client.send("settings.update", {"theme": "dark"})
+        assert client.receive()["result"]["language"] == "en-US"
+        client.send("settings.get")
+        assert client.receive()["result"]["theme"] == "dark"
+    finally:
+        client.close()
+    persisted = json.loads(path.read_text("utf-8"))
+    assert persisted["recent_files"] == good and persisted["default_output_dir"] == ""
+
+
+@pytest.mark.parametrize("field", ["default_output_dir", "recent_files"])
+@pytest.mark.parametrize("invalid", ["\ud800", "\udfff"])
+def test_runtime_settings_reject_surrogate_before_persistence(tmp_path: Path, field: str, invalid: str) -> None:
+    path = tmp_path / "settings.json"
+    store = SettingsStore(path)
+    store.save(AppSettings(theme="dark"))
+    original = path.read_bytes()
+    value = [invalid] if field == "recent_files" else invalid
+    with pytest.raises(ValidationError) as caught:
+        store.save(AppSettings(**{field: value}))
+    assert caught.value.code == "settings.invalid_value"
+    assert path.read_bytes() == original

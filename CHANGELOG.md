@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.6 - 2026-09-12
+
+- Save only settings fields edited against the draft baseline, preserving other windows' changes, including disabled recent-file history. Same-field edits use the last explicit save (#23).
+- Filter invalid Unicode path strings when recovering settings and reject them before runtime persistence, preserving valid history and unrelated preferences (#24).
+- Preserve original CR/CRLF, Unicode and NUL in Web results, clipboard API arguments and result reuse through real Workers (#25).
+- Validate restored filenames before path joining and collision numbering, keeping successful AGV1/Base64 restore outputs inside the selected directory (#26).
+- Consume exactly one UTF-8 BOM on desktop import while preserving subsequent body U+FEFF characters and strict UTF-8/resource checks (#32).
+- Local validation and remaining gates are recorded in `docs/ACCEPTANCE_2.6.md`.
+
 ## 2.5 - 2026-09-05
 
 - Map malformed UTF-8 backend response lines and truncated UTF-8 at EOF to `ipc.invalid_response` at the reader boundary, retaining cancellation, response limits and process cleanup (#20).

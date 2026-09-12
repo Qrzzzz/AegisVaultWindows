@@ -1,7 +1,7 @@
-# AegisVault 2.5 acceptance checklist
+# AegisVault 2.6 acceptance checklist
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.5.md](ACCEPTANCE_2.5.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.6.md](ACCEPTANCE_2.6.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
 
 - Link the lifecycle harness directly to this worktree's C# sources. Cover a backend that does not read stdin,

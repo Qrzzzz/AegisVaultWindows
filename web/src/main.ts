@@ -13,6 +13,11 @@ applyAppearance();
 const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = get<HTMLTextAreaElement>('input');
 const output = get<HTMLTextAreaElement>('output');
+// textarea.value normalizes CR and CRLF. Processing and copying use raw strings.
+let rawInput = '', rawOutput = '';
+function setInput(value: string) { rawInput = value; input.value = value; }
+function setOutput(value: string) { rawOutput = value; output.value = value; }
+input.addEventListener('input', () => { rawInput = input.value; });
 const password = get<HTMLInputElement>('password');
 const status = get('status');
 let mode: 'crypto' | 'base64' = 'crypto';
@@ -28,7 +33,7 @@ function busy(value: boolean) {
 }
 function stop() { worker?.terminate(); worker = undefined; busy(false); }
 function select(next: typeof mode) {
-  mode = next; input.value = ''; output.value = ''; password.value = '';
+  mode = next; setInput(''); setOutput(''); password.value = '';
   password.type = 'password'; button('show-password').textContent = '显示密码'; button('show-password').setAttribute('aria-pressed', 'false');
   get('password-row').hidden = mode === 'base64';
   button('crypto-tab').setAttribute('aria-pressed', String(mode === 'crypto'));
@@ -43,7 +48,7 @@ function select(next: typeof mode) {
 }
 function run(reverse: boolean) {
   if (worker) return;
-  output.value = '';
+  setOutput('');
   if (mode === 'crypto' && !password.value) { message('请输入密码。', true); password.focus(); return; }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) { message('此浏览器需要 HTTPS 或 localhost 安全环境及 Web Crypto 支持。', true); return; }
   busy(true); message('正在本地处理，请稍候…');
@@ -52,10 +57,10 @@ function run(reverse: boolean) {
     worker.onmessage = ({ data }: MessageEvent<{ output?: string; error?: string }>) => {
       stop();
       if (data.error) message(data.error, true);
-      else { output.value = data.output ?? ''; message('完成。结果仅保留在当前页面。'); }
+      else { setOutput(data.output ?? ''); message('完成。结果仅保留在当前页面。'); }
     };
     worker.onerror = event => { event.preventDefault(); stop(); message('本地处理失败，浏览器可能不支持或可用内存不足。', true); };
-    worker.postMessage({ action: mode === 'crypto' ? (reverse ? 'decrypt' : 'encrypt') : (reverse ? 'decode' : 'encode'), input: input.value, password: password.value });
+    worker.postMessage({ action: mode === 'crypto' ? (reverse ? 'decrypt' : 'encrypt') : (reverse ? 'decode' : 'encode'), input: rawInput, password: password.value });
   } catch { stop(); message('无法启动本地 Worker，请检查浏览器支持。', true); }
 }
 button('crypto-tab').onclick = () => select('crypto');
@@ -67,10 +72,10 @@ button('show-password').onclick = () => {
   const show = password.type === 'password'; password.type = show ? 'text' : 'password';
   button('show-password').textContent = show ? '隐藏密码' : '显示密码'; button('show-password').setAttribute('aria-pressed', String(show));
 };
-button('swap').onclick = () => { [input.value, output.value] = [output.value, input.value]; message('已交换输入与结果。'); };
+button('swap').onclick = () => { const previous = rawInput; setInput(rawOutput); setOutput(previous); message('已交换输入与结果。'); };
 button('copy').onclick = async () => {
-  try { await navigator.clipboard.writeText(output.value); message('已复制结果到剪贴板。'); }
+  try { await navigator.clipboard.writeText(rawOutput); message('已复制结果到剪贴板。'); }
   catch { output.focus(); output.select(); message('浏览器未允许复制，请手动复制选中的结果。', true); }
 };
 button('clear').onclick = () => { select(mode); message('已清空密码、输入与结果。'); input.focus(); };
-window.addEventListener('pagehide', () => { stop(); input.value = ''; output.value = ''; password.value = ''; });
+window.addEventListener('pagehide', () => { stop(); setInput(''); setOutput(''); password.value = ''; });

@@ -53,7 +53,13 @@ async Task<(int pid, string stage)> WaitMarker(string stage)
 }
 bool Alive(int pid)
 {
-    try { using var process = Process.GetProcessById(pid); return !process.HasExited; }
+    try
+    {
+        using var process = Process.GetProcessById(pid);
+        // Windows can reuse a PID while the longer real-backend matrix runs.
+        var started = long.Parse(File.ReadAllText($"{marker}.{pid}.pid"));
+        return !process.HasExited && process.StartTime.ToUniversalTime().Ticks == started;
+    }
     catch (ArgumentException) { return false; }
 }
 async Task<string> ErrorCode(Task task)
@@ -266,6 +272,68 @@ try
         var invalid = new WorkflowViewModel("base64_text", new BackendClient(fast), new SettingsService(new BackendClient(fast)));
         Check(!invalid.TrySetExternalInput("\ud800") && invalid.LastErrorCode == "ipc.invalid_request",
             "isolated surrogate input classification");
+    });
+
+    await Run("utf8-import-preserves-body-bom", async () =>
+    {
+        Mode("healthy");
+        var path = Path.Combine(root, "import.txt");
+        foreach (var (source, expected) in new (string, string)[] {
+            ("abc", "abc"), ("\ufeffabc", "abc"), ("\ufeff\ufeffabc", "\ufeffabc"),
+            ("\ufeff\ufeff\ufeffabc", "\ufeff\ufeffabc"), ("a\ufeffb", "a\ufeffb"),
+            ("", ""), ("\ufeff", ""), ("\ufeff\ufeff", "\ufeff") })
+        {
+            await File.WriteAllBytesAsync(path, Encoding.UTF8.GetBytes(source));
+            var imported = await TextImport.ReadAsync(path, 128);
+            Check(imported == expected, "import removed body U+FEFF");
+            if (imported.Length == 0) continue;
+            foreach (var kind in new[] { "base64_text", "text" })
+            {
+                var vm = new WorkflowViewModel(kind, new BackendClient(fast), new SettingsService(new BackendClient(fast)));
+                Check(vm.TrySetExternalInput(imported), "import rejected valid text");
+                await vm.RunAsync("synthetic-password", "synthetic-password");
+                Check(vm.HasResult, "import encoding failed");
+                if (kind == "base64_text") Check(vm.Output == Convert.ToBase64String(Encoding.UTF8.GetBytes(expected)), "Base64 import bytes");
+                Check(vm.UseResult(), "import result reuse failed");
+                await vm.RunAsync("synthetic-password");
+                Check(vm.Output == expected, "import roundtrip lost body U+FEFF");
+            }
+        }
+        await File.WriteAllBytesAsync(path, [0xFF]);
+        try { await TextImport.ReadAsync(path, 8); throw new Exception("invalid UTF-8 accepted"); }
+        catch (DecoderFallbackException) { }
+        await File.WriteAllBytesAsync(path, Encoding.UTF8.GetBytes("\ufeff12345678"));
+        Check(await TextImport.ReadAsync(path, 8) == "12345678", "BOM budget boundary");
+        await File.WriteAllBytesAsync(path, Encoding.UTF8.GetBytes("123456789"));
+        Check(await ErrorCode(TextImport.ReadAsync(path, 8)) == "resource.limit_exceeded", "byte budget was bypassed");
+    });
+
+    await Run("settings-two-drafts-preserve-unedited-fields", async () =>
+    {
+        Mode("healthy");
+        var first = new SettingsService(new BackendClient(fast));
+        var second = new SettingsService(new BackendClient(fast));
+        await first.LoadAsync(); await second.LoadAsync();
+        var a = new SettingsViewModel(first);
+        var b = new SettingsViewModel(second);
+        a.RememberRecent = false;
+        await a.SaveAsync();
+        b.ThemeIndex = 2;
+        await b.SaveAsync();
+        Check(!second.Current.RememberRecentFiles && second.Current.Theme == "dark", "stale draft re-enabled history");
+        await second.AddRecentAsync(Path.Combine(root, "synthetic.txt"));
+        Check(second.Current.RecentFiles.Length == 0, "disabled history recorded a path");
+        // A service refresh from a history action must not redefine a draft's baseline.
+        a.OutputFolder = root;
+        await first.ClearRecentAsync();
+        await a.SaveAsync();
+        Check(first.Current.Theme == "dark" && first.Current.DefaultOutputDir == root, "history refresh overwrote another field");
+        b.ThemeIndex = 1;
+        await b.SaveAsync();
+        a.ThemeIndex = 0;
+        await a.SaveAsync();
+        Check(first.Current.Theme == "system", "same-field edits must use last explicit save");
+        await first.SaveAsync(first.Current with { DefaultOutputDir = "", RememberRecentFiles = true });
     });
 
     foreach (var pidFile in Directory.GetFiles(root, "owned-process.json.*.pid"))

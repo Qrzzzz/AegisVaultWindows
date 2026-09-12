@@ -77,6 +77,15 @@ internal static class Program
 
             const int plaintextBudget = 1_507_294;
             const int encodedBudget = 2 * 1024 * 1024;
+            var bomFile = Path.Combine(profile, "bom-body.txt");
+            File.WriteAllBytes(bomFile, Encoding.UTF8.GetBytes("\ufeff\ufeffabc"));
+            ChooseMode(0); Invoke("ImportText"); PickNativePath(bomFile);
+            WaitText("TextInput", value => value == "\ufeffabc");
+            Set("Password", "native-bom-password"); Set("ConfirmPassword", "native-bom-password"); Invoke("Run");
+            WaitText("Result", value => value.StartsWith("AGV1.", StringComparison.Ordinal));
+            InvokeResult("UseResult"); Set("Password", "native-bom-password"); Invoke("Run");
+            WaitText("Result", value => value == "\ufeffabc");
+            Console.WriteLine("PASS: native import consumes one BOM and preserves body U+FEFF through AGV1");
             var boundaryText = string.Concat(Enumerable.Repeat("🔐", 376_823)) + "aa";
             if (Encoding.UTF8.GetByteCount(boundaryText) != plaintextBudget) throw new Exception("Native boundary fixture drifted");
             var boundaryFile = Path.Combine(profile, "text-boundary.txt");
@@ -124,6 +133,12 @@ internal static class Program
             var restoredPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
             if (!File.ReadAllBytes(input).SequenceEqual(File.ReadAllBytes(restoredPath))) throw new Exception("Native file roundtrip differs");
             Console.WriteLine("PASS: native File encrypt/decrypt");
+            var invalidAgv = Path.Combine(profile, "...agv");
+            File.Copy(encryptedPath, invalidAgv);
+            Set("InputFile", invalidAgv); Set("Password", "native-file-password"); Invoke("Run");
+            WaitMessage("Status", labels["error.file.output_name_invalid"]);
+            if (Find("Result") is not null) throw new Exception("Invalid restore filename produced a result");
+            Console.WriteLine("PASS: native AGV1 restore rejects directory-only filename");
             if (language == "en-US")
             {
                 var report = Path.Combine(profile, "report.txt");
@@ -168,6 +183,10 @@ internal static class Program
             if (((TogglePattern)Find("IgnoreWhitespace")!.GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState != ToggleState.Off)
                 throw new Exception("Clear did not reset whitespace mode");
             Console.WriteLine("PASS: native Base64 encode/decode");
+            ChooseMode(0); Invoke("ImportText"); PickNativePath(bomFile);
+            WaitText("TextInput", value => value == "\ufeffabc");
+            Invoke("Run"); WaitText("Result", value => value == "77u/YWJj");
+            Console.WriteLine("PASS: native imported body U+FEFF Base64 bytes");
             Choose("InputKind", 1); Wait(() => Find("InputFile"), "Base64 file page");
             Set("InputFile", input); Invoke("Run");
             var encodedPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
@@ -175,6 +194,13 @@ internal static class Program
             var decodedPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
             if (!File.ReadAllBytes(input).SequenceEqual(File.ReadAllBytes(decodedPath))) throw new Exception("Native Base64 file roundtrip differs");
             Console.WriteLine("PASS: native Base64 file encode/decode");
+            var invalidBase64 = Path.Combine(profile, "...b64");
+            File.Copy(encodedPath, invalidBase64);
+            Invoke("PickFile"); PickNativePath(invalidBase64);
+            WaitText("InputFile", value => value == invalidBase64);
+            Invoke("Run"); WaitMessage("Status", labels["error.file.output_name_invalid"]);
+            if (Find("Result") is not null) throw new Exception("Invalid Base64 restore filename produced a result");
+            Console.WriteLine("PASS: native file picker / Base64 restore rejects directory-only filename");
             var base64Report = Path.Combine(profile, "base64-report.txt");
             File.WriteAllText(base64Report, "base64 extension payload", new UTF8Encoding(false));
             ChooseMode(0); Set("InputFile", base64Report);
@@ -260,6 +286,43 @@ internal static class Program
             AssertSelectedName("Theme", alternateLabels[alternateTheme]);
             if (Find("SaveSettings")!.Current.IsEnabled) throw new Exception("Saved settings still dirty");
             Capture($"settings-switched-{theme}-{language}.png");
+            ((TogglePattern)Find("RememberRecent")!.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+            Invoke("SaveSettings"); WaitMessage("SettingsStatus", alternateLabels["settings_saved"]);
+            var firstWindow = window;
+            using (var secondProcess = Process.Start(info)!)
+            {
+                try
+                {
+                    var secondWindow = Wait(() => AutomationElement.RootElement.FindFirst(TreeScope.Children,
+                        new AndCondition(new PropertyCondition(AutomationElement.ProcessIdProperty, secondProcess.Id),
+                            new PropertyCondition(AutomationElement.ClassNameProperty, "WinUIDesktopWin32WindowClass"))), "Second WinUI window");
+                    window = secondWindow;
+                    Wait(() => Find("TextInput"), "Second text page");
+                    SelectNav("NavSettings"); Wait(() => Find("SaveSettings"), "Second settings draft");
+                    if (((TogglePattern)Find("RememberRecent")!.GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState != ToggleState.On)
+                        throw new Exception("Second window did not load the shared settings");
+                    window = firstWindow;
+                    ((TogglePattern)Find("RememberRecent")!.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+                    Invoke("SaveSettings"); WaitMessage("SettingsStatus", alternateLabels["settings_saved"]);
+                    window = secondWindow;
+                    Choose("Theme", alternateTheme == "dark" ? 1 : 2);
+                    Invoke("SaveSettings"); WaitMessage("SettingsStatus", alternateLabels["settings_saved"]);
+                    using var saved = JsonDocument.Parse(File.ReadAllText(settingsPath));
+                    if (saved.RootElement.GetProperty("remember_recent_files").GetBoolean()
+                        || saved.RootElement.GetProperty("recent_files").GetArrayLength() != 0)
+                        throw new Exception("Second window theme save re-enabled history");
+                    Capture($"settings-two-windows-{theme}-{language}.png");
+                    ((WindowPattern)secondWindow.GetCurrentPattern(WindowPattern.Pattern)).Close();
+                    if (!secondProcess.WaitForExit(10000) || secondProcess.ExitCode != 0)
+                        throw new Exception("Second settings window did not close cleanly");
+                    Console.WriteLine("PASS: two native windows preserve disabled history after a stale theme-only save");
+                }
+                finally
+                {
+                    window = firstWindow;
+                    if (!secondProcess.HasExited) { secondProcess.Kill(true); secondProcess.WaitForExit(10000); }
+                }
+            }
             SelectNav("NavBase64"); Wait(() => Find("InputFile"), "Retained Base64 file mode after language change");
             WaitMessage("Status", alternateLabels["completed"]);
             SelectNav("NavSettings");
