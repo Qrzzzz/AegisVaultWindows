@@ -1,7 +1,12 @@
-# AegisVault 2.7 acceptance checklist
+# AegisVault 2.8 acceptance checklist
+
+- Add/remove waiting files while the active file is at a known percentage; the file percentage must stay fixed and processed/waiting counts must update.
+- Mix failed and successful inputs; filter failures without changing execution order or losing success paths. Queue all failures again, re-enter the password if required and confirm successful inputs are not repeated.
+- Clear completed entries and confirm every output remains on disk. Check an empty failure filter and adding new files while it is selected.
+- Expand/collapse per-file output details, copy all successful paths and check narrow light/English and dark/Chinese layouts. The separate text result editor must retain its existing import/copy/save/reuse behavior.
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.7.md](ACCEPTANCE_2.7.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.8.md](ACCEPTANCE_2.8.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
 
 - Add several files with the native multi-select picker; verify duplicate suppression, per-item removal,

@@ -1,3 +1,5 @@
+> 当前源码正在开发 **2.8**：改进批量进度、失败项操作和逐项结果详情。已发布稳定版仍为 **2.7**。本地候选包名为 `AegisVault-v2.8-win64.zip`；参见 [2.8 验收记录](docs/ACCEPTANCE_2.8.md)。
+
 <div align="center">
 
 # 🛡️ AegisVault Windows

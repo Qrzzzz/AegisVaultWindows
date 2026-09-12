@@ -1,3 +1,5 @@
+> Source development targets **2.8**, improving batch progress, failure actions and per-file results. The published stable version remains **2.7**. The local candidate is `AegisVault-v2.8-win64.zip`; see [2.8 acceptance](docs/ACCEPTANCE_2.8.md).
+
 <div align="center">
 
 # 🛡️ AegisVault

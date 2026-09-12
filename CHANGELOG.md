@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8 - Unreleased
+
+- Show current-file percentage and byte progress with separate processed/waiting counts that update during live queue edits.
+- Filter failed entries, requeue all failures and clear completed entries without deleting output files.
+- Keep file results in expandable queue rows and preserve the separate text result workflow.
+- Validate real Explorer drag/drop independently from native picker and queue automation; see `docs/ACCEPTANCE_2.8.md`.
+
 ## 2.7 - 2026-09-12
 
 - Add multi-file drag and drop, a native stack of queued files, a multi-select picker, duplicate suppression and per-file removal in the File and Base64 file workflows.

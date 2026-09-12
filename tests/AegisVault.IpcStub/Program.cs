@@ -36,6 +36,15 @@ if (mode == "no-response")
     await Task.Delay(Timeout.InfiniteTimeSpan);
     return;
 }
+if (mode == "queue-progress")
+{
+    Mark(mode);
+    Console.WriteLine(JsonSerializer.Serialize(new { v = 1, id, type = "progress", percent = 0.5,
+        stage = "processing", processed_bytes = 50, total_bytes = 100 }));
+    _ = await Console.In.ReadLineAsync();
+    Console.WriteLine(JsonSerializer.Serialize(new { v = 1, id, type = "cancelled" }));
+    return;
+}
 if (mode == "terminal-no-exit")
 {
     Mark(mode);

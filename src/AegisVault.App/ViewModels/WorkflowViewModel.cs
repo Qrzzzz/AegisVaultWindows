@@ -18,6 +18,11 @@ public sealed class WorkflowViewModel : ObservableObject
     private double progress;
     private InfoBarSeverity severity;
     private readonly ObservableCollection<FileQueueItem> files = [];
+    private readonly ObservableCollection<FileQueueItem> visibleFiles = [];
+    private bool showFailedOnly;
+    private int processedFiles;
+    private FileQueueItem? currentFile;
+    private long? currentProcessedBytes, currentTotalBytes;
 
     public WorkflowViewModel(string kind, BackendClient backend, SettingsService settings)
     {
@@ -25,6 +30,7 @@ public sealed class WorkflowViewModel : ObservableObject
         this.backend = backend;
         this.settings = settings;
         Files = new(files);
+        VisibleFiles = new(visibleFiles);
         CancelCommand = new(RequestCancellation, () => CanCancel);
         ClearCommand = new(Clear, () => !IsBusy);
         settings.Changed += (_, _) => RefreshLabels();
@@ -78,6 +84,8 @@ public sealed class WorkflowViewModel : ObservableObject
             Raise(nameof(IsIndeterminate)); Raise(nameof(CancelLabel));
             Raise(nameof(CanEditQueue)); Raise(nameof(CanRun));
             Raise(nameof(ResultActionsVisibility)); Raise(nameof(TextResultVisibility)); Raise(nameof(FileResultVisibility));
+            Raise(nameof(QueueActionsVisibility));
+            Raise(nameof(CanRetryFailed)); Raise(nameof(CanClearCompleted));
             CancelCommand.Refresh(); ClearCommand.Refresh();
         }
     }
@@ -85,6 +93,17 @@ public sealed class WorkflowViewModel : ObservableObject
     public bool CanEditQueue => !cancelling;
     public bool CanRun => !IsBusy && (!IsFile || files.Any(f => f.State is "pending" or "cancelled"));
     public ReadOnlyObservableCollection<FileQueueItem> Files { get; }
+    public ReadOnlyObservableCollection<FileQueueItem> VisibleFiles { get; }
+    public bool ShowFailedOnly
+    {
+        get => showFailedOnly;
+        set { if (Set(ref showFailedOnly, value)) RefreshQueue(); }
+    }
+    public bool CanRetryFailed => !IsBusy && files.Any(f => f.State == "failed");
+    public bool CanClearCompleted => !IsBusy && files.Any(f => f.State == "completed");
+    public Visibility QueueActionsVisibility => !IsBusy && (ShowFailedOnly || files.Any(f => f.State is "failed" or "completed"))
+        ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyFilterVisibility => ShowFailedOnly && visibleFiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public string QueueSummary => string.Format(L["queue_summary"], files.Count,
         files.Count(f => f.State == "completed"), files.Count(f => f.State == "failed"),
         files.Count(f => f.State is "pending" or "cancelled"));
@@ -114,7 +133,7 @@ public sealed class WorkflowViewModel : ObservableObject
     public Visibility RecentVisibility => RecentFiles.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BusyVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
     public Visibility IdleVisibility => IsBusy ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility ResultVisibility => HasResult ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ResultVisibility => HasResult && !IsFile ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ResultActionsVisibility => HasResult && !IsBusy ? Visibility.Visible : Visibility.Collapsed;
     public Visibility TextResultVisibility => HasResult && !IsBusy && !IsFile ? Visibility.Visible : Visibility.Collapsed;
     public Visibility FileResultVisibility => HasResult && !IsBusy && IsFile ? Visibility.Visible : Visibility.Collapsed;
@@ -132,6 +151,7 @@ public sealed class WorkflowViewModel : ObservableObject
         Raise(nameof(OutputFolderPlaceholder));
         foreach (var file in files) file.RefreshLabels();
         Raise(nameof(QueueSummary));
+        UpdateFileProgress();
         if (IsFile && HasResult) FormatFileResult();
     }
 
@@ -139,6 +159,7 @@ public sealed class WorkflowViewModel : ObservableObject
     {
         if (!IsFile || !CanEditQueue) return;
         var rejected = false;
+        var added = false;
         foreach (var value in paths)
         {
             try
@@ -150,11 +171,13 @@ public sealed class WorkflowViewModel : ObservableObject
                 if (files.Any(f => string.Equals(f.InputPath, path, StringComparison.OrdinalIgnoreCase))) continue;
                 if (files.Count >= BatchResponse.MaxFiles) { Fail("resource.limit_exceeded"); break; }
                 files.Add(new(path)); inputPath = path; Raise(nameof(InputPath));
+                added = true;
             }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
             { rejected = true; }
         }
         if (rejected) Show("queue_files_only", InfoBarSeverity.Warning);
+        if (added) ShowFailedOnly = false;
         RefreshQueue();
     }
 
@@ -168,16 +191,58 @@ public sealed class WorkflowViewModel : ObservableObject
     {
         if (!CanEditQueue || !files.Contains(file) || file.State is not ("failed" or "cancelled")) return;
         file.ChangeState("pending"); RefreshQueue();
+        ShowFailedOnly = false;
+    }
+
+    public void RetryFailedFiles()
+    {
+        if (!CanRetryFailed) return;
+        foreach (var file in files.Where(f => f.State == "failed")) file.ChangeState("pending");
+        ShowFailedOnly = false;
+        RefreshQueue();
+        Show("queue_retry_ready");
+    }
+
+    public void ClearCompletedFiles()
+    {
+        if (!CanClearCompleted) return;
+        foreach (var file in files.Where(f => f.State == "completed").ToArray()) files.Remove(file);
+        inputPath = files.LastOrDefault()?.InputPath ?? ""; Raise(nameof(InputPath));
+        FormatFileResult(); RefreshQueue();
+        Show("queue_completed_cleared");
     }
 
     public void ClearQueue()
     {
         if (IsBusy) return;
         files.Clear(); inputPath = ""; Raise(nameof(InputPath));
+        ShowFailedOnly = false;
         ClearResult(); RefreshQueue();
     }
 
-    private void RefreshQueue() { Raise(nameof(QueueSummary)); Raise(nameof(CanRun)); }
+    private void RefreshQueue()
+    {
+        var desired = files.Where(f => !ShowFailedOnly || f.State == "failed").ToArray();
+        // Keep existing rows (and their focus/expanded details) when other rows change.
+        for (var index = visibleFiles.Count - 1; index >= 0; index--)
+            if (!desired.Contains(visibleFiles[index])) visibleFiles.RemoveAt(index);
+        for (var index = 0; index < desired.Length; index++)
+            if (index >= visibleFiles.Count || visibleFiles[index] != desired[index]) visibleFiles.Insert(index, desired[index]);
+        Raise(nameof(QueueSummary)); Raise(nameof(CanRun));
+        Raise(nameof(CanRetryFailed)); Raise(nameof(CanClearCompleted));
+        Raise(nameof(QueueActionsVisibility)); Raise(nameof(EmptyFilterVisibility));
+        UpdateFileProgress();
+    }
+
+    private void UpdateFileProgress()
+    {
+        if (!IsFile || !IsBusy || cancelling || currentFile is null) return;
+        var counts = string.Format(L["queue_progress_counts"], processedFiles, files.Count(f => f.State == "pending"));
+        var detail = currentTotalBytes.HasValue
+            ? string.Format(L["queue_progress_bytes"], Progress, currentProcessedBytes ?? 0, currentTotalBytes.Value)
+            : string.Format(L["queue_progress_percent"], Progress);
+        ProgressText = $"{counts}\n{currentFile.Name} · {detail}";
+    }
     private void ResetFileResults()
     {
         foreach (var file in files) file.ChangeState("pending");
@@ -235,26 +300,29 @@ public sealed class WorkflowViewModel : ObservableObject
 
     private async Task ExecuteFilesAsync(string password, CancellationTokenSource token)
     {
+        ShowFailedOnly = false;
+        processedFiles = 0;
         foreach (var item in files.Where(f => f.State == "cancelled")) item.ChangeState("pending");
         Show("working");
         var operation = Kind == "file" ? (Mode == 0 ? "file.encrypt" : "file.decrypt")
             : Mode == 0 ? "base64.encode_file" : "base64.decode_file";
         // Freeze options for this run. Queue contents stay editable between items.
         var destination = string.IsNullOrWhiteSpace(OutputDir) ? settings.Current.DefaultOutputDir : OutputDir;
-        var finished = 0;
         var historyFailed = false;
         while (!token.IsCancellationRequested && files.FirstOrDefault(f => f.State == "pending") is { } item)
         {
+            currentFile = item; currentProcessedBytes = currentTotalBytes = null;
+            Progress = 0;
             item.ChangeState("running"); RefreshQueue();
             var current = item;
             var report = new Progress<BackendProgress>(p =>
             {
                 if (!ReferenceEquals(cancellation, token) || current.State != "running" || cancelling) return;
-                var total = finished + 1 + files.Count(f => f.State == "pending");
-                Progress = (finished + p.Percent) * 100 / total;
-                ProgressText = $"{finished + 1}/{total} · {current.Name} · {p.Percent:P0}";
+                Progress = Math.Clamp(p.Percent * 100, 0, 100);
+                if (p.TotalBytes.HasValue)
+                { currentProcessedBytes = p.ProcessedBytes; currentTotalBytes = p.TotalBytes; }
+                UpdateFileProgress();
             });
-            ProgressText = $"{finished + 1}/{finished + 1 + files.Count(f => f.State == "pending")} · {item.Name}";
             try
             {
                 // Submit just the selected item to the batch endpoint so pending
@@ -284,8 +352,9 @@ public sealed class WorkflowViewModel : ObservableObject
                 Fail(ex.Code); return;
             }
             catch (Exception) { item.ChangeState("failed", "app.error"); RefreshQueue(); Fail("app.error"); return; }
-            finished++;
+            processedFiles++;
         }
+        currentFile = null;
         FormatFileResult(); RefreshQueue();
         if (historyFailed && files.All(f => f.State == "completed")) Show("completed_recent_failed", InfoBarSeverity.Warning);
         else if (token.IsCancellationRequested || files.Any(f => f.State == "cancelled")) Show("cancelled");
@@ -302,7 +371,7 @@ public sealed class WorkflowViewModel : ObservableObject
     {
         var completed = files.Where(f => f.State == "completed").ToArray();
         ResultPath = completed.LastOrDefault()?.ResultPath ?? "";
-        Output = string.Join("\n\n", completed.Select(f => f.ResultText));
+        Output = ""; // File results live on their queue rows; text retains its separate result editor.
         HasResult = completed.Length > 0;
     }
     public void Fail(string code)

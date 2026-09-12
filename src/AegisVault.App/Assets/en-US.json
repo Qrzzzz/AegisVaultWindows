@@ -142,5 +142,15 @@
   "queue_partial": "Batch finished with some failures. Successful outputs are kept; failed files can be queued again.",
   "queue_files_only": "Only files can be added. Folders and invalid paths were skipped.",
   "queue_output_note": "Outputs with the same name are numbered automatically. Batches never overwrite existing files.",
-  "error.validation.duplicate_file": "The batch contains the same file more than once."
+  "error.validation.duplicate_file": "The batch contains the same file more than once.",
+  "queue_only_failed": "Show failed files only",
+  "queue_no_failures": "No failed files. Turn off the filter to see the full queue.",
+  "queue_retry_failed": "Queue all failed files again",
+  "queue_clear_completed": "Clear completed entries",
+  "queue_retry_ready": "Failed files are queued again. Choose Start to retry; successful files will not repeat.",
+  "queue_completed_cleared": "Completed entries cleared. Output files are kept on disk.",
+  "queue_result_details": "Output details",
+  "queue_progress_counts": "Processed {0} files · {1} waiting",
+  "queue_progress_bytes": "Current file {0:F0}% · {1:N0} / {2:N0} bytes",
+  "queue_progress_percent": "Current file {0:F0}%"
 }
