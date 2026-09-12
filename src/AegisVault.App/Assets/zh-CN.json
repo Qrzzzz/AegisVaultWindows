@@ -142,5 +142,15 @@
   "queue_partial": "本批次已结束，部分文件失败。成功的输出已保留，可将失败项目重新排队。",
   "queue_files_only": "仅支持添加文件，已跳过文件夹和无效路径。",
   "queue_output_note": "输出重名时自动编号，批量处理不会覆盖已有文件。",
-  "error.validation.duplicate_file": "批次中包含重复文件。"
+  "error.validation.duplicate_file": "批次中包含重复文件。",
+  "queue_only_failed": "仅看失败项",
+  "queue_no_failures": "没有失败项目，关闭筛选可查看完整队列。",
+  "queue_retry_failed": "重新排队全部失败项",
+  "queue_clear_completed": "清除已完成项",
+  "queue_retry_ready": "失败项目已重新排队，点击操作按钮开始重试；已成功的文件不会重复处理。",
+  "queue_completed_cleared": "已清除完成项目，磁盘上的输出文件仍保留。",
+  "queue_result_details": "输出详情",
+  "queue_progress_counts": "已处理 {0} 项 · 待处理 {1} 项",
+  "queue_progress_bytes": "当前文件 {0:F0}% · {1:N0} / {2:N0} 字节",
+  "queue_progress_percent": "当前文件 {0:F0}%"
 }

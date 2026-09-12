@@ -30,20 +30,22 @@
                 </StackPanel>
                 <TextBlock Text="{Binding QueueSummary}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueSummary"
                     AutomationProperties.LiveSetting="Polite" />
-                <ListView ItemsSource="{Binding Files}" SelectionMode="None" MaxHeight="248" Padding="0"
+                <CheckBox Content="{Binding L[queue_only_failed]}" IsChecked="{Binding ShowFailedOnly, Mode=TwoWay}"
+                    Visibility="{Binding QueueActionsVisibility}" AutomationProperties.AutomationId="OnlyFailed" />
+                <TextBlock Text="{Binding L[queue_no_failures]}" Visibility="{Binding EmptyFilterVisibility}" TextWrapping="Wrap"
+                    AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="EmptyQueueFilter" />
+                <ListView x:Name="FileQueueControl" ItemsSource="{Binding VisibleFiles}" SelectionMode="None" MaxHeight="248" Padding="0"
                     HorizontalContentAlignment="Stretch" AutomationProperties.Name="{Binding L[file_queue]}"
                     AutomationProperties.AutomationId="FileQueue">
                   <ListView.ItemTemplate>
                     <DataTemplate>
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="0,8">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8" Padding="0,8">
                         <StackPanel Spacing="4">
                           <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                           <TextBlock Text="{Binding InputPath}" TextTrimming="CharacterEllipsis" FontSize="12"
                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{Binding InputPath}"
                               AutomationProperties.AutomationId="QueuePath" />
                           <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueStatus" />
-                          <TextBlock Text="{Binding ResultPath}" TextWrapping="Wrap" Visibility="{Binding ResultVisibility}"
-                              FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
                           <Button Click="RevealQueueItem" Visibility="{Binding ResultVisibility}" ToolTipService.ToolTip="{Binding RevealLabel}"
@@ -59,6 +61,12 @@
                             <SymbolIcon Symbol="Cancel" />
                           </Button>
                         </StackPanel>
+                        <Expander Grid.Row="1" Grid.ColumnSpan="2" Header="{Binding L[queue_result_details]}" Visibility="{Binding ResultVisibility}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="QueueDetails">
+                          <TextBox Text="{Binding ResultText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                              MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              AutomationProperties.Name="{Binding L[queue_result_details]}" AutomationProperties.AutomationId="QueueResult" />
+                        </Expander>
                       </Grid>
                     </DataTemplate>
                   </ListView.ItemTemplate>
@@ -104,6 +112,12 @@
             AutomationProperties.AutomationId="Status" AutomationProperties.LiveSetting="Polite" />
         <CommandBar DefaultLabelPosition="Right" Background="Transparent" OverflowButtonVisibility="Visible" AutomationProperties.AutomationId="ResultActions"
             AutomationProperties.Name="{Binding L[workflow_actions]}">
+          <CommandBar.SecondaryCommands>
+            <AppBarButton Label="{Binding L[queue_retry_failed]}" Click="RetryFailedFiles" IsEnabled="{Binding CanRetryFailed}"
+                Visibility="{Binding QueueActionsVisibility}" AutomationProperties.AutomationId="RetryFailedFiles" />
+            <AppBarButton Label="{Binding L[queue_clear_completed]}" Click="ClearCompletedFiles" IsEnabled="{Binding CanClearCompleted}"
+                Visibility="{Binding QueueActionsVisibility}" AutomationProperties.AutomationId="ClearCompletedFiles" />
+          </CommandBar.SecondaryCommands>
           <CommandBar.Content>
           <Button x:Name="RunButton" Content="{Binding ActionLabel}" Style="{StaticResource AccentButtonStyle}"
               IsEnabled="{Binding CanRun}" Click="Run" MinWidth="100" AutomationProperties.AutomationId="Run">

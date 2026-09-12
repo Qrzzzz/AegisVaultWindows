@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows.Automation;
 
-internal static class Program
+internal static partial class Program
 {
     private static AutomationElement window = null!;
     private static Process process = null!;
@@ -40,6 +40,13 @@ internal static class Program
             Console.WriteLine($"DPI: {GetDpiForWindow(new IntPtr(window.Current.NativeWindowHandle))}; High Contrast: {System.Windows.SystemParameters.HighContrast}");
             var originalBounds = window.Current.BoundingRectangle;
             var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
+            if (Environment.GetEnvironmentVariable("AEGISVAULT_EXPLORER_DROP_ONLY") == "1")
+            {
+                CheckExplorerDrops(profile, theme, language, labels);
+                ((WindowPattern)window.GetCurrentPattern(WindowPattern.Pattern)).Close();
+                if (!process.WaitForExit(15000) || process.ExitCode != 0) throw new Exception("Explorer-drop close failed");
+                return 0;
+            }
             if (Environment.GetEnvironmentVariable("AEGISVAULT_QUEUE_ONLY") == "1")
             {
                 CheckNativeBatch(profile, theme, language, labels);
@@ -134,7 +141,7 @@ internal static class Program
             if (System.Windows.Forms.Clipboard.GetText() != encryptedPath) throw new Exception("File clipboard contains more than its path");
             Capture($"file-{theme}-{language}.png");
             Set("OutputFolder", profile);
-            if (Find("Result") is not null) throw new Exception("Changing output folder retained a stale result");
+            if (Find("QueueDetails") is not null) throw new Exception("Changing output folder retained a stale result");
             Set("OutputFolder", "");
             ChooseMode(1); Set("InputFile", encryptedPath); Set("Password", "native-file-password"); Invoke("Run");
             var restoredPath = WaitText("Result", value => value.Contains("→", StringComparison.Ordinal)).Split(['\r', '\n'])[0].Trim();
@@ -144,7 +151,7 @@ internal static class Program
             File.Copy(encryptedPath, invalidAgv);
             Set("InputFile", invalidAgv); Set("Password", "native-file-password"); Invoke("Run");
             WaitMessage("Status", labels["error.file.output_name_invalid"]);
-            if (Find("Result") is not null) throw new Exception("Invalid restore filename produced a result");
+            if (Find("QueueDetails") is not null) throw new Exception("Invalid restore filename produced a result");
             Console.WriteLine("PASS: native AGV1 restore rejects directory-only filename");
             if (language == "en-US")
             {
@@ -208,7 +215,7 @@ internal static class Program
             Invoke("ClearQueue"); Invoke("PickFile"); PickNativePath(invalidBase64);
             WaitText("InputFile", value => value == invalidBase64);
             Invoke("Run"); WaitMessage("Status", labels["error.file.output_name_invalid"]);
-            if (Find("Result") is not null) throw new Exception("Invalid Base64 restore filename produced a result");
+            if (Find("QueueDetails") is not null) throw new Exception("Invalid Base64 restore filename produced a result");
             Console.WriteLine("PASS: native file picker / Base64 restore rejects directory-only filename");
             var base64Report = Path.Combine(profile, "base64-report.txt");
             File.WriteAllText(base64Report, "base64 extension payload", new UTF8Encoding(false));
@@ -403,7 +410,7 @@ internal static class Program
         JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(executable))!, "Assets", language + ".json")))!;
     private static void WaitVisible(string id) => Wait(() =>
     {
-        var element = Find(id);
+        var element = Find(id == "Result" && Find("FileQueue") is not null ? "FileQueue" : id);
         if (element is null || element.Current.IsOffscreen) return null;
         var bounds = element.Current.BoundingRectangle;
         return bounds.Width > 0 && bounds.Height > 0 && window.Current.BoundingRectangle.Contains(bounds) ? element : null;
@@ -420,7 +427,9 @@ internal static class Program
     }, "Content below native navigation toggle");
     private static void InvokeResult(string id)
     {
-        WaitVisible("Result");
+        if (Find("FileQueue") is not null)
+            Wait(() => Find("OperationMode") is { } mode && mode.Current.IsEnabled ? mode : null, "Idle file result actions");
+        else WaitVisible("Result");
         if (Find(id) is not { } action || action.Current.IsOffscreen)
         {
             var more = Find("ResultActions")!.FindFirst(TreeScope.Descendants,
@@ -477,6 +486,43 @@ internal static class Program
             || !File.ReadAllBytes(batchRestored[1]).SequenceEqual(File.ReadAllBytes(batchInputs[2])))
             throw new Exception("Native multi-file AGV1 restore differs");
         Console.WriteLine("PASS: native multi-file selection, duplicate suppression, per-item removal, batch AGV1 roundtrip and result paths");
+        CheckNativeFailureActions(profile, theme, language, labels);
+    }
+    private static void CheckNativeFailureActions(string profile, string theme, string language, Dictionary<string, string> labels)
+    {
+        SelectNav("NavBase64"); Choose("InputKind", 1); ChooseMode(1);
+        var good = Path.Combine(profile, "bulk-good.b64"); var bad = Path.Combine(profile, "bulk-bad.b64");
+        File.WriteAllText(good, "aGVsbG8="); File.WriteAllText(bad, "@@@@");
+        Invoke("ClearQueue"); PickNativeFiles([good, bad]); Invoke("Run");
+        WaitMessage("Status", labels["queue_partial"]);
+        if (Find("Result") is not null) throw new Exception("File queue repeats results in text editor");
+        InvokeResult("CopyResult"); var successful = System.Windows.Forms.Clipboard.GetText();
+        var toggle = Wait(() => Find("OnlyFailed"), "Failed filter");
+        ((TogglePattern)toggle.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+        Wait(() => Find("QueuePath")?.Current.Name == bad ? Find("QueuePath") : null, "Failed row");
+        Capture($"queue-failures-{theme}-{language}.png");
+        File.WriteAllText(bad, "cmV0cmllZA==");
+        InvokeResult("RetryFailedFiles");
+        WaitMessage("Status", labels["queue_retry_ready"]);
+        Invoke("Run"); WaitMessage("Status", labels["completed"]);
+        InvokeResult("CopyResult"); var outputs = System.Windows.Forms.Clipboard.GetText().Split(Environment.NewLine);
+        if (outputs.Length != 2 || outputs[0] != successful || File.ReadAllText(outputs[1]) != "retried")
+            throw new Exception("Bulk retry changed successful output or failed result");
+        var details = Wait(() => Find("QueueDetails"), "Output details");
+        ((ExpandCollapsePattern)details.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        Wait(() => Find("QueueResult"), "Expanded output details");
+        Capture($"queue-details-{theme}-{language}.png");
+        var bounds = window.Current.BoundingRectangle;
+        var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
+        transform.Resize(680, 640); WaitVisible("Run");
+        Find("QueueResult")!.SetFocus();
+        Capture($"queue-details-narrow-{theme}-{language}.png");
+        InvokeResult("ClearCompletedFiles"); WaitQueueCount(0);
+        if (outputs.Any(path => !File.Exists(path))) throw new Exception("Clear completed removed disk output");
+        transform.Resize(bounds.Width, bounds.Height);
+        // Restore the page/mode expected by the remaining full-suite scenarios.
+        ChooseMode(0); Choose("InputKind", 0); SelectNav("NavFile");
+        Console.WriteLine("PASS: native failure filter, bulk retry preserving success, expandable results and clear completed retaining disk outputs");
     }
     private static void WaitQueueCount(int count) => Wait(() =>
     {
@@ -532,6 +578,15 @@ internal static class Program
     }
     private static string WaitText(string id, Func<string, bool> match) => Wait(() =>
     {
+        if (id == "Result" && Find("FileQueue") is not null)
+        {
+            if (Find("QueueDetails") is not { } details) return null;
+            var expand = (ExpandCollapsePattern)details.GetCurrentPattern(ExpandCollapsePattern.Pattern);
+            if (expand.Current.ExpandCollapseState == ExpandCollapseState.Collapsed) expand.Expand();
+            if (Find("QueueResult") is not { } result) return null;
+            var fileText = ((ValuePattern)result.GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
+            return match(fileText) ? fileText : null;
+        }
         var element = Find(id == "InputFile" ? "QueuePath" : id);
         if (element is null) return null;
         var text = id == "InputFile" ? element.Current.Name : ((ValuePattern)element.GetCurrentPattern(ValuePattern.Pattern)).Current.Value;

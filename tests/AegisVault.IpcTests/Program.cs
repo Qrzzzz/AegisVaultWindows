@@ -409,6 +409,77 @@ try
             "resume repeated committed work");
     });
 
+    await Run("queue-filter-bulk-retry-clear-preserves-files", async () =>
+    {
+        Mode("healthy");
+        var settings = new SettingsService(new BackendClient(fast)); await settings.LoadAsync();
+        var folder = Path.Combine(root, "queue-bulk"); Directory.CreateDirectory(folder);
+        var inputs = new[] { "bad-one.b64", "good.b64", "bad-two.b64" }.Select(name => Path.Combine(folder, name)).ToArray();
+        foreach (var path in inputs) await File.WriteAllTextAsync(path, path == inputs[1] ? "aGVsbG8=" : "@@@@");
+        var workflow = new WorkflowViewModel("base64_file", new BackendClient(fast), settings) { Mode = 1 };
+        workflow.AddFiles(inputs); await workflow.RunAsync();
+        var completed = workflow.Files[1]; var output = completed.ResultPath;
+        var failure = workflow.Files[0]; var code = failure.ErrorCode;
+        workflow.ShowFailedOnly = true;
+        Check(workflow.VisibleFiles.Count == 2 && workflow.Files.Count == 3 && workflow.VisibleFiles[0] == failure,
+            "filter changed processing queue or row identity");
+        Check(failure.ErrorCode == code && workflow.CopyContent == output && workflow.Output == ""
+            && workflow.ResultVisibility == Microsoft.UI.Xaml.Visibility.Collapsed, "filter lost failure/result or duplicated file output");
+        foreach (var path in inputs.Where(path => path != inputs[1])) await File.WriteAllTextAsync(path, "cmV0cmllZA==");
+        workflow.RetryFailedFiles();
+        Check(!workflow.ShowFailedOnly && workflow.VisibleFiles.Count == 3 && completed.ResultPath == output && workflow.CanRun,
+            "bulk retry hid pending items or reset successful output");
+        var guarded = false;
+        workflow.PropertyChanged += (_, change) =>
+        {
+            if (change.PropertyName != "QueueSummary" || guarded || !workflow.IsBusy) return;
+            guarded = true;
+            workflow.ClearCompletedFiles(); workflow.RetryFailedFiles();
+            Check(workflow.Files.Contains(completed) && !workflow.CanClearCompleted && !workflow.CanRetryFailed,
+                "busy bulk actions mutated queue");
+        };
+        await workflow.RunAsync();
+        Check(guarded && workflow.Files.All(file => file.State == "completed") && completed.ResultPath == output
+            && Directory.GetFiles(folder).Length == 6, "bulk retry repeated successful work");
+        var outputs = workflow.Files.Select(file => file.ResultPath).ToArray();
+        workflow.ShowFailedOnly = true;
+        Check(workflow.VisibleFiles.Count == 0 && workflow.EmptyFilterVisibility == Microsoft.UI.Xaml.Visibility.Visible,
+            "empty filter has no explanation");
+        workflow.ClearCompletedFiles();
+        Check(workflow.Files.Count == 0 && !workflow.HasResult && workflow.CopyContent == "" && outputs.All(File.Exists),
+            "clear completed deleted disk files or retained stale result actions");
+        workflow.AddFiles([inputs[0]]);
+        Check(!workflow.ShowFailedOnly && workflow.VisibleFiles.Count == 1, "new input hidden by failure filter");
+    });
+
+    await Run("queue-current-file-progress-live-counts", async () =>
+    {
+        Mode("healthy");
+        var settings = new SettingsService(new BackendClient(fast)); await settings.LoadAsync();
+        Mode("queue-progress");
+        var workflow = new WorkflowViewModel("base64_file", new BackendClient(fast), settings);
+        var first = Path.Combine(root, "progress-first"); var second = Path.Combine(root, "progress-second");
+        workflow.AddFiles([first]);
+        var progressReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        workflow.PropertyChanged += (_, change) =>
+        {
+            if (change.PropertyName == "ProgressText" && workflow.ProgressText.Contains("50") && workflow.ProgressText.Contains("100"))
+                progressReady.TrySetResult(true);
+        };
+        var run = workflow.RunAsync();
+        await progressReady.Task.WaitAsync(TimeSpan.FromSeconds(8));
+        Check(workflow.Progress == 50, "current-file percentage differs");
+        workflow.AddFiles([second]);
+        Check(workflow.Progress == 50 && workflow.ProgressText.Contains(string.Format(workflow.L["queue_progress_counts"], 0, 1)),
+            "adding input changed file progress or left stale counts");
+        workflow.RemoveFile(workflow.Files[1]);
+        Check(workflow.Progress == 50 && workflow.ProgressText.Contains(string.Format(workflow.L["queue_progress_counts"], 0, 0)),
+            "removing waiting input left stale progress");
+        await workflow.CancelAndWaitAsync(); await run;
+        Check(!workflow.IsBusy && workflow.Files[0].State == "cancelled" && !workflow.HasResult,
+            "progress cancellation claimed successful output");
+    });
+
     await Run("batch-response-boundary", () =>
     {
         var valid = """{"cancelled":false,"items":[{"input_path":"source","status":"completed","code":"","result":{"output_path":"output","original_size":1,"output_size":4}}]}""";

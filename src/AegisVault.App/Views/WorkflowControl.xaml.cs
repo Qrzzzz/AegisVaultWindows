@@ -60,6 +60,11 @@ public sealed partial class WorkflowControl : UserControl
         var task = vm.RunAsync(Password.Password, Confirmation.Password);
         if (vm.IsBusy) Password.Password = Confirmation.Password = "";
         await task;
+        if (vm.IsFile && (vm.HasResult || vm.Files.Any(file => file.State == "failed")) && !vm.LastErrorCode.StartsWith("validation.", StringComparison.Ordinal))
+        {
+            FocusInput(FileQueueControl);
+            return;
+        }
         if (vm.HasResult)
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
@@ -182,6 +187,16 @@ public sealed partial class WorkflowControl : UserControl
         catch (Exception) { vm.Fail("file.reveal_failed"); }
     }
     private void ClearFileQueue(object sender, RoutedEventArgs e) => vm.ClearQueue();
+    private void RetryFailedFiles(object sender, RoutedEventArgs e)
+    {
+        vm.RetryFailedFiles();
+        FocusInput(vm.IsCrypto ? Password : RunButton);
+    }
+    private void ClearCompletedFiles(object sender, RoutedEventArgs e)
+    {
+        vm.ClearCompletedFiles();
+        FocusInput(vm.Files.Count == 0 ? PickFilesButton : FileQueueControl);
+    }
     private void RemoveQueueItem(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FileQueueItem item }) vm.RemoveFile(item);
