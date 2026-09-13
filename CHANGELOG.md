@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.9 - Unreleased
+## 2.9 - 2026-09-13
 
 - Merge dependency PRs #28–#31 for the Pages build, artifact upload and deployment workflow.
 - Add queue keyboard navigation, focused-row Delete, contextual focus recovery and screen-reader queue notifications.

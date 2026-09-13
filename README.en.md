@@ -42,7 +42,7 @@
 
 Download the latest stable build from [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest).
 
-The working version is **AegisVault 2.9 candidate**; see Releases for the latest published version. Planned 2.9 artifacts are:
+The current stable release is **AegisVault 2.9**. Its primary release artifacts are:
 
 | File                        | Purpose                                 |
 | --------------------------- | --------------------------------------- |
