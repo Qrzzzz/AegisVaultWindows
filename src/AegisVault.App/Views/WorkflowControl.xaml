@@ -18,7 +18,7 @@
           </StackPanel>
           <StackPanel x:Name="FileInputs" Spacing="16">
             <Border x:Name="FileDropZone" Padding="16" CornerRadius="8" BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                BorderBrush="{ThemeResource QueueBorderBrush}" Background="{ThemeResource QueueBackgroundBrush}">
               <StackPanel Spacing="12">
                 <TextBlock Text="{Binding L[drop_files]}" TextWrapping="Wrap" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding L[queue_hint]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -28,26 +28,34 @@
                   <Button Content="{Binding L[clear_queue]}" Click="ClearFileQueue" IsEnabled="{Binding IsIdle}"
                       AutomationProperties.AutomationId="ClearQueue" />
                 </StackPanel>
-                <TextBlock Text="{Binding QueueSummary}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueSummary"
+                <TextBlock x:Name="QueueSummaryText" Text="{Binding QueueSummary}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueSummary"
                     AutomationProperties.LiveSetting="Polite" />
                 <CheckBox Content="{Binding L[queue_only_failed]}" IsChecked="{Binding ShowFailedOnly, Mode=TwoWay}"
                     Visibility="{Binding QueueActionsVisibility}" AutomationProperties.AutomationId="OnlyFailed" />
                 <TextBlock Text="{Binding L[queue_no_failures]}" Visibility="{Binding EmptyFilterVisibility}" TextWrapping="Wrap"
                     AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="EmptyQueueFilter" />
-                <ListView x:Name="FileQueueControl" ItemsSource="{Binding VisibleFiles}" SelectionMode="None" MaxHeight="248" Padding="0"
+                <TextBlock Text="{Binding L[queue_keyboard_hint]}" TextWrapping="Wrap" />
+                <ListView x:Name="FileQueueControl" ItemsSource="{Binding VisibleFiles}" SelectionMode="Single" MaxHeight="320" Padding="0"
+                    KeyDown="QueueKeyDown" GotFocus="QueueGotFocus" ContainerContentChanging="QueueContainerChanging" IsTabStop="True" UseSystemFocusVisuals="True"
                     HorizontalContentAlignment="Stretch" AutomationProperties.Name="{Binding L[file_queue]}"
                     AutomationProperties.AutomationId="FileQueue">
+                  <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                      <Setter Property="UseSystemFocusVisuals" Value="True" />
+                    </Style>
+                  </ListView.ItemContainerStyle>
                   <ListView.ItemTemplate>
                     <DataTemplate>
-                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8" Padding="0,8">
+                      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8" Padding="0,8">
                         <StackPanel Spacing="4">
-                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
                           <TextBlock Text="{Binding InputPath}" TextTrimming="CharacterEllipsis" FontSize="12"
                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{Binding InputPath}"
                               AutomationProperties.AutomationId="QueuePath" />
                           <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.AutomationId="QueueStatus" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
                           <Button Click="RevealQueueItem" Visibility="{Binding ResultVisibility}" ToolTipService.ToolTip="{Binding RevealLabel}"
                               AutomationProperties.Name="{Binding RevealLabel}" AutomationProperties.AutomationId="RevealQueueItem">
                             <SymbolIcon Symbol="Folder" />
@@ -61,7 +69,7 @@
                             <SymbolIcon Symbol="Cancel" />
                           </Button>
                         </StackPanel>
-                        <Expander Grid.Row="1" Grid.ColumnSpan="2" Header="{Binding L[queue_result_details]}" Visibility="{Binding ResultVisibility}"
+                        <Expander Grid.Row="2" Header="{Binding L[queue_result_details]}" Visibility="{Binding ResultVisibility}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="QueueDetails">
                           <TextBox Text="{Binding ResultText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                               MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -108,7 +116,7 @@
         <ProgressBar Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100"
             Visibility="{Binding BusyVisibility}" AutomationProperties.Name="{Binding L[progress]}" />
         <TextBlock Text="{Binding ProgressText}" Visibility="{Binding BusyVisibility}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-        <InfoBar IsOpen="{Binding HasStatus}" Severity="{Binding Severity}" Message="{Binding Status}" IsClosable="False"
+        <InfoBar x:Name="StatusBar" IsOpen="{Binding HasStatus}" Severity="{Binding Severity}" Message="{Binding Status}" IsClosable="False"
             AutomationProperties.AutomationId="Status" AutomationProperties.LiveSetting="Polite" />
         <CommandBar DefaultLabelPosition="Right" Background="Transparent" OverflowButtonVisibility="Visible" AutomationProperties.AutomationId="ResultActions"
             AutomationProperties.Name="{Binding L[workflow_actions]}">
@@ -128,7 +136,7 @@
           <AppBarButton Label="{Binding L[save_text]}" Icon="Save" Click="SaveText" IsEnabled="{Binding IsIdle}" Visibility="{Binding TextResultVisibility}" AutomationProperties.AutomationId="SaveText" />
           <AppBarButton Label="{Binding L[use_result]}" Icon="Switch" Click="UseResult" IsEnabled="{Binding IsIdle}" Visibility="{Binding TextResultVisibility}" AutomationProperties.AutomationId="UseResult" />
           <AppBarButton Label="{Binding L[open_folder]}" Icon="Folder" Click="Reveal" IsEnabled="{Binding IsIdle}" Visibility="{Binding FileResultVisibility}" AutomationProperties.AutomationId="RevealResult" />
-          <AppBarButton Label="{Binding CancelLabel}" Icon="Cancel" Command="{Binding CancelCommand}" Visibility="{Binding BusyVisibility}" AutomationProperties.AutomationId="Cancel" />
+          <AppBarButton x:Name="CancelButton" Label="{Binding CancelLabel}" Icon="Cancel" Command="{Binding CancelCommand}" Visibility="{Binding BusyVisibility}" AutomationProperties.AutomationId="Cancel" />
           <AppBarButton Label="{Binding L[clear]}" Icon="Delete" Command="{Binding ClearCommand}" Visibility="{Binding IdleVisibility}" Click="ClearPasswords" AutomationProperties.AutomationId="Clear" />
         </CommandBar>
       </StackPanel>
