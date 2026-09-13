@@ -42,7 +42,7 @@
 
 从 [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest) 下载最新稳定版本。
 
-当前工作版本为 **AegisVault 2.9 候选版**；最新已发布版本见 Releases。2.9 计划发布文件包括：
+当前稳定版为 **AegisVault 2.9**，主要发布文件包括：
 
 | 文件                          | 用途                     |
 | --------------------------- | ---------------------- |
