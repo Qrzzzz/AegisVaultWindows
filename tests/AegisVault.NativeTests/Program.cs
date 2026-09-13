@@ -30,8 +30,19 @@ internal static partial class Program
         info.Environment["APPDATA"] = profile;
         info.Environment["PATH"] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32");
         process = Process.Start(info)!;
+        HighContrastSettings? savedContrast = null;
         try
         {
+            if (Environment.GetEnvironmentVariable("AEGISVAULT_TEST_HIGH_CONTRAST") == "1")
+            {
+                var contrast = new HighContrastSettings { Size = (uint)Marshal.SizeOf<HighContrastSettings>() };
+                if (!SystemParametersInfo(0x0042, contrast.Size, ref contrast, 0))
+                    throw new Exception("Cannot read High Contrast settings");
+                savedContrast = contrast;
+                contrast.Flags |= 1;
+                if (!SystemParametersInfo(0x0043, contrast.Size, ref contrast, 2))
+                    throw new Exception("Cannot enable High Contrast");
+            }
             window = Wait(() => AutomationElement.RootElement.FindFirst(TreeScope.Children,
                 new AndCondition(new PropertyCondition(AutomationElement.ProcessIdProperty, process.Id),
                     new PropertyCondition(AutomationElement.ClassNameProperty, "WinUIDesktopWin32WindowClass"))), "WinUI window");
@@ -393,6 +404,8 @@ internal static partial class Program
         }
         finally
         {
+            if (savedContrast is { } contrast && !SystemParametersInfo(0x0043, contrast.Size, ref contrast, 2))
+                Console.Error.WriteLine("ERROR: restoring High Contrast settings failed");
             if (!process.HasExited) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
             process.Dispose();
             if (previousClipboard is not null) System.Windows.Forms.Clipboard.SetDataObject(previousClipboard, true);
@@ -459,16 +472,46 @@ internal static partial class Program
         var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
         SelectNav("NavFile"); Wait(() => Find("PickFile"), "File queue");
         Invoke("ClearQueue");
-        var batchInputs = Enumerable.Range(1, 3).Select(index => Path.Combine(profile, $"drop-{index}.txt")).ToArray();
+        Invoke("PickFile");
+        var cancelledPicker = Wait(() => window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ClassNameProperty, "#32770")), "Picker for cancellation");
+        ((WindowPattern)cancelledPicker.GetCurrentPattern(WindowPattern.Pattern)).Close();
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "PickFile"
+            ? AutomationElement.FocusedElement : null, "Cancelled picker restores launcher");
+        var batchInputs = Enumerable.Range(1, 3).Select(index => Path.Combine(profile,
+            index == 1 ? "drop-1-long-filename-用于检查键盘焦点与不同缩放下队列可用性的文件.txt" : $"drop-{index}.txt")).ToArray();
         foreach (var path in batchInputs) File.WriteAllText(path, "Native drag payload: " + Path.GetFileName(path), new UTF8Encoding(false));
         PickNativeFiles(batchInputs);
         WaitQueueCount(3);
         PickNativeFiles([batchInputs[0]]); WaitQueueCount(3);
-        RemoveQueuePath(batchInputs[1]); WaitQueueCount(2);
+        var firstRow = Wait(() => QueueRow(batchInputs[0]), "Named queue row");
+        if (!firstRow.Current.HelpText.Contains(batchInputs[0], StringComparison.Ordinal))
+            throw new Exception("Queue row lacks full-path accessible help");
+        firstRow.SetFocus();
+        System.Windows.Forms.SendKeys.SendWait("{DOWN}");
+        Wait(() => AutomationElement.FocusedElement.Current.Name.Contains(Path.GetFileName(batchInputs[1]), StringComparison.Ordinal)
+            ? AutomationElement.FocusedElement : null, "Arrow navigation to second row");
+        System.Windows.Forms.SendKeys.SendWait("{DELETE}");
+        WaitQueueCount(2);
+        Wait(() => AutomationElement.FocusedElement.Current.Name.Contains(Path.GetFileName(batchInputs[2]), StringComparison.Ordinal)
+            ? AutomationElement.FocusedElement : null, "Delete restores next row focus");
+        System.Windows.Forms.SendKeys.SendWait("{TAB}");
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "RemoveQueueItem"
+            ? AutomationElement.FocusedElement : null, "Tab reaches row action");
+        System.Windows.Forms.SendKeys.SendWait(" ");
+        WaitQueueCount(1);
+        Wait(() => AutomationElement.FocusedElement.Current.Name.Contains(Path.GetFileName(batchInputs[0]), StringComparison.Ordinal)
+            ? AutomationElement.FocusedElement : null, "Space activates removal and restores previous row");
+        PickNativeFiles([batchInputs[2]]); WaitQueueCount(2);
+        Console.WriteLine("PASS: queue accessible name/path, arrow navigation, Delete focus recovery, Tab and Space activation");
         var queueScroll = (ScrollPattern)Find("WorkflowScroll")!.GetCurrentPattern(ScrollPattern.Pattern);
         if (queueScroll.Current.VerticallyScrollable) queueScroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
         Capture($"queue-pending-{theme}-{language}.png");
         transform.Resize(680, 640);
+        QueueRow(batchInputs[0])!.SetFocus();
+        System.Windows.Forms.SendKeys.SendWait("{TAB}");
+        WaitVisible("RemoveQueueItem");
+        Thread.Sleep(250);
         Capture($"queue-narrow-{theme}-{language}.png");
         transform.Resize(originalBounds.Width, originalBounds.Height);
         Set("Password", "native-batch-password"); Set("ConfirmPassword", "native-batch-password"); Invoke("Run");
@@ -500,7 +543,14 @@ internal static partial class Program
         var toggle = Wait(() => Find("OnlyFailed"), "Failed filter");
         ((TogglePattern)toggle.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
         Wait(() => Find("QueuePath")?.Current.Name == bad ? Find("QueuePath") : null, "Failed row");
+        if (Find("QueueStatus")?.Current.Name.StartsWith(labels["queue_failed"], StringComparison.Ordinal) != true)
+            throw new Exception("Failure state lacks explicit localized text");
         Capture($"queue-failures-{theme}-{language}.png");
+        Find("RetryQueueItem")!.SetFocus();
+        System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "Run"
+            ? AutomationElement.FocusedElement : null, "Single retry restores Start focus");
+        Invoke("Run"); WaitMessage("Status", labels["queue_partial"]);
         File.WriteAllText(bad, "cmV0cmllZA==");
         InvokeResult("RetryFailedFiles");
         WaitMessage("Status", labels["queue_retry_ready"]);
@@ -516,8 +566,12 @@ internal static partial class Program
         var transform = (TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern);
         transform.Resize(680, 640); WaitVisible("Run");
         Find("QueueResult")!.SetFocus();
+        System.Windows.Forms.SendKeys.SendWait("{DELETE}");
+        WaitQueueCount(2);
         Capture($"queue-details-narrow-{theme}-{language}.png");
         InvokeResult("ClearCompletedFiles"); WaitQueueCount(0);
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "PickFile"
+            ? AutomationElement.FocusedElement : null, "Empty queue restores Add files focus");
         if (outputs.Any(path => !File.Exists(path))) throw new Exception("Clear completed removed disk output");
         transform.Resize(bounds.Width, bounds.Height);
         // Restore the page/mode expected by the remaining full-suite scenarios.
@@ -529,6 +583,9 @@ internal static partial class Program
         var summary = Find("QueueSummary");
         return summary is not null && summary.Current.Name.StartsWith(count + " ", StringComparison.Ordinal) ? summary : null;
     }, $"Queue count {count}");
+    private static AutomationElement? QueueRow(string path) => Find("FileQueue")?.FindAll(TreeScope.Descendants,
+        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+        .Cast<AutomationElement>().FirstOrDefault(row => row.Current.Name.Contains(Path.GetFileName(path), StringComparison.Ordinal));
     private static void RemoveQueuePath(string path)
     {
         var button = Wait(() => window.FindAll(TreeScope.Descendants,
@@ -549,7 +606,11 @@ internal static partial class Program
         while (timer.Elapsed < TimeSpan.FromSeconds(25))
         {
             if (process.HasExited) throw new Exception($"App exited while waiting for {label}: {process.ExitCode}");
-            var result = action(); if (result is not null) return result;
+            try
+            {
+                var result = action(); if (result is not null) return result;
+            }
+            catch (ElementNotAvailableException) { } // Native dialog/virtualized row teardown; retry within the same deadline.
             Thread.Sleep(100);
         }
         throw new TimeoutException(label);
@@ -621,4 +682,14 @@ internal static partial class Program
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
     [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr dc, uint flags);
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hwnd);
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct HighContrastSettings
+    {
+        public uint Size;
+        public uint Flags;
+        [MarshalAs(UnmanagedType.LPWStr)] public string? DefaultScheme;
+    }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(uint action, uint parameter, ref HighContrastSettings settings, uint flags);
 }

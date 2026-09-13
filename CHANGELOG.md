@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9 - Unreleased
+
+- Merge dependency PRs #28–#31 for the Pages build, artifact upload and deployment workflow.
+- Add queue keyboard navigation, focused-row Delete, contextual focus recovery and screen-reader queue notifications.
+- Label failures explicitly in both languages; use system High Contrast queue colours and responsive, wrapped rows with actions below filenames.
+- Track actual native and manual accessibility evidence in `docs/ACCEPTANCE_2.9.md`.
+
 ## 2.8 - 2026-09-12
 
 - Show current-file percentage and byte progress with separate processed/waiting counts that update during live queue edits.

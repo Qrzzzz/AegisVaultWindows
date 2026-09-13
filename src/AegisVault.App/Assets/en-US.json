@@ -152,5 +152,7 @@
   "queue_result_details": "Output details",
   "queue_progress_counts": "Processed {0} files · {1} waiting",
   "queue_progress_bytes": "Current file {0:F0}% · {1:N0} / {2:N0} bytes",
-  "queue_progress_percent": "Current file {0:F0}%"
+  "queue_progress_percent": "Current file {0:F0}%",
+  "queue_failed": "Failed",
+  "queue_keyboard_hint": "Use Up/Down to choose a file, Tab to reach actions, and Delete on a row to remove it. Enter or Space activates buttons."
 }

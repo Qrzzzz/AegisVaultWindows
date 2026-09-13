@@ -13,7 +13,8 @@ public sealed class FileQueueItem(string inputPath) : ObservableObject
     public string State => state;
     public string ResultPath => resultPath;
     public string ErrorCode => errorCode;
-    public string Status => state == "failed" ? L.Error(errorCode) : L["queue_" + state];
+    public string Status => state == "failed" ? $"{L["queue_failed"]}: {L.Error(errorCode)}" : L["queue_" + state];
+    public string AutomationName => $"{Name}, {Status}";
     public string ResultText => $"{ResultPath}\n{originalSize:N0} → {outputSize:N0} {L["bytes"]}";
     public bool CanRemove => state != "running";
     public string RemoveLabel => $"{L["remove_file"]}: {Name}";
@@ -35,6 +36,7 @@ public sealed class FileQueueItem(string inputPath) : ObservableObject
     internal void RefreshLabels()
     {
         Raise(nameof(State)); Raise(nameof(Status)); Raise(nameof(ResultPath)); Raise(nameof(ResultText));
+        Raise(nameof(AutomationName));
         Raise(nameof(CanRemove)); Raise(nameof(RetryVisibility)); Raise(nameof(ResultVisibility));
         Raise(nameof(RemoveLabel)); Raise(nameof(RetryLabel)); Raise(nameof(RevealLabel)); Raise(nameof(L));
     }

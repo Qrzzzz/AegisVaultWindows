@@ -1,4 +1,4 @@
-# AegisVault 2.8 acceptance checklist
+# AegisVault 2.9 acceptance checklist
 
 - Add/remove waiting files while the active file is at a known percentage; the file percentage must stay fixed and processed/waiting counts must update.
 - Mix failed and successful inputs; filter failures without changing execution order or losing success paths. Queue all failures again, re-enter the password if required and confirm successful inputs are not repeated.
@@ -6,7 +6,7 @@
 - Expand/collapse per-file output details, copy all successful paths and check narrow light/English and dark/Chinese layouts. The separate text result editor must retain its existing import/copy/save/reuse behavior.
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.8.md](ACCEPTANCE_2.8.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.9.md](ACCEPTANCE_2.9.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
 
 - Add several files with the native multi-select picker; verify duplicate suppression, per-item removal,
@@ -65,5 +65,9 @@ Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.8.md
   simulate a locked settings file, verify no persisted/applied change, unlock and save the retained draft.
 - Use keyboard only: navigation, tab order, Ctrl+Enter, pickers, password reveal, cancel and dialogs.
 - Use Narrator: labels, password privacy, error/progress announcements, focus after navigation/dialog close.
+- For 2.9 queues, test Up/Down, Tab/Shift+Tab, Enter/Space and row-level Delete. Delete inside an output text box must never remove the row.
+- Remove first/middle/last entries and the last visible filtered failure; verify the neighbouring visible row or Add files receives focus. Retry restores Password/Start; clearing completed entries leaves output files intact.
+- Read each row's filename/state and full-path help with Narrator; verify queue notifications are coalesced and current byte progress does not interrupt speech. Failures must have the localized Failed/失败 prefix and a reason.
+- Repeat long-filename queue actions in real High Contrast and each DPI setting; scroll both the page and queue with the keyboard. Use `AEGISVAULT_TEST_HIGH_CONTRAST=1` with the native harness for a reversible system High Contrast run.
 - Build x64 Release with zero warnings/errors; audit complete WinUI/runtime/backend ZIP and both dependency ecosystems.
 - Separate unsigned local candidates from signed builds, remote CI, attestations and published assets.

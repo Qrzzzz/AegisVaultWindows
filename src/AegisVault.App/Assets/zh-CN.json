@@ -152,5 +152,7 @@
   "queue_result_details": "输出详情",
   "queue_progress_counts": "已处理 {0} 项 · 待处理 {1} 项",
   "queue_progress_bytes": "当前文件 {0:F0}% · {1:N0} / {2:N0} 字节",
-  "queue_progress_percent": "当前文件 {0:F0}%"
+  "queue_progress_percent": "当前文件 {0:F0}%",
+  "queue_failed": "失败",
+  "queue_keyboard_hint": "使用上下方向键选择文件，Tab 切换到操作按钮，在队列行上按 Delete 移除文件；Enter 或空格执行按钮操作。"
 }
