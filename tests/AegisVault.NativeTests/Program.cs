@@ -24,7 +24,8 @@ internal static partial class Program
         var labels = Messages(args[0], language);
         var previousClipboard = System.Windows.Forms.Clipboard.GetDataObject();
         File.WriteAllText(Path.Combine(profile, "AegisVault", "settings.json"),
-            JsonSerializer.Serialize(new { language, theme, remember_recent_files = false }));
+            JsonSerializer.Serialize(new { language, theme, remember_recent_files = false,
+                overwrite_outputs = Environment.GetEnvironmentVariable("AEGISVAULT_210_ONLY") == "1" }));
         var info = new ProcessStartInfo(Path.GetFullPath(args[0])) { UseShellExecute = false, WorkingDirectory = profile };
         info.Environment["LOCALAPPDATA"] = profile;
         info.Environment["APPDATA"] = profile;
@@ -47,6 +48,9 @@ internal static partial class Program
                 new AndCondition(new PropertyCondition(AutomationElement.ProcessIdProperty, process.Id),
                     new PropertyCondition(AutomationElement.ClassNameProperty, "WinUIDesktopWin32WindowClass"))), "WinUI window");
             Wait(() => Find("TextInput"), "Text page");
+            Wait(() => window.Current.BoundingRectangle is var bounds && bounds.Width >= 680 && bounds.Height >= 640
+                ? window : null, "Activated window bounds");
+            WaitVisible("Run");
             Console.WriteLine($"Window class: {window.Current.ClassName}; framework: {window.Current.FrameworkId}");
             Console.WriteLine($"DPI: {GetDpiForWindow(new IntPtr(window.Current.NativeWindowHandle))}; High Contrast: {System.Windows.SystemParameters.HighContrast}");
             var originalBounds = window.Current.BoundingRectangle;
@@ -66,6 +70,13 @@ internal static partial class Program
                 return 0;
             }
             Capture($"text-idle-{theme}-{language}.png");
+            if (Environment.GetEnvironmentVariable("AEGISVAULT_210_ONLY") == "1")
+            {
+                Check210Fixes(profile, theme, language, labels);
+                ((WindowPattern)window.GetCurrentPattern(WindowPattern.Pattern)).Close();
+                if (!process.WaitForExit(15000) || process.ExitCode != 0) throw new Exception("2.10-focused close failed");
+                return 0;
+            }
             transform.Resize(680, 640);
             WaitVisible("Run");
             AssertNavigationClear("WorkflowScroll");
@@ -599,6 +610,8 @@ internal static partial class Program
         PickNativePath(Path.GetDirectoryName(paths[0])!);
         Thread.Sleep(300); // The directory entry navigates the existing native picker.
         PickNativePath(string.Join(" ", paths.Select(path => $"\"{Path.GetFileName(path)}\"")));
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "PickFile"
+            ? AutomationElement.FocusedElement : null, "Completed picker restores launcher");
     }
     private static T Wait<T>(Func<T?> action, string label) where T : class
     {
@@ -615,6 +628,59 @@ internal static partial class Program
         }
         throw new TimeoutException(label);
     }
+    private static void Check210Fixes(string profile, string theme, string language, Dictionary<string, string> labels)
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures/agv1-passwords.json")));
+        foreach (var item in fixture.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            ChooseMode(1);
+            Set("TextInput", item.GetProperty("token").GetString()!);
+            var password = string.Concat(Enumerable.Repeat(item.GetProperty("password_base").GetString()!, item.GetProperty("repeat").GetInt32()));
+            Set("Password", password); Invoke("Run");
+            WaitText("Result", value => value == item.GetProperty("plaintext").GetString());
+        }
+        Capture($"210-legacy-passwords-{theme}-{language}.png");
+        ChooseMode(0); Set("TextInput", "explicit password limit");
+        var tooLong = new string('p', 32769);
+        Set("Password", tooLong); Set("ConfirmPassword", tooLong); Invoke("Run");
+        WaitMessage("Status", labels["error.resource.password_too_large"]);
+        Wait(() => AutomationElement.FocusedElement.Current.AutomationId == "Password" ? Find("Password") : null, "Password limit correction focus");
+        Set("Password", new string('p', 1025)); Set("ConfirmPassword", new string('p', 1025)); Invoke("Run");
+        WaitText("Result", value => value.StartsWith("AGV1.", StringComparison.Ordinal));
+        InvokeResult("UseResult"); Set("Password", new string('p', 1025)); Invoke("Run");
+        WaitText("Result", value => value == "explicit password limit");
+        Console.WriteLine("PASS: native 1024/1025/non-BMP and legacy 32769 passwords, explicit new-encryption limit and focus recovery");
+
+        SelectNav("NavFile"); Wait(() => Find("PickFile"), "File page");
+        var file = fixture.RootElement.GetProperty("file");
+        var paths = new[] { Path.Combine(profile, "first.bin.agv"), Path.Combine(profile, "deep.agv"), Path.Combine(profile, "last.bin.agv") };
+        var container = Convert.FromBase64String(file.GetProperty("container_base64").GetString()!);
+        File.WriteAllBytes(paths[0], container); File.WriteAllBytes(paths[2], container);
+        var header = Encoding.UTF8.GetBytes("{\"extra\":" + new string('[', 30000) + "0" + new string(']', 30000) + "}");
+        var length = new byte[4]; System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(length, header.Length);
+        File.WriteAllBytes(paths[1], [.. Encoding.ASCII.GetBytes("AGVFILE\x01"), .. length, .. header]);
+        PickNativeFiles(paths); ChooseMode(1);
+        Set("Password", new string('p', 32769)); Invoke("Run");
+        WaitMessage("Status", labels["queue_partial"]);
+        var last = Path.Combine(profile, "last.bin");
+        if (!File.Exists(last) || !File.ReadAllBytes(last).SequenceEqual(Convert.FromBase64String(file.GetProperty("plaintext_base64").GetString()!)))
+            throw new Exception("Deep header stopped the valid tail in the native queue");
+        if (Directory.EnumerateFiles(profile, ".aegisvault-*.tmp").Any()) throw new Exception("Native deep header left temporary output");
+        Capture($"210-file-isolation-{theme}-{language}.png");
+        Console.WriteLine("PASS: native deep-header failure isolation and legacy long-password file decryption");
+
+        SelectNav("NavSettings"); Wait(() => Find("SaveSettings"), "Settings page");
+        if (Find("Overwrite") is not null) throw new Exception("Ineffective overwrite control remains visible");
+        if (Find("OutputPolicy")?.Current.Name != labels["queue_output_note"]) throw new Exception("Queue output policy is not exposed correctly");
+        Choose("Theme", theme == "dark" ? 1 : 2); Invoke("SaveSettings");
+        WaitMessage("SettingsStatus", labels["settings_saved"]);
+        using var saved = JsonDocument.Parse(File.ReadAllText(Path.Combine(profile, "AegisVault/settings.json")));
+        if (!saved.RootElement.GetProperty("overwrite_outputs").GetBoolean()) throw new Exception("Existing backend overwrite preference was discarded");
+        ((TransformPattern)window.GetCurrentPattern(TransformPattern.Pattern)).Resize(680, 640);
+        Capture($"210-settings-policy-{theme}-{language}.png");
+        Console.WriteLine("PASS: native readonly output policy, existing backend preference preservation and narrow Settings");
+    }
+
     private static void Set(string id, string value)
     {
         if (id == "InputFile")

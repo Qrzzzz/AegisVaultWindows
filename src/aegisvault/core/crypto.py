@@ -50,7 +50,7 @@ from aegisvault.core.protocol import (
     validate_text_header,
     write_file_header,
 )
-from aegisvault.resource_limits import TEXT_LIMITS
+from aegisvault.resource_limits import TEXT_LIMITS, require_encryption_password
 
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
@@ -90,6 +90,7 @@ def encrypt_text(plaintext: str, password: str, *, kdf_params: ScryptParams | No
     """Encrypt UTF-8 text into an ``AGV1.`` token."""
 
     _require_password(password)
+    require_encryption_password(password)
     params = kdf_params or make_scrypt_params()
     nonce = os.urandom(12)
     header: dict[str, Any] = {
@@ -147,6 +148,7 @@ def encrypt_file(
     input_path = input_path.expanduser().resolve()
     output_path = output_path.expanduser().resolve()
     _require_password(password)
+    require_encryption_password(password)
     ensure_distinct_paths(input_path, output_path)
     original_size = file_size(input_path)
     chunk_size = validate_chunk_size(chunk_size)

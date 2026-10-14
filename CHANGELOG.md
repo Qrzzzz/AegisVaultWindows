@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.10 - 2026-10-14
+
+- Map deeply nested AGV1 header JSON to `crypto.invalid_header`, preserving per-file batch isolation and continuing later valid files (#48).
+- Remove desktop password-box truncation. New encryption shares a 32,768 UTF-16-unit / 98,304 UTF-8-byte password budget across desktop, Web and backend; decryption continues accepting existing longer passwords within transport limits (#49).
+- Replace the ineffective desktop overwrite setting with the queue's actual automatic collision-numbering policy; retain the backend single-file overwrite API and settings schema (#50).
+- Add real-backend, shared-budget, legacy AGV1 fixture, native UI and browser regressions. Validation is recorded in `docs/ACCEPTANCE_2.10.md`.
+- Patch the Web build's `source-map-js` dependency to 1.2.2 for GHSA-68fv-2mgg-jv7q.
+
 ## 2.9 - 2026-09-13
 
 - Merge dependency PRs #28–#31 for the Pages build, artifact upload and deployment workflow.

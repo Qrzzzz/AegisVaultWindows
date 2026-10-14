@@ -95,8 +95,8 @@
             <TextBlock Text="{Binding L[queue_output_note]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <StackPanel x:Name="Passwords" Spacing="12">
-            <PasswordBox x:Name="Password" IsEnabled="{Binding IsIdle}" Header="{Binding L[password]}" PasswordRevealMode="Peek" MaxLength="1024" AutomationProperties.AutomationId="Password" />
-            <PasswordBox x:Name="Confirmation" Header="{Binding L[confirm_password]}" PasswordRevealMode="Peek" MaxLength="1024"
+            <PasswordBox x:Name="Password" IsEnabled="{Binding IsIdle}" Header="{Binding L[password]}" PasswordRevealMode="Peek" MaxLength="0" AutomationProperties.AutomationId="Password" />
+            <PasswordBox x:Name="Confirmation" Header="{Binding L[confirm_password]}" PasswordRevealMode="Peek" MaxLength="0"
                 IsEnabled="{Binding IsIdle}" Visibility="{Binding NeedsConfirmation}" AutomationProperties.AutomationId="ConfirmPassword" />
             <TextBlock Text="{Binding L[password_note]}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>

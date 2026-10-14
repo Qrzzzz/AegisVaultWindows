@@ -276,6 +276,56 @@ try
             "isolated surrogate input classification");
     });
 
+    await Run("password-budget-and-legacy-agv1", async () =>
+    {
+        Mode("healthy");
+        using var fixture = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures/agv1-passwords.json")));
+        foreach (var item in fixture.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            var password = string.Concat(Enumerable.Repeat(item.GetProperty("password_base").GetString()!, item.GetProperty("repeat").GetInt32()));
+            var vm = new WorkflowViewModel("text", new BackendClient(fast), new SettingsService(new BackendClient(fast))) { Mode = 1 };
+            vm.Input = item.GetProperty("token").GetString()!;
+            await vm.RunAsync(password);
+            Check(vm.HasResult && vm.Output == item.GetProperty("plaintext").GetString(), "legacy full password was not preserved");
+        }
+        var limit = TextLimits.Contract.MaxEncryptionPasswordUtf16CodeUnits;
+        foreach (var password in new[] { new string('p', limit), new string('你', limit), string.Concat(Enumerable.Repeat("🔐", limit / 2)) })
+        {
+            Check(TextLimits.FitsEncryptionPassword(password) && !TextLimits.FitsEncryptionPassword(password + "x"), "UTF-16 password boundary");
+            var vm = new WorkflowViewModel("text", new BackendClient(fast), new SettingsService(new BackendClient(fast))) { Input = "password boundary" };
+            await vm.RunAsync(password, password);
+            Check(vm.HasResult, "new boundary password did not encrypt");
+            Check(vm.UseResult(), "password result could not be reused");
+            await vm.RunAsync(password);
+            Check(vm.Output == "password boundary", "password boundary did not roundtrip");
+            vm.Mode = 0; vm.Input = "must not encrypt";
+            await vm.RunAsync(password + "x", password + "x");
+            Check(!vm.HasResult && !vm.IsBusy && vm.LastErrorCode == "resource.password_too_large", "password over-limit was not explicit");
+        }
+    });
+
+    await Run("nested-agv-header-isolated-in-file-queue", async () =>
+    {
+        Mode("healthy");
+        using var fixture = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures/agv1-passwords.json")));
+        var file = fixture.RootElement.GetProperty("file");
+        var password = string.Concat(Enumerable.Repeat(file.GetProperty("password_base").GetString()!, file.GetProperty("repeat").GetInt32()));
+        var folder = Path.Combine(root, "nested-headers"); Directory.CreateDirectory(folder);
+        var paths = new[] { Path.Combine(folder, "first.bin.agv"), Path.Combine(folder, "deep.agv"), Path.Combine(folder, "last.bin.agv") };
+        var container = Convert.FromBase64String(file.GetProperty("container_base64").GetString()!);
+        await File.WriteAllBytesAsync(paths[0], container); await File.WriteAllBytesAsync(paths[2], container);
+        var header = Encoding.UTF8.GetBytes("{\"extra\":" + new string('[', 30000) + "0" + new string(']', 30000) + "}");
+        var length = new byte[4]; System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(length, header.Length);
+        await File.WriteAllBytesAsync(paths[1], [.. Encoding.ASCII.GetBytes("AGVFILE\x01"), .. length, .. header]);
+        var vm = new WorkflowViewModel("file", new BackendClient(fast), new SettingsService(new BackendClient(fast))) { Mode = 1, OutputDir = folder };
+        vm.AddFiles(paths); await vm.RunAsync(password);
+        Check(vm.Files.Select(item => item.State).SequenceEqual(["completed", "failed", "completed"]), "deep header stopped later queue files");
+        Check(vm.Files[1].ErrorCode == "crypto.invalid_header", "deep header did not report a protocol error");
+        var expected = Convert.FromBase64String(file.GetProperty("plaintext_base64").GetString()!);
+        Check((await File.ReadAllBytesAsync(vm.Files[2].ResultPath)).SequenceEqual(expected), "legacy file password failed");
+        Check(!Directory.EnumerateFiles(folder, ".aegisvault-*.tmp").Any(), "deep header left temporary plaintext");
+    });
+
     await Run("utf8-import-preserves-body-bom", async () =>
     {
         Mode("healthy");

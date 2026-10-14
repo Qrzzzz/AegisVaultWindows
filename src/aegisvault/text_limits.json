@@ -5,5 +5,7 @@
   "max_plaintext_utf16_code_units": 1507294,
   "max_encoded_text_utf8_bytes": 2097152,
   "max_encoded_text_utf16_code_units": 2097152,
-  "max_agv1_header_bytes": 65536
+  "max_agv1_header_bytes": 65536,
+  "max_encryption_password_utf16_code_units": 32768,
+  "max_encryption_password_utf8_bytes": 98304
 }

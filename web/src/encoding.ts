@@ -29,6 +29,14 @@ export function checkText(value: string, encoded = false): Uint8Array<ArrayBuffe
   return bytes;
 }
 
+export function checkEncryptionPassword(value: string): void {
+  const message = `新加密密码过长，最多支持 ${limits.max_encryption_password_utf16_code_units} 个字符单位（表情可能占两个）。`;
+  if (value.length > limits.max_encryption_password_utf16_code_units) fail(message);
+  const bytes = utf8(value);
+  try { if (bytes.length > limits.max_encryption_password_utf8_bytes) fail(message); }
+  finally { bytes.fill(0); }
+}
+
 export function base64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));

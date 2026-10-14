@@ -1,5 +1,5 @@
 import { scrypt } from '@noble/hashes/scrypt.js';
-import { base64, unbase64, checkText, fail, limits, textFromBytes, utf8 } from './encoding';
+import { base64, unbase64, checkText, checkEncryptionPassword, fail, limits, textFromBytes, utf8 } from './encoding';
 import { canonicalJson, isObject, parseHeader } from './header';
 
 const magic = utf8('AGVTEXT\x01');
@@ -61,6 +61,7 @@ export function readToken(token: string) {
 }
 
 export async function encryptText(plaintext: string, password: string, params?: Kdf): Promise<string> {
+  checkEncryptionPassword(password);
   const bytes = checkText(plaintext);
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const kdf = validateKdf(params ?? { type: 'scrypt', salt: base64(crypto.getRandomValues(new Uint8Array(16))), n: 32768, r: 8, p: 1, length: 32 });

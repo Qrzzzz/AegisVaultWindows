@@ -128,7 +128,6 @@ public sealed class WorkflowViewModel : ObservableObject
     public string ProgressText { get => progressText; private set => Set(ref progressText, value); }
     public Visibility NeedsConfirmation => Mode == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DecodeOptionsVisibility => Kind == "base64_text" && Mode == 1 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility OverwriteWarning => settings.Current.OverwriteOutputs ? Visibility.Visible : Visibility.Collapsed;
     public string[] RecentFiles => settings.Current.RecentFiles;
     public Visibility RecentVisibility => RecentFiles.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BusyVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
@@ -147,7 +146,7 @@ public sealed class WorkflowViewModel : ObservableObject
     public void RefreshLabels()
     {
         Raise(nameof(ActionLabel)); Raise(nameof(CopyLabel)); Raise(nameof(Status)); Raise(nameof(CancelLabel));
-        Raise(nameof(OverwriteWarning)); Raise(nameof(RecentFiles)); Raise(nameof(RecentVisibility));
+        Raise(nameof(RecentFiles)); Raise(nameof(RecentVisibility));
         Raise(nameof(OutputFolderPlaceholder));
         foreach (var file in files) file.RefreshLabels();
         Raise(nameof(QueueSummary));
@@ -262,6 +261,8 @@ public sealed class WorkflowViewModel : ObservableObject
         if (IsFile && files.Count == 0) { Fail("validation.file_required"); return; }
         if (IsCrypto && password.Length == 0) { Fail("validation.password_required"); return; }
         if (IsCrypto && Mode == 0 && password != confirmation) { Fail("validation.password_mismatch"); return; }
+        if (IsCrypto && !TextLimits.HasValidUnicode(password)) { Fail("ipc.invalid_request"); return; }
+        if (IsCrypto && Mode == 0 && !TextLimits.FitsEncryptionPassword(password)) { Fail("resource.password_too_large"); return; }
         if (!IsFile && !TextLimits.HasValidUnicode(Input)) { Fail("ipc.invalid_request"); return; }
         if (!IsFile && !TextLimits.Fits(Kind, Mode, Input)) { Fail("resource.limit_exceeded"); return; }
         if (IsFile && !CanRun) return;
