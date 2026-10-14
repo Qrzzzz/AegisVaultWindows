@@ -59,6 +59,16 @@ def test_all_external_actions_are_pinned_to_full_commits() -> None:
             assert FULL_SHA_ACTION.fullmatch(action), f"Unpinned action in {path.name}: {action}"
 
 
+def test_codeql_steps_use_the_same_action_commit() -> None:
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        commits = {
+            action.rsplit("@", 1)[1]
+            for action in _uses(_workflow(path.name))
+            if action.startswith("github/codeql-action/")
+        }
+        assert len(commits) <= 1, f"Mixed CodeQL action commits in {path.name}: {commits}"
+
+
 def test_quality_workflow_has_bounded_least_privilege_jobs() -> None:
     workflow = _workflow("ci.yml")
     assert workflow["permissions"] == {}
