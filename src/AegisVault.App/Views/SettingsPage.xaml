@@ -28,12 +28,7 @@
             <Button Content="{Binding L[clear_recent]}" Click="ClearRecent" IsEnabled="{Binding HasRecentFiles}" AutomationProperties.AutomationId="ClearRecent" />
           </StackPanel>
         </Expander>
-        <Expander Header="{Binding L[advanced]}" HorizontalAlignment="Stretch">
-          <StackPanel Spacing="12">
-            <CheckBox Content="{Binding L[overwrite]}" IsChecked="{Binding Overwrite, Mode=TwoWay}" AutomationProperties.AutomationId="Overwrite" />
-            <TextBlock Text="{Binding L[overwrite_warning]}" TextWrapping="Wrap" />
-          </StackPanel>
-        </Expander>
+        <TextBlock Text="{Binding L[queue_output_note]}" TextWrapping="Wrap" AutomationProperties.AutomationId="OutputPolicy" />
       </StackPanel></UserControl>
       <TextBlock Text="{Binding VersionLabel}" Style="{StaticResource SubtitleTextBlockStyle}" />
       <TextBlock Text="{Binding L[about]}" TextWrapping="Wrap" />

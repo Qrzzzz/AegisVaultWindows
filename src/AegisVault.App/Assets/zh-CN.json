@@ -23,7 +23,7 @@
   "error.crypto.trailing_data": "加密文件末尾存在异常数据。",
   "error.crypto.size_mismatch": "加密文件中经过认证的大小与实际内容不一致。",
   "error.file.not_found": "文件不存在或已被移动。",
-  "error.file.output_exists": "输出文件已存在。请关闭高级覆盖，或选择其他目录。",
+  "error.file.output_exists": "输出文件已存在，请重试或选择其他输出目录。",
   "error.file.output_dir_invalid": "输出目录不存在或不可用。",
   "error.file.reveal_failed": "无法打开文件管理器。",
   "error.file.input_changed": "处理期间输入文件发生了变化，未保留任何输出。",
@@ -141,7 +141,7 @@
   "queue_cancelled": "已取消 · 下次开始时重试",
   "queue_partial": "本批次已结束，部分文件失败。成功的输出已保留，可将失败项目重新排队。",
   "queue_files_only": "仅支持添加文件，已跳过文件夹和无效路径。",
-  "queue_output_note": "输出重名时自动编号，批量处理不会覆盖已有文件。",
+  "queue_output_note": "文件输出重名时自动编号，单文件和多文件队列均保留已有文件。",
   "error.validation.duplicate_file": "批次中包含重复文件。",
   "queue_only_failed": "仅看失败项",
   "queue_no_failures": "没有失败项目，关闭筛选可查看完整队列。",
@@ -154,5 +154,6 @@
   "queue_progress_bytes": "当前文件 {0:F0}% · {1:N0} / {2:N0} 字节",
   "queue_progress_percent": "当前文件 {0:F0}%",
   "queue_failed": "失败",
-  "queue_keyboard_hint": "使用上下方向键选择文件，Tab 切换到操作按钮，在队列行上按 Delete 移除文件；Enter 或空格执行按钮操作。"
+  "queue_keyboard_hint": "使用上下方向键选择文件，Tab 切换到操作按钮，在队列行上按 Delete 移除文件；Enter 或空格执行按钮操作。",
+  "error.resource.password_too_large": "新加密密码过长，最多支持 32768 个字符单位（表情可能占两个）。请缩短后重试。"
 }

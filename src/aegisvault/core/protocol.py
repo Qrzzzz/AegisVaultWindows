@@ -63,7 +63,7 @@ def parse_header(raw: bytes) -> dict[str, Any]:
             object_pairs_hook=_unique_object,
             parse_constant=_reject_non_finite_number,
         )
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ProtocolError("Invalid protocol header.", code="crypto.invalid_header") from exc
     if not isinstance(data, dict):
         raise ProtocolError("Protocol header must be a JSON object.", code="crypto.invalid_header")

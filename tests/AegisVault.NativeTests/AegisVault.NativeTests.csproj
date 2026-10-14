@@ -8,4 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="../fixtures/agv1-passwords.json" Link="fixtures/agv1-passwords.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

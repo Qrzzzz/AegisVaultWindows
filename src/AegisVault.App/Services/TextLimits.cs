@@ -10,7 +10,9 @@ public sealed record TextLimitContract(
     int MaxPlaintextUtf16CodeUnits,
     int MaxEncodedTextUtf8Bytes,
     int MaxEncodedTextUtf16CodeUnits,
-    int MaxAgv1HeaderBytes);
+    int MaxAgv1HeaderBytes,
+    int MaxEncryptionPasswordUtf16CodeUnits,
+    int MaxEncryptionPasswordUtf8Bytes);
 
 public static class TextLimits
 {
@@ -34,6 +36,13 @@ public static class TextLimits
     public static bool HasValidUnicode(string value)
     {
         try { _ = StrictUtf8.GetByteCount(value); return true; }
+        catch (EncoderFallbackException) { return false; }
+    }
+
+    public static bool FitsEncryptionPassword(string value)
+    {
+        if (value.Length > Contract.MaxEncryptionPasswordUtf16CodeUnits) return false;
+        try { return StrictUtf8.GetByteCount(value) <= Contract.MaxEncryptionPasswordUtf8Bytes; }
         catch (EncoderFallbackException) { return false; }
     }
 
@@ -62,10 +71,12 @@ public static class TextLimits
         if (contract is null || contract.Schema != 1 ||
             new[] { contract.MaxJsonLineBytes, contract.MaxPlaintextUtf8Bytes,
                 contract.MaxPlaintextUtf16CodeUnits, contract.MaxEncodedTextUtf8Bytes,
-                contract.MaxEncodedTextUtf16CodeUnits, contract.MaxAgv1HeaderBytes }.Any(value => value <= 0) ||
+                contract.MaxEncodedTextUtf16CodeUnits, contract.MaxAgv1HeaderBytes,
+                contract.MaxEncryptionPasswordUtf16CodeUnits, contract.MaxEncryptionPasswordUtf8Bytes }.Any(value => value <= 0) ||
             contract.MaxPlaintextUtf8Bytes != contract.MaxPlaintextUtf16CodeUnits ||
             contract.MaxEncodedTextUtf8Bytes != contract.MaxEncodedTextUtf16CodeUnits ||
-            6L * contract.MaxEncodedTextUtf16CodeUnits + 256 * 1024 > contract.MaxJsonLineBytes)
+            6L * contract.MaxEncodedTextUtf16CodeUnits + 256 * 1024 > contract.MaxJsonLineBytes ||
+            6L * contract.MaxEncryptionPasswordUtf16CodeUnits + 4096 > 256 * 1024)
             throw new InvalidDataException("The text resource-limit contract is invalid.");
         var packageBytes = 8L + 4 + contract.MaxAgv1HeaderBytes + contract.MaxPlaintextUtf8Bytes + 16;
         var maximumTokenBytes = 5 + 4 * ((packageBytes + 2) / 3);

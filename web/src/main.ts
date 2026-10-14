@@ -1,4 +1,5 @@
 import './style.css';
+import { checkEncryptionPassword } from './encoding';
 
 const appearance = document.getElementById('appearance') as HTMLSelectElement;
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
@@ -50,6 +51,10 @@ function run(reverse: boolean) {
   if (worker) return;
   setOutput('');
   if (mode === 'crypto' && !password.value) { message('请输入密码。', true); password.focus(); return; }
+  if (mode === 'crypto' && !reverse) {
+    try { checkEncryptionPassword(password.value); }
+    catch (error) { message(error instanceof Error ? error.message : '密码格式无效。', true); password.focus(); return; }
+  }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) { message('此浏览器需要 HTTPS 或 localhost 安全环境及 Web Crypto 支持。', true); return; }
   busy(true); message('正在本地处理，请稍候…');
   try {

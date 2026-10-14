@@ -170,7 +170,7 @@ public sealed partial class WorkflowControl : UserControl
                 });
             });
         else if (vm.LastErrorCode == "validation.password_mismatch") FocusInput(Confirmation);
-        else if (vm.LastErrorCode == "validation.password_required") FocusInput(Password);
+        else if (vm.LastErrorCode is "validation.password_required" or "resource.password_too_large") FocusInput(Password);
         else if (vm.LastErrorCode == "validation.file_required") FocusInput(PickFilesButton);
         else if (vm.IsFile) FocusQueueItem();
     }

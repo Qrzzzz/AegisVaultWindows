@@ -4,9 +4,24 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_password_controls_do_not_truncate_before_shared_validation() -> None:
+    tree = ET.parse(ROOT / "src/AegisVault.App/Views/WorkflowControl.xaml")
+    namespace = "{http://schemas.microsoft.com/winfx/2006/xaml}"
+    boxes = [element for element in tree.iter() if element.attrib.get(namespace + "Name") in {"Password", "Confirmation"}]
+    assert len(boxes) == 2 and all(element.attrib["MaxLength"] == "0" for element in boxes)
+
+
+def test_settings_describe_queue_output_policy_without_ineffective_overwrite_control() -> None:
+    source = (ROOT / "src/AegisVault.App/Views/SettingsPage.xaml").read_text(encoding="utf-8")
+    assert 'AutomationProperties.AutomationId="Overwrite"' not in source
+    assert "Binding L[overwrite_warning]" not in source
+    assert "Binding L[queue_output_note]" in source
 
 
 def test_backend_has_no_gui_imports_or_dependency() -> None:

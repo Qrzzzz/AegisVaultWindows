@@ -15,7 +15,7 @@
 <p>
   <strong>Navigation</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">Download</a> ·
-  <a href="./docs/releases/v2.9.md">Release Notes</a> ·
+  <a href="./docs/releases/v2.10.md">Release Notes</a> ·
   <a href="#features">Features</a> ·
   <a href="./docs/SECURITY_MODEL.md">Security Model</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 Protocol</a> ·
@@ -42,17 +42,17 @@
 
 Download the latest stable build from [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest).
 
-The current stable release is **AegisVault 2.9**. Its primary release artifacts are:
+The current stable release is **AegisVault 2.10**. Its primary release artifacts are:
 
 | File                        | Purpose                                 |
 | --------------------------- | --------------------------------------- |
-| `AegisVault-v2.9-win64.zip` | Windows x64 application                 |
-| `AegisVault-v2.9.cdx.json`  | CycloneDX software bill of materials    |
+| `AegisVault-v2.10-win64.zip` | Windows x64 application                 |
+| `AegisVault-v2.10.cdx.json`  | CycloneDX software bill of materials    |
 | `SHA256SUMS`                | SHA-256 checksums for release artifacts |
 
 To run AegisVault:
 
-1. Download and **fully extract** `AegisVault-v2.9-win64.zip`.
+1. Download and **fully extract** `AegisVault-v2.10-win64.zip`.
 2. Keep `AegisVault.exe`, the `backend` directory, and the bundled runtime files in their original directory structure.
 3. Run `AegisVault.exe`.
 
@@ -69,13 +69,15 @@ On supported Windows 11 systems, AegisVault uses native Windows effects such as 
 > [!IMPORTANT]
 > The release pipeline supports optional signing, but signing support does not mean that a particular artifact necessarily carries an Authenticode signature. Verify the downloaded binary itself and the published checksums when signature status matters.
 
-## ✨ What’s new in v2.9
+## ✨ What’s new in v2.10
 
-Queues support arrow keys, Tab and row-level Delete. Removal restores the neighbouring row or Add files; retry restores the password/start control. Failures include an explicit state and reason, while screen-reader notifications coalesce queue changes without byte-by-byte speech.
+Deeply nested AGV1 headers now produce per-file protocol errors, allowing later valid queue entries to continue.
 
-System High Contrast colours and focus indicators, wrapped filenames, actions below file information and viewport-sized scrolling improve narrow-window usability. Four Pages Actions dependency upgrades are integrated. Actual Narrator speech and the complete multi-monitor DPI matrix are tracked in the acceptance record.
+Desktop password fields no longer silently truncate long passwords. New encryption shares a 32,768 UTF-16-unit / 98,304 UTF-8-byte password budget across desktop, Web and backend. Existing longer-password envelopes remain decryptable within the existing IPC message budget.
 
-See the [v2.9 release notes](./docs/releases/v2.9.md) and [acceptance record](./docs/ACCEPTANCE_2.9.md). AGV1, text workflows and settings storage remain compatible. Earlier changes are in the [changelog](./CHANGELOG.md).
+Settings now state the actual queue output policy: single-file and multi-file queues preserve existing files by numbering conflicting names.
+
+See the [v2.10 release notes](./docs/releases/v2.10.md) and [acceptance record](./docs/ACCEPTANCE_2.10.md). AGV1, settings storage and the backend single-file overwrite API remain compatible. Earlier changes are in the [changelog](./CHANGELOG.md).
 
 <a id="features"></a>
 
@@ -124,7 +126,7 @@ AegisVault also provides independent Base64 workflows for text and files:
 * Simplified Chinese / English interface.
 * System / light / dark appearance modes.
 * Configurable default output directory.
-* Optional overwrite behavior.
+* Automatically number conflicting queue outputs, preserving existing files.
 * Recent-file history and one-click clearing.
 * Unsaved page drafts survive navigation until explicitly saved or discarded.
 * Configuration is stored at:
@@ -188,7 +190,7 @@ See the complete [AGV1 Protocol](./docs/PROTOCOL.md) for the wire-format specifi
 ## 🔁 Format compatibility
 
 * **AGV1** data created by AegisVault 1.x remains compatible.
-* AegisVault 2.9 continues to read and write AGV1 version 1.
+* AegisVault 2.10 continues to read and write AGV1 version 1.
 * Legacy AES text/file formats and AK wrappers have been removed.
 * Renaming a non-AGV1 file does not convert it to AGV1.
 * Base64 tools do not decrypt legacy encrypted formats.
@@ -250,7 +252,7 @@ See the complete [Security Model](./docs/SECURITY_MODEL.md). For vulnerability r
 | [Migration Guide](./docs/MIGRATION.md)               | Compatibility and migration boundaries      |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | Pre-release quality checks                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | Build and release engineering               |
-| [v2.9 Acceptance](./docs/ACCEPTANCE_2.9.md)          | Executed validation for the current release |
+| [v2.10 Acceptance](./docs/ACCEPTANCE_2.10.md)          | Executed validation for the current release |
 
 <a id="development"></a>
 

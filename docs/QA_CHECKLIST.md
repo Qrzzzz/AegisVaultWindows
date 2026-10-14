@@ -1,4 +1,12 @@
-# AegisVault 2.9 acceptance checklist
+# AegisVault 2.10 acceptance checklist
+
+- Feed a valid/deeply nested AGV1/valid file queue; require completed/failed/completed with
+  `crypto.invalid_header`, preserved successful outputs and no temporary residue.
+- Test 1024/1025-character, non-BMP and legacy 32769-unit passwords in actual Web Workers and native
+  password fields. New encryption accepts the shared 32768 UTF-16-unit / 98304 UTF-8-byte boundary;
+  over-limit validation retains drafts and returns focus for correction. Existing longer passwords decrypt.
+- Settings must expose the read-only queue collision policy instead of the ineffective overwrite control.
+  Saving unrelated preferences preserves existing backend overwrite settings; queues preserve existing outputs.
 
 - Add/remove waiting files while the active file is at a known percentage; the file percentage must stay fixed and processed/waiting counts must update.
 - Mix failed and successful inputs; filter failures without changing execution order or losing success paths. Queue all failures again, re-enter the password if required and confirm successful inputs are not repeated.
@@ -6,7 +14,7 @@
 - Expand/collapse per-file output details, copy all successful paths and check narrow light/English and dark/Chinese layouts. The separate text result editor must retain its existing import/copy/save/reuse behavior.
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.9.md](ACCEPTANCE_2.9.md);
+Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.10.md](ACCEPTANCE_2.10.md);
 [UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
 
 - Add several files with the native multi-select picker; verify duplicate suppression, per-item removal,
@@ -65,7 +73,7 @@ Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.9.md
   simulate a locked settings file, verify no persisted/applied change, unlock and save the retained draft.
 - Use keyboard only: navigation, tab order, Ctrl+Enter, pickers, password reveal, cancel and dialogs.
 - Use Narrator: labels, password privacy, error/progress announcements, focus after navigation/dialog close.
-- For 2.9 queues, test Up/Down, Tab/Shift+Tab, Enter/Space and row-level Delete. Delete inside an output text box must never remove the row.
+- For 2.10 queues, test Up/Down, Tab/Shift+Tab, Enter/Space and row-level Delete. Delete inside an output text box must never remove the row.
 - Remove first/middle/last entries and the last visible filtered failure; verify the neighbouring visible row or Add files receives focus. Retry restores Password/Start; clearing completed entries leaves output files intact.
 - Read each row's filename/state and full-path help with Narrator; verify queue notifications are coalesced and current byte progress does not interrupt speech. Failures must have the localized Failed/失败 prefix and a reason.
 - Repeat long-filename queue actions in real High Contrast and each DPI setting; scroll both the page and queue with the keyboard. Use `AEGISVAULT_TEST_HIGH_CONTRAST=1` with the native harness for a reversible system High Contrast run.

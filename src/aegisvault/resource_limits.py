@@ -19,6 +19,8 @@ class TextLimits:
     max_encoded_text_utf8_bytes: int
     max_encoded_text_utf16_code_units: int
     max_agv1_header_bytes: int
+    max_encryption_password_utf16_code_units: int
+    max_encryption_password_utf8_bytes: int
 
     def to_dict(self) -> dict[str, int]:
         return asdict(self)
@@ -48,6 +50,8 @@ def _load_limits() -> TextLimits:
         raise RuntimeError("Plaintext budget can produce an over-budget AGV1 token")
     if 6 * limits.max_encoded_text_utf16_code_units + 256 * 1024 > limits.max_json_line_bytes:
         raise RuntimeError("JSON line budget cannot contain a maximally escaped text request")
+    if 6 * limits.max_encryption_password_utf16_code_units + 4096 > 256 * 1024:
+        raise RuntimeError("Encryption password budget exceeds JSON request headroom")
     return limits
 
 
@@ -65,6 +69,15 @@ def utf8_size(value: str) -> int:
 def require_plaintext(value: str) -> None:
     if utf8_size(value) > TEXT_LIMITS.max_plaintext_utf8_bytes:
         raise ResourceLimitError("Plaintext exceeds the text-workflow budget.")
+
+
+def require_encryption_password(value: str) -> None:
+    """Bound new encryption without restricting passwords for existing envelopes."""
+
+    size = utf8_size(value)
+    if (size > TEXT_LIMITS.max_encryption_password_utf8_bytes
+            or len(value.encode("utf-16-le")) // 2 > TEXT_LIMITS.max_encryption_password_utf16_code_units):
+        raise ResourceLimitError("New encryption password exceeds the shared budget.", code="resource.password_too_large")
 
 
 def require_encoded_text(value: str) -> None:

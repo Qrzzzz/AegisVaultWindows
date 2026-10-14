@@ -15,6 +15,33 @@ test('existing Windows fixed fixture decrypts', async () => {
   assert.equal(await decryptText(fixture.token, fixture.password), fixture.plaintext);
 });
 
+test('genuine 2.9 long-password tokens and new Unicode password boundaries remain compatible', async () => {
+  const legacy = JSON.parse(readFileSync('../tests/fixtures/agv1-passwords.json', 'utf8'));
+  assert.equal(legacy.writer_version, '2.9');
+  for (const item of legacy.cases) {
+    assert.equal(await decryptText(item.token, item.password_base.repeat(item.repeat)), item.plaintext);
+  }
+  const limit = limits.max_encryption_password_utf16_code_units;
+  for (const password of ['p'.repeat(limit), '你'.repeat(limit), '🔐'.repeat(limit / 2)]) {
+    const token = await encryptText('shared password boundary', password, fixedKdf);
+    assert.equal(await decryptText(token, password), 'shared password boundary');
+    await assert.rejects(encryptText('blocked', password + 'x', fixedKdf), /新加密密码过长/);
+  }
+});
+
+test('Web 1024/1025/non-BMP passwords decrypt in the real Python backend', async () => {
+  const root = resolve('..');
+  const localPython = resolve(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  const python = process.env.AEGISVAULT_PYTHON ?? (existsSync(localPython) ? localPython : 'python');
+  const rows = await Promise.all(['p'.repeat(1024), 'p'.repeat(1025), '🔐'.repeat(513)].map(async password => ({
+    password, plaintext: 'Web password compatibility', token: await encryptText('Web password compatibility', password, fixedKdf),
+  })));
+  const result = spawnSync(python, ['-c', 'import json,sys; from aegisvault.core.crypto import decrypt_text; rows=json.load(sys.stdin); assert all(decrypt_text(row["token"],row["password"]).plaintext == row["plaintext"] for row in rows)'], {
+    cwd: root, input: JSON.stringify(rows), encoding: 'utf8', env: { ...process.env, PYTHONPATH: resolve(root, 'src'), PYTHONUTF8: '1' },
+  });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test('Web writer matches existing Windows fixture byte for byte', async t => {
   t.mock.method(crypto, 'getRandomValues', (array: Uint8Array) => { array.set(fixture.nonce); return array; });
   t.mock.method(Date.prototype, 'toISOString', () => fixture.created_at);

@@ -23,7 +23,7 @@
   "error.crypto.trailing_data": "The encrypted file contains unexpected trailing data.",
   "error.crypto.size_mismatch": "The encrypted file's authenticated size does not match its contents.",
   "error.file.not_found": "The file does not exist or was moved.",
-  "error.file.output_exists": "The output already exists. Keep advanced overwrite off or choose another folder.",
+  "error.file.output_exists": "The output file already exists. Retry or choose a different output folder.",
   "error.file.output_dir_invalid": "The output folder does not exist or is unavailable.",
   "error.file.reveal_failed": "The file manager could not be opened.",
   "error.file.input_changed": "The input file changed while it was being processed. No output was kept.",
@@ -141,7 +141,7 @@
   "queue_cancelled": "Cancelled · starts again with the next run",
   "queue_partial": "Batch finished with some failures. Successful outputs are kept; failed files can be queued again.",
   "queue_files_only": "Only files can be added. Folders and invalid paths were skipped.",
-  "queue_output_note": "Outputs with the same name are numbered automatically. Batches never overwrite existing files.",
+  "queue_output_note": "Conflicting output names are numbered automatically. Single-file and multi-file queues preserve existing files.",
   "error.validation.duplicate_file": "The batch contains the same file more than once.",
   "queue_only_failed": "Show failed files only",
   "queue_no_failures": "No failed files. Turn off the filter to see the full queue.",
@@ -154,5 +154,6 @@
   "queue_progress_bytes": "Current file {0:F0}% · {1:N0} / {2:N0} bytes",
   "queue_progress_percent": "Current file {0:F0}%",
   "queue_failed": "Failed",
-  "queue_keyboard_hint": "Use Up/Down to choose a file, Tab to reach actions, and Delete on a row to remove it. Enter or Space activates buttons."
+  "queue_keyboard_hint": "Use Up/Down to choose a file, Tab to reach actions, and Delete on a row to remove it. Enter or Space activates buttons.",
+  "error.resource.password_too_large": "New encryption passwords support at most 32768 UTF-16 code units. Shorten the password and retry."
 }

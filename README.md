@@ -15,7 +15,7 @@
 <p>
   <strong>导航</strong><br/>
   <a href="https://github.com/Qrzzzz/AegisVaultWindows/releases/latest">下载最新版</a> ·
-  <a href="./docs/releases/v2.9.md">发布说明</a> ·
+  <a href="./docs/releases/v2.10.md">发布说明</a> ·
   <a href="#主要功能">主要功能</a> ·
   <a href="./docs/SECURITY_MODEL.md">安全模型</a> ·
   <a href="./docs/PROTOCOL.md">AGV1 协议</a> ·
@@ -42,17 +42,17 @@
 
 从 [GitHub Releases](https://github.com/Qrzzzz/AegisVaultWindows/releases/latest) 下载最新稳定版本。
 
-当前稳定版为 **AegisVault 2.9**，主要发布文件包括：
+当前稳定版为 **AegisVault 2.10**，主要发布文件包括：
 
 | 文件                          | 用途                     |
 | --------------------------- | ---------------------- |
-| `AegisVault-v2.9-win64.zip` | Windows x64 应用程序       |
-| `AegisVault-v2.9.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
+| `AegisVault-v2.10-win64.zip` | Windows x64 应用程序       |
+| `AegisVault-v2.10.cdx.json`  | CycloneDX 软件物料清单（SBOM） |
 | `SHA256SUMS`                | 发布文件 SHA-256 校验值       |
 
 使用方法：
 
-1. 下载并**完整解压** `AegisVault-v2.9-win64.zip`。
+1. 下载并**完整解压** `AegisVault-v2.10-win64.zip`。
 2. 保持 `AegisVault.exe`、`backend` 目录及其余运行时文件位于原有目录结构中。
 3. 运行 `AegisVault.exe`。
 
@@ -69,13 +69,15 @@
 > [!IMPORTANT]
 > 发布流程支持可选代码签名，但“支持签名”并不代表某个具体发布文件一定具有 Authenticode 签名。如需确认，请检查下载文件本身的数字签名及发布校验值。
 
-## ✨ v2.9 更新重点
+## ✨ v2.10 更新重点
 
-队列支持上下方向键、Tab 和行级 Delete 操作；移除文件后恢复相邻行焦点，空队列回到添加文件，重试回到密码或开始按钮。失败状态以明确文字和原因呈现，读屏通知合并队列变化，避免逐字节播报。
+修复深层嵌套 AGV1 文件头导致队列提前停止的问题。损坏文件会明确报告协议错误，后续正常文件继续处理。
 
-队列使用系统高对比度颜色和焦点指示，长文件名换行，操作按钮置于信息下方，并按视口调整滚动区域。同时合入四项 Pages Actions 依赖升级。Narrator 实际播报和完整跨显示器 DPI 验收状态见验收记录。
+桌面密码框不再静默截断长密码。桌面、Web 和后端对新加密共享 32768 个 UTF-16 字符单位、98304 字节 UTF-8 的上限；已有长密码密文仍可用原密码解密，受现有 IPC 消息预算约束。
 
-详情见 [v2.9 发布说明](./docs/releases/v2.9.md) 和 [验收记录](./docs/ACCEPTANCE_2.9.md)。AGV1、文本操作和设置存储保持兼容；早期更新见 [变更记录](./CHANGELOG.md)。
+设置页准确说明文件队列的自动避重策略。单文件和多文件队列均保留已有文件，不再提供无效的覆盖开关。
+
+详情见 [v2.10 发布说明](./docs/releases/v2.10.md) 和 [验收记录](./docs/ACCEPTANCE_2.10.md)。AGV1、设置存储和后端单文件覆盖 API 保持兼容；早期更新见 [变更记录](./CHANGELOG.md)。
 
 <a id="主要功能"></a>
 
@@ -123,7 +125,7 @@ AegisVault 同时提供独立的 Base64 文本与文件工作流：
 * 简体中文 / English 两种界面语言。
 * 跟随系统 / 浅色 / 深色三种主题模式。
 * 可配置默认输出目录。
-* 可选择是否允许覆盖已有文件。
+* 文件队列遇到同名输出时自动编号，保留已有文件。
 * 支持最近文件记录及一键清除。
 * 页面草稿在导航过程中保留，直到保存或放弃。
 * 设置保存在：
@@ -249,7 +251,7 @@ AegisVault **没有经过独立第三方安全审计**。请根据数据敏感�
 | [Migration Guide](./docs/MIGRATION.md)               | 旧版本与格式迁移边界               |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | 发布前质量检查                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | 构建与发布工程                  |
-| [v2.9 Acceptance](./docs/ACCEPTANCE_2.9.md)          | 当前版本执行过的验收项目             |
+| [v2.10 Acceptance](./docs/ACCEPTANCE_2.10.md)          | 当前版本执行过的验收项目             |
 
 ## AegisVault Web
 

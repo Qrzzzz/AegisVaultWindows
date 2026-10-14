@@ -1,18 +1,58 @@
 from __future__ import annotations
 
 import base64
+import struct
 from io import BytesIO
 from pathlib import Path
 
 import pytest
 
 from aegisvault.backend.server import BackendServer
+from aegisvault.core.crypto import encrypt_file
 from aegisvault.core.exceptions import ValidationError
 from aegisvault.core.models import CancelToken, ProgressEvent
+from aegisvault.core.protocol import FILE_MAGIC
 from aegisvault.services.batch_service import MAX_BATCH_FILES, process_files
 from aegisvault.settings.models import AppSettings
 from aegisvault.settings.store import SettingsStore
 from test_backend_protocol import Client
+
+
+@pytest.mark.parametrize("real_rpc", [False, True])
+def test_deep_agv_header_does_not_skip_later_valid_files(tmp_path: Path, real_rpc: bool) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
+    valid = []
+    for name in ("before.txt", "after.txt"):
+        source = tmp_path / name
+        source.write_bytes(b"independent authenticated output")
+        target = tmp_path / (name + ".agv")
+        encrypt_file(source, target, "audit-password")
+        valid.append(target)
+    bad = tmp_path / "deep.agv"
+    header = b'{"extra":' + b"[" * 30000 + b"0" + b"]" * 30000 + b"}"
+    bad.write_bytes(FILE_MAGIC + struct.pack(">I", len(header)) + header)
+    paths = list(map(str, (valid[0], bad, valid[1])))
+    if real_rpc:
+        client = Client(tmp_path / "profile")
+        try:
+            client.send("file.batch", {"operation": "file.decrypt", "input_paths": paths,
+                                       "password": "audit-password", "output_dir": str(output)})
+            terminal, _ = client.terminal()
+            assert terminal["type"] == "result"
+            items = terminal["result"]["items"]
+            assert [item["status"] for item in items] == ["completed", "failed", "completed"]
+            assert items[1]["code"] == "crypto.invalid_header"
+        finally:
+            client.close()
+    else:
+        result = process_files(AppSettings(), "file.decrypt", paths, password="audit-password", output_dir=output)
+        assert [item.status for item in result.items] == ["completed", "failed", "completed"]
+        assert result.items[1].code == "crypto.invalid_header"
+    for name in ("before.txt", "after.txt"):
+        assert (output / name).read_bytes() == b"independent authenticated output"
+    assert not (output / "deep").exists()
+    assert not list(output.glob(".aegisvault-*.tmp"))
 
 
 @pytest.mark.parametrize("forward,reverse", [("file.encrypt", "file.decrypt"), ("base64.encode_file", "base64.decode_file")])
