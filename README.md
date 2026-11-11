@@ -77,7 +77,7 @@
 
 设置页准确说明文件队列的自动避重策略。单文件和多文件队列均保留已有文件，不再提供无效的覆盖开关。
 
-详情见 [v2.10 发布说明](./docs/releases/v2.10.md) 和 [验收记录](./docs/ACCEPTANCE_2.10.md)。AGV1、设置存储和后端单文件覆盖 API 保持兼容；早期更新见 [变更记录](./CHANGELOG.md)。
+详情见 [v2.10 发布说明](./docs/releases/v2.10.md)。AGV1、设置存储和后端单文件覆盖 API 保持兼容；早期更新见 [变更记录](./CHANGELOG.md)。
 
 <a id="主要功能"></a>
 
@@ -251,7 +251,6 @@ AegisVault **没有经过独立第三方安全审计**。请根据数据敏感�
 | [Migration Guide](./docs/MIGRATION.md)               | 旧版本与格式迁移边界               |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | 发布前质量检查                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | 构建与发布工程                  |
-| [v2.10 Acceptance](./docs/ACCEPTANCE_2.10.md)          | 当前版本执行过的验收项目             |
 
 ## AegisVault Web
 

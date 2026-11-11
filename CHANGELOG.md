@@ -5,7 +5,7 @@
 - Map deeply nested AGV1 header JSON to `crypto.invalid_header`, preserving per-file batch isolation and continuing later valid files (#48).
 - Remove desktop password-box truncation. New encryption shares a 32,768 UTF-16-unit / 98,304 UTF-8-byte password budget across desktop, Web and backend; decryption continues accepting existing longer passwords within transport limits (#49).
 - Replace the ineffective desktop overwrite setting with the queue's actual automatic collision-numbering policy; retain the backend single-file overwrite API and settings schema (#50).
-- Add real-backend, shared-budget, legacy AGV1 fixture, native UI and browser regressions. Validation is recorded in `docs/ACCEPTANCE_2.10.md`.
+- Add real-backend, shared-budget, legacy AGV1 fixture, native UI and browser regressions.
 - Patch the Web build's `source-map-js` dependency to 1.2.2 for GHSA-68fv-2mgg-jv7q.
 
 ## 2.9 - 2026-09-13
@@ -13,21 +13,20 @@
 - Merge dependency PRs #28–#31 for the Pages build, artifact upload and deployment workflow.
 - Add queue keyboard navigation, focused-row Delete, contextual focus recovery and screen-reader queue notifications.
 - Label failures explicitly in both languages; use system High Contrast queue colours and responsive, wrapped rows with actions below filenames.
-- Track actual native and manual accessibility evidence in `docs/ACCEPTANCE_2.9.md`.
 
 ## 2.8 - 2026-09-12
 
 - Show current-file percentage and byte progress with separate processed/waiting counts that update during live queue edits.
 - Filter failed entries, requeue all failures and clear completed entries without deleting output files.
 - Keep file results in expandable queue rows and preserve the separate text result workflow.
-- Validate real Explorer drag/drop independently from native picker and queue automation; see `docs/ACCEPTANCE_2.8.md`.
+- Validate real Explorer drag/drop independently from native picker and queue automation.
 
 ## 2.7 - 2026-09-12
 
 - Add multi-file drag and drop, a native stack of queued files, a multi-select picker, duplicate suppression and per-file removal in the File and Base64 file workflows.
 - Keep the queue editable during processing: append files and remove pending items, show individual results, retry failed items, cancel safely and resume unfinished files without repeating successful work.
 - Add a bounded `file.batch` backend API for sequential AGV1 and Base64 processing, independent per-file failures, aggregate progress and cancellation results. Batches choose unused output names even when single-file overwrite is enabled.
-- Preserve AGV1, text workflows, settings storage and bilingual Windows controls. Local validation is recorded in `docs/ACCEPTANCE_2.7.md`.
+- Preserve AGV1, text workflows, settings storage and bilingual Windows controls.
 
 ## 2.6 - 2026-09-12
 
@@ -36,14 +35,13 @@
 - Preserve original CR/CRLF, Unicode and NUL in Web results, clipboard API arguments and result reuse through real Workers (#25).
 - Validate restored filenames before path joining and collision numbering, keeping successful AGV1/Base64 restore outputs inside the selected directory (#26).
 - Consume exactly one UTF-8 BOM on desktop import while preserving subsequent body U+FEFF characters and strict UTF-8/resource checks (#32).
-- Local validation and remaining gates are recorded in `docs/ACCEPTANCE_2.6.md`.
 
 ## 2.5 - 2026-09-05
 
 - Map malformed UTF-8 backend response lines and truncated UTF-8 at EOF to `ipc.invalid_response` at the reader boundary, retaining cancellation, response limits and process cleanup (#20).
 - Add executable IPC regressions for invalid bytes, invalid continuation sequences, truncated EOF and a valid non-BMP response split across the reader buffer with CRLF.
 - Revalidate the existing 2.2 repairs for changing Base64 input, malformed settings recovery and process-shared settings transactions (#9, #10, #11); no duplicate replacement of those working implementations.
-- Preserve 2.4 text budgets, output naming, AGV1 compatibility, settings schema and privacy preferences. Evidence and remaining gates are recorded in `docs/ACCEPTANCE_2.5.md`.
+- Preserve 2.4 text budgets, output naming, AGV1 compatibility, settings schema and privacy preferences.
 
 ## 2.4 - 2026-09-05
 
@@ -51,7 +49,7 @@
 - Bound backend response lines to 16 MiB, reject oversized forward or reverse results before expensive work where their decoded size is knowable, and retain complete ASCII, multibyte BMP and non-BMP Unicode roundtrips inside the contract (#12).
 - Insert collision numbers before the logical extension chain when creating `.agv` and `.b64` wrappers, so repeated outputs restore as `report (1).txt` instead of `report.txt (1)` without changing non-conflicting names or AGV1 contents (#13).
 - Replace target-derived temporary components with fixed 40-character CSPRNG names created through exclusive OS primitives in the destination directory. Atomic flush, overwrite/no-overwrite publication, cancellation/failure cleanup and platform-specific publish behavior remain intact (#14).
-- Add boundary, real-backend, linked-client, native workflow, race, long-component and cleanup regressions; pre-release local evidence is recorded in `docs/ACCEPTANCE_2.4.md`.
+- Add boundary, real-backend, linked-client, native workflow, race, long-component and cleanup regressions.
 
 ## 2.3 - 2026-09-05
 
@@ -60,7 +58,7 @@
 - Preserve a committed file result when the following recent-history update fails, times out or is cancelled, and report that secondary failure as a warning (#8).
 - Reject request IDs containing isolated Unicode surrogates before dispatch or settings side effects while retaining valid non-BMP Unicode IDs (#15).
 - Validate response version, progress and file-result numeric fields by JSON type and integer range; malformed fault-injection responses consistently return `ipc.invalid_response` instead of leaking `FormatException` (#16).
-- Add linked-source C# lifecycle/fault harnesses, real isolated Python protocol regressions and bilingual timeout/cleanup messages; retain detailed local evidence in `docs/ACCEPTANCE_2.3.md`.
+- Add linked-source C# lifecycle/fault harnesses, real isolated Python protocol regressions and bilingual timeout/cleanup messages.
 
 ## 2.2 - 2026-09-05
 
@@ -69,7 +67,7 @@
 - Serialize settings updates and recent-history changes across cooperating processes for the complete read-modify-save transaction; bound lock waits to five seconds, support cancellation and release locks on process exit (#11).
 - Add Chinese/English lock error messages and deterministic file, backend-process and settings-transaction regressions. Preserve AGV1, configuration fields and existing WinUI draft behavior.
 - Make packaged smoke use a fresh backend process per operation, matching the client protocol and avoiding a terminal-event/worker-exit race in the test harness.
-- Local validation and its remaining manual-test limits are recorded in `docs/ACCEPTANCE_2.2.md`; release artifacts are rebuilt and verified by the tag-bound Release workflow.
+- Release artifacts are rebuilt and verified by the tag-bound Release workflow.
 
 ## 2.1 - 2026-09-04
 
@@ -87,7 +85,6 @@
 - Restore Text, File, Base64 and Settings workflows, bilingual resources and native theme behavior.
 - Publish a self-contained x64 folder bundle, with Python and NuGet dependency evidence.
 - Adopt two-component product versions; retain four-component Windows PE versions.
-- Automated validation and user-reported manual acceptance are recorded in docs/UI_ACCEPTANCE.md.
 
 ## 1.2.0 - 2026-09-04
 

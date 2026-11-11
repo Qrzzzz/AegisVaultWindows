@@ -77,7 +77,7 @@ Desktop password fields no longer silently truncate long passwords. New encrypti
 
 Settings now state the actual queue output policy: single-file and multi-file queues preserve existing files by numbering conflicting names.
 
-See the [v2.10 release notes](./docs/releases/v2.10.md) and [acceptance record](./docs/ACCEPTANCE_2.10.md). AGV1, settings storage and the backend single-file overwrite API remain compatible. Earlier changes are in the [changelog](./CHANGELOG.md).
+See the [v2.10 release notes](./docs/releases/v2.10.md). AGV1, settings storage and the backend single-file overwrite API remain compatible. Earlier changes are in the [changelog](./CHANGELOG.md).
 
 <a id="features"></a>
 
@@ -252,7 +252,6 @@ See the complete [Security Model](./docs/SECURITY_MODEL.md). For vulnerability r
 | [Migration Guide](./docs/MIGRATION.md)               | Compatibility and migration boundaries      |
 | [QA Checklist](./docs/QA_CHECKLIST.md)               | Pre-release quality checks                  |
 | [Release Engineering](./docs/RELEASE_ENGINEERING.md) | Build and release engineering               |
-| [v2.10 Acceptance](./docs/ACCEPTANCE_2.10.md)          | Executed validation for the current release |
 
 <a id="development"></a>
 

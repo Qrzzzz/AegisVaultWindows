@@ -14,8 +14,8 @@
 - Expand/collapse per-file output details, copy all successful paths and check narrow light/English and dark/Chinese layouts. The separate text result editor must retain its existing import/copy/save/reuse behavior.
 
 Run source checks, actual packaged backend smoke and native UI automation before interactive sign-off.
-Do not label any unrun gate as passed. Current evidence is in [ACCEPTANCE_2.10.md](ACCEPTANCE_2.10.md);
-[UI_ACCEPTANCE.md](UI_ACCEPTANCE.md) retains the historical 2.1 UI evidence.
+Do not label any unrun gate as passed. Keep local validation output outside version control;
+record remote checks against the exact commit and release run.
 
 - Add several files with the native multi-select picker; verify duplicate suppression, per-item removal,
   independent result paths and byte-exact AGV1/Base64 batch round trips. Cover both UI languages and a narrow window.
